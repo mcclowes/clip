@@ -14,6 +14,7 @@ import { discover, executablePath, probeSchema } from './discovery.ts';
 import { catalog, registrySchema } from './registry.ts';
 import { contract } from './contract.ts';
 import { renderText } from './output.ts';
+import { runUi } from './ui.ts';
 
 try {
   const { positionals, values } = parseArgs({ allowPositionals: true, options: {
@@ -76,9 +77,12 @@ try {
       }
     }
   } else if (command === 'sync') result = syncSkills(readTools(), values['skills-dir'] ?? '.agents/skills');
+  else if (command === 'ui') await runUi({ input: process.stdin, output: process.stdout, skillsDir: values['skills-dir'] });
   else throw new Error(`Unknown command: ${command}`);
-  const json = values.output === 'json' || (values.output === 'auto' && !process.stdout.isTTY);
-  process.stdout.write((json ? JSON.stringify(result) : renderText(result)) + '\n');
+  if (command !== 'ui') {
+    const json = values.output === 'json' || (values.output === 'auto' && !process.stdout.isTTY);
+    process.stdout.write((json ? JSON.stringify(result) : renderText(result)) + '\n');
+  }
 } catch (error) {
   process.stderr.write(JSON.stringify({ error: { kind: 'invalid_request', message: error instanceof Error ? error.message : String(error) } }) + '\n');
   process.exitCode = 1;

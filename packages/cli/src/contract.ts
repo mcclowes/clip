@@ -17,6 +17,7 @@ export const contract = {
     { name: 'discover', description: 'List executables on PATH without running them.', mutating: false, args: [arg('query', 'Optional name filter.')] },
     { name: 'register', description: 'Register or update an installed tool. Probes execute only when explicitly requested.', mutating: true, args: [arg('executable', 'Executable name or path.', true), arg('--purpose', 'When agents should use this tool.', true), arg('--schema', 'Local JSON capability file.'), { ...arg('--probe', 'Run a native introspection command.'), enum: ['schema', 'capabilities'] }] },
     { name: 'list', description: 'List registered tools.', mutating: false, args: [] },
+    { name: 'ui', description: 'Manage registered tools and browse the registry in an interactive terminal.', mutating: true, args: [] },
     { name: 'remove', description: 'Remove a registration; run sync to clean generated skills.', mutating: true, args: [arg('name', 'Registered tool name.', true)] },
     { name: 'schema', description: 'Describe CLIP offline, or show a registered tool schema.', mutating: false, args: [arg('name', 'Optional registered tool name.')] },
     { name: 'capabilities', description: 'Alias for CLIP schema introspection.', mutating: false, args: [] },
