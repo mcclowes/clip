@@ -11,10 +11,11 @@
 # testing
 /coverage
 
-# next.js
+# generated site
+/.docusaurus/
+/build/
 /.next/
 /.vinext/
-/out/
 
 # misc
 .DS_Store
