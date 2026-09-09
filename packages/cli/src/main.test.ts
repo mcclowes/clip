@@ -31,6 +31,62 @@ test('register a tool, update its purpose, and generate a portable skill', t => 
   assert.equal(run('register', process.execPath, '--purpose', 'Run tests').status, 0);
 });
 
+test('refresh reloads a local schema and synchronizes its skill', t => {
+  const { dir, run, schema } = fixture(t);
+  assert.equal(run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema).status, 0);
+  writeFileSync(schema, JSON.stringify({ name: 'node', commands: [{ name: '--help', description: 'Show runtime help', mutating: false }] }));
+
+  const refreshed = run('refresh');
+
+  assert.equal(refreshed.status, 0, refreshed.stderr);
+  assert.deepEqual(JSON.parse(refreshed.stdout).refreshed, ['node']);
+  assert.match(readFileSync(join(dir, '.agents/skills/clip-node/SKILL.md'), 'utf8'), /--help/);
+  assert.equal(JSON.parse(run('list').stdout).items[0].schema.commands[0].name, '--help');
+});
+
+test('doctor reports schema drift without changing registrations or skills', t => {
+  const { dir, run, schema } = fixture(t);
+  assert.equal(run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema).status, 0);
+  const before = run('list').stdout;
+  writeFileSync(schema, JSON.stringify({ name: 'node', commands: [{ name: '--help', description: 'Show runtime help', mutating: false }] }));
+
+  const diagnosis = run('doctor');
+
+  assert.equal(diagnosis.status, 0, diagnosis.stderr);
+  assert.equal(JSON.parse(diagnosis.stdout).healthy, false);
+  assert.deepEqual(JSON.parse(diagnosis.stdout).items, [{ name: 'node', source: 'file', status: 'drifted' }]);
+  assert.equal(run('list').stdout, before);
+  assert.equal(existsSync(join(dir, '.agents/skills/clip-node')), false);
+});
+
+test('refresh reruns a registered native schema probe', t => {
+  const { dir, run } = fixture(t);
+  const executable = join(dir, 'native-tool');
+  const liveSchema = join(dir, 'native-schema.json');
+  writeFileSync(liveSchema, JSON.stringify({ name: 'native', commands: [{ name: 'old', description: 'Old command' }] }));
+  writeFileSync(executable, `#!${process.execPath}\nprocess.stdout.write(require('node:fs').readFileSync(${JSON.stringify(liveSchema)}, 'utf8'));`, { mode: 0o755 });
+  assert.equal(run('register', executable, '--purpose', 'Test native refresh', '--probe', 'schema').status, 0);
+  writeFileSync(liveSchema, JSON.stringify({ name: 'native', commands: [{ name: 'new', description: 'New command' }] }));
+
+  const refreshed = run('refresh');
+
+  assert.equal(refreshed.status, 0, refreshed.stderr);
+  assert.match(readFileSync(join(dir, '.agents/skills/clip-native/SKILL.md'), 'utf8'), /new/);
+});
+
+test('refresh rejects a source schema for a different tool without changing state', t => {
+  const { run, schema } = fixture(t);
+  assert.equal(run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema).status, 0);
+  const before = run('list').stdout;
+  writeFileSync(schema, JSON.stringify({ name: 'other', commands: [{ name: 'run', description: 'Run something' }] }));
+
+  const refreshed = run('refresh');
+
+  assert.equal(refreshed.status, 1);
+  assert.match(JSON.parse(refreshed.stderr).error.message, /expected node, received other/);
+  assert.equal(run('list').stdout, before);
+});
+
 test('project registrations override shared and global tools', t => {
   const { dir, run } = fixture(t);
   mkdirSync(join(dir, '.git'));

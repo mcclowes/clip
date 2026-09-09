@@ -15,7 +15,7 @@ CLIP makes installed CLI tools discoverable to people and agents through portabl
 
 ## Commands
 
-`clip discover [query]`, `clip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities] [--scope local|shared|global]`, `clip list`, `clip remove <name> [--scope local|shared|global]`, `clip schema`, `clip capabilities`, `clip schema show <id>`, `clip schema init <name> --purpose <text> --file <path>`, `clip sync [--skills-dir <path>]`, `clip registry search [query]`, and `clip registry add <id> --purpose <text> [--scope local|shared|global]`.
+`clip discover [query]`, `clip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities] [--scope local|shared|global]`, `clip list`, `clip remove <name> [--scope local|shared|global]`, `clip schema`, `clip capabilities`, `clip schema show <id>`, `clip schema init <name> --purpose <text> --file <path>`, `clip sync [--skills-dir <path>]`, `clip refresh [--skills-dir <path>]`, `clip doctor`, `clip registry search [query]`, and `clip registry add <id> --purpose <text> [--scope local|shared|global]`.
 
 All commands accept `--output auto|json|text`. Non-TTY output defaults to JSON. Errors are structured on stderr. Schema and capabilities work without configuration or network. Registry additions use the bundled catalog, which updates with CLIP releases; community contributions go through GitHub pull requests.
 
@@ -28,6 +28,8 @@ Registry entries include a stable ID, purpose, executable, upstream URL, maintai
 ## Boundaries
 
 No MCP server, command proxy, credentials store, remote code execution, telemetry, or automatic package installation. Probing is explicit, shell-free, bounded, and timed out. Generated skills are guidance, not authorization. CLIP owns only skill directories it generated, refuses collisions, and removes stale owned skills on sync. Configuration writes use a lock and atomic replacement.
+
+Refresh reloads file schemas, reruns explicitly registered native probes, adopts bundled registry updates, persists validated registrations, and synchronizes generated skills. It rejects schema name changes. Doctor performs the same source checks without writing configuration or skills, and reports missing executables, drift, source errors, and manual registrations that cannot be refreshed.
 
 ## Validation
 

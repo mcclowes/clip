@@ -15,6 +15,7 @@ import { catalog, registrySchema } from './registry.ts';
 import { contract } from './contract.ts';
 import { renderText } from './output.ts';
 import { runUi } from './ui.ts';
+import { diagnoseRegistration, refreshRegistration } from './refresh.ts';
 
 try {
   const { positionals, values } = parseArgs({ allowPositionals: true, options: {
@@ -29,7 +30,7 @@ try {
   const limit = Number(values.limit);
   if (!Number.isInteger(limit) || limit < 1 || limit > 10000) throw new Error('--limit must be an integer from 1 to 10000.');
   const [command = 'help', name, id] = positionals;
-  const maxArgs = ['registry', 'schema'].includes(command) ? 3 : ['list', 'sync', 'ui', 'capabilities', 'help'].includes(command) ? 1 : 2;
+  const maxArgs = ['registry', 'schema'].includes(command) ? 3 : ['list', 'sync', 'refresh', 'doctor', 'ui', 'capabilities', 'help'].includes(command) ? 1 : 2;
   if (positionals.length > maxArgs) throw new Error('Unexpected positional arguments. Run clip --help.');
   let result: unknown;
   if (values.version) result = { name: 'clip', version: contract.version };
@@ -81,6 +82,19 @@ try {
       result = registration;
     }
   } else if (command === 'sync') result = syncSkills(readTools(), values['skills-dir'] ?? '.agents/skills');
+  else if (command === 'refresh') {
+    const refreshed = readTools().map(refreshRegistration);
+    for (const targetScope of ['global', 'shared', 'local'] as const) {
+      const replacements = refreshed.filter(tool => tool.scope === targetScope);
+      if (replacements.length) updateTools(tools => tools.map(tool => replacements.find(item => item.name === tool.name) ?? tool), targetScope);
+    }
+    const synced = syncSkills(readTools(), values['skills-dir'] ?? '.agents/skills');
+    result = { refreshed: refreshed.filter(tool => tool.source.kind !== 'manual').map(tool => tool.name), skipped: refreshed.filter(tool => tool.source.kind === 'manual').map(tool => tool.name), ...synced };
+  }
+  else if (command === 'doctor') {
+    const items = readTools().map(diagnoseRegistration);
+    result = { healthy: items.every(item => ['current', 'unrefreshable'].includes(item.status)), items };
+  }
   else if (command === 'ui') await runUi({ input: process.stdin, output: process.stdout, skillsDir: values['skills-dir'], scope });
   else throw new Error(`Unknown command: ${command}`);
   if (command !== 'ui') {

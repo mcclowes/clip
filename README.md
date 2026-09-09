@@ -63,6 +63,8 @@ Use `clip list` and `clip remove mytool` to maintain registrations. Inside a Git
 
 Run `clip sync` after changes. Set `--skills-dir` to your agent's skills directory. CLIP refuses to replace unowned skill directories; generated files should be edited through their source schemas.
 
+After updating registered tools or CLIP's bundled registry, run `clip doctor` to check for missing executables and schema drift. Run `clip refresh` to reload file, native-probe, and registry schemas, update registrations, and synchronize skills. Manual registrations have no schema source to refresh. Native diagnosis and refresh rerun the explicitly registered, bounded probe command.
+
 ## CLI behavior
 
 - `clip schema` and `clip capabilities` describe CLIP offline without configuration.
@@ -71,7 +73,7 @@ Run `clip sync` after changes. Set `--skills-dir` to your agent's skills directo
 - Failures exit 1 and write a structured error to stderr.
 - Discovery scans PATH without executing tools. Native probing is explicit, shell-free, and bounded to five seconds and 1 MiB.
 - Registrations merge from global, shared project, and local project configuration. `CLIP_HOME` changes the global directory.
-- The first release bundles the community registry. Upgrade CLIP, add the schema again, and sync to adopt an update. Local schema files can be updated independently.
+- The first release bundles the community registry. Upgrade CLIP, then run `clip refresh` to adopt catalog updates. Local schema files and native probes use the same refresh workflow.
 
 ## Development
 

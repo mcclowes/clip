@@ -25,6 +25,8 @@ export const contract = {
     { name: 'schema show', description: 'Inspect a community schema and its provenance.', mutating: false, args: [arg('id', 'Registry entry ID.', true)] },
     { name: 'schema init', description: 'Write an editable draft schema without overwriting an existing file.', mutating: true, args: [arg('name', 'Tool name.', true), arg('--purpose', 'Tool purpose.', true), arg('--file', 'New JSON file path.', true)] },
     { name: 'sync', description: 'Create or refresh owned skills, and remove stale owned skills.', mutating: true, args: [arg('--skills-dir', 'Destination directory; defaults to .agents/skills.')] },
+    { name: 'refresh', description: 'Reload registered schemas from their sources, then synchronize skills.', mutating: true, args: [arg('--skills-dir', 'Destination directory; defaults to .agents/skills.')] },
+    { name: 'doctor', description: 'Check executables and registered schema sources for drift without changing files.', mutating: false, args: [] },
     { name: 'registry search', description: 'Search the bundled, versioned community catalog.', mutating: false, args: [arg('query', 'Optional search text.')] },
     { name: 'registry add', description: 'Add an installed executable to CLIP with a verified community schema. Does not install or run the executable.', mutating: true, args: [arg('id', 'Registry entry ID.', true), arg('--purpose', 'When agents should use this tool.', true)] },
   ],

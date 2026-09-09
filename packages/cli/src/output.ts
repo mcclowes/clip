@@ -7,7 +7,7 @@ export function renderText(result: any): string {
   ].join('\n');
   if (result.version && result.name === 'clip' && !result.commands) return `clip ${result.version}`;
   if (result.items) {
-    const lines = result.items.map((item: any) => typeof item === 'string' ? item : `${item.id ?? item.name}${item.scope ? ` [${item.scope}]` : ''}\t${item.purpose ?? item.executable ?? ''}`);
+    const lines = result.items.map((item: any) => typeof item === 'string' ? item : `${item.id ?? item.name}${item.scope ? ` [${item.scope}]` : ''}\t${item.purpose ?? item.executable ?? item.status ?? ''}${item.message ? `: ${item.message}` : ''}`);
     if (!lines.length) lines.push('No results.');
     if (result.truncated) lines.push(`Showing ${result.items.length} of ${result.total}; increase --limit for more.`);
     if (result.directory) lines.push(`Skills: ${result.directory}`);
