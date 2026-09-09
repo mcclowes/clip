@@ -28,22 +28,22 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         </a>
         <header className="nav">
           <Link href="/" className="brand">
-            <span className="brand-mark">&gt;_</span> CLIP
+            <span className="brand-mark">./</span> clip
           </Link>
           <nav aria-label="Main navigation">
-            <Link href="/tools">Directory</Link>
-            <Link href="/docs">Docs</Link>
-            <a href="https://github.com/mcclowes/clip">GitHub ↗</a>
+            <Link href="/tools">[ tools ]</Link>
+            <Link href="/docs">[ docs ]</Link>
+            <a href="https://github.com/mcclowes/clip">[ source ↗ ]</a>
           </nav>
-          <span className="nav-note">Built for the command line</span>
+          <span className="nav-note"><i /> system online</span>
         </header>
         <div id="content">{children}</div>
         <footer>
           <Link href="/" className="brand">
-            &gt;_ CLIP
+            ./clip
           </Link>
-          <p>One interface. Shared capabilities.</p>
-          <a href="https://clispec.dev/spec/v0.2/">Built on CLI Spec principles ↗</a>
+          <p>one interface / shared capabilities</p>
+          <a href="https://clispec.dev/spec/v0.2/">CLI Spec principles ↗</a>
         </footer>
       </body>
     </html>
