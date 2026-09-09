@@ -5,25 +5,31 @@
  * ---
  */
 import { parseArgs } from 'node:util';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { validateSchema, toolName } from './schema.ts';
 import { readTools, updateTools, type Registration } from './store.ts';
 import { syncSkills } from './skills.ts';
 import { discover, executablePath, probeSchema } from './discovery.ts';
+import { catalog, registrySchema } from './registry.ts';
+import { contract } from './contract.ts';
 
 try {
   const { positionals, values } = parseArgs({ allowPositionals: true, options: {
     purpose: { type: 'string' }, schema: { type: 'string' }, 'skills-dir': { type: 'string' },
     probe: { type: 'string' }, limit: { type: 'string', default: '100' },
+    file: { type: 'string' }, version: { type: 'boolean' },
     output: { type: 'string', short: 'o', default: 'auto' }, help: { type: 'boolean', short: 'h' },
   } });
   if (!['auto', 'json', 'text'].includes(values.output!)) throw new Error('Output must be auto, json, or text.');
   const limit = Number(values.limit);
   if (!Number.isInteger(limit) || limit < 1 || limit > 10000) throw new Error('--limit must be an integer from 1 to 10000.');
-  const [command = 'help', name] = positionals;
+  const [command = 'help', name, id] = positionals;
+  const maxArgs = command === 'registry' ? 3 : ['list', 'sync', 'capabilities', 'help'].includes(command) ? 1 : 2;
+  if (positionals.length > maxArgs) throw new Error('Unexpected positional arguments. Run clip --help.');
   let result: unknown;
-  if (values.help || command === 'help') result = { name: 'clip', description: 'Command Line Interface Protocol', commands: ['register <executable> --purpose <text> [--schema <file>]', 'list', 'schema <name>', 'sync [--skills-dir <path>]'] };
+  if (values.version) result = { name: 'clip', version: contract.version };
+  else if (values.help || command === 'help' || command === 'capabilities' || (command === 'schema' && !name)) result = contract;
   else if (command === 'register') {
     if (!name || !values.purpose?.trim()) throw new Error('register requires an executable and --purpose.');
     const executable = executablePath(name);
@@ -39,6 +45,32 @@ try {
     const tool = readTools().find(tool => tool.name === name);
     if (!tool?.schema) throw new Error(`No schema registered for ${name}.`);
     result = tool.schema;
+  } else if (command === 'remove') {
+    if (!name) throw new Error('remove requires a registered tool name.');
+    updateTools(tools => tools.filter(tool => tool.name !== name));
+    result = { removed: name };
+  } else if (command === 'schema-init') {
+    if (!name || !values.purpose?.trim() || !values.file) throw new Error('schema-init requires a name, --purpose, and --file.');
+    const schema = { name: toolName(name), description: values.purpose, commands: [] };
+    writeFileSync(values.file, JSON.stringify(schema, null, 2) + '\n', { flag: 'wx' });
+    result = { file: resolve(values.file), next: 'Add command names, descriptions, arguments, and mutation markers before registering this draft.' };
+  } else if (command === 'registry') {
+    if (name === 'search') {
+      const items = catalog().filter(item => `${item.id} ${item.name} ${item.purpose} ${item.category}`.toLowerCase().includes((id ?? '').toLowerCase()));
+      result = { items: items.slice(0, limit), total: items.length, truncated: items.length > limit };
+    } else {
+      if (!['show', 'install'].includes(name ?? '')) throw new Error('Use registry search, show, or install.');
+      const entry = catalog().find(item => item.id === id);
+      if (!entry) throw new Error(`Unknown registry entry: ${id}`);
+      const schema = registrySchema(entry);
+      if (name === 'show') result = { ...entry, capabilities: schema };
+      else {
+        if (!values.purpose?.trim()) throw new Error('registry install requires --purpose.');
+        const registration: Registration = { name: schema.name, executable: executablePath(entry.executable), purpose: values.purpose, schema, source: { kind: 'registry', id: entry.id, version: entry.version, maintainer: entry.maintainer, sha256: entry.sha256 } };
+        updateTools(tools => [...tools.filter(tool => tool.name !== registration.name), registration]);
+        result = registration;
+      }
+    }
   } else if (command === 'sync') result = syncSkills(readTools(), values['skills-dir'] ?? '.agents/skills');
   else throw new Error(`Unknown command: ${command}`);
   const json = values.output === 'json' || (values.output === 'auto' && !process.stdout.isTTY);

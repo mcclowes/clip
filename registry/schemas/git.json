@@ -1,0 +1,12 @@
+{
+  "name": "git",
+  "version": "2.x",
+  "description": "Selected inspection commands for Git repositories. This is a partial community schema, not a CLI Spec conformance claim.",
+  "command_layout": "flat",
+  "output": { "tty": "text", "piped": "text" },
+  "global_args": [{ "name": "--no-optional-locks", "type": "boolean", "description": "Disable optional operations that require locks; use for status inspection." }],
+  "commands": [
+    { "name": "status", "description": "Inspect staged, unstaged, and untracked changes. Use --no-optional-locks to avoid the optional index refresh.", "args": [{ "name": "--porcelain", "type": "string", "enum": ["v1", "v2"], "description": "Stable machine-readable text output." }], "examples": ["git --no-optional-locks status --porcelain=v1"], "output_fields": [{ "name": "stdout", "type": "string", "description": "Porcelain status records, not JSON." }] },
+    { "name": "log", "description": "Inspect commit history. Bound results with -n and disable pagers for unattended use.", "args": [{ "name": "-n", "type": "integer", "description": "Maximum number of commits." }], "examples": ["git --no-pager log -n 10 --oneline"] }
+  ]
+}

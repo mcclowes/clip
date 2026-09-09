@@ -46,3 +46,17 @@ test('probe capabilities explicitly, preserve nested contracts, and discover wit
   assert.equal(run('sync').status, 0);
   assert.match(readFileSync(join(dir, '.agents/skills/clip-fixture/SKILL.md'), 'utf8'), /project list/);
 });
+
+test('install a community schema without running its executable, and expose offline introspection', t => {
+  const { dir, run } = fixture(t);
+  const search = run('registry', 'search', 'git');
+  assert.equal(search.status, 0, search.stderr);
+  assert.ok(JSON.parse(search.stdout).items.some((item: any) => item.id === 'git'));
+  const installed = run('registry', 'install', 'git', '--purpose', 'Review changes');
+  assert.equal(installed.status, 0, installed.stderr);
+  assert.equal(JSON.parse(installed.stdout).source.kind, 'registry');
+  assert.equal(run('sync').status, 0);
+  assert.match(readFileSync(join(dir, '.agents/skills/clip-git/SKILL.md'), 'utf8'), /Review changes/);
+  assert.equal(JSON.parse(run('schema').stdout).name, 'clip');
+  assert.ok(JSON.parse(run('capabilities').stdout).commands.some((c: any) => c.name === 'register'));
+});
