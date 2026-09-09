@@ -7,6 +7,7 @@ import { accessSync, constants, readdirSync, statSync } from 'node:fs';
 import { delimiter, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { validateSchema } from './schema.ts';
+import { page } from './output.ts';
 
 export function executablePath(command: string): string {
   for (const path of command.includes('/') ? [resolve(command)] : (process.env.PATH ?? '').split(delimiter).filter(Boolean).map(dir => resolve(dir, command))) {
@@ -27,8 +28,7 @@ export function discover(query = '', limit = 100) {
       } catch {}
     }
   }
-  const items = [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
-  return { items: items.slice(0, limit), total: items.length, truncated: items.length > limit };
+  return page([...found.values()].sort((a, b) => a.name.localeCompare(b.name)), limit);
 }
 export function probeSchema(executable: string, command: string) {
   if (!['schema', 'capabilities'].includes(command)) throw new Error('--probe must be schema or capabilities.');

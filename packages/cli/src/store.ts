@@ -9,6 +9,8 @@ import { homedir } from 'node:os';
 import { toolName, validateSchema, type Schema } from './schema.ts';
 
 export type Scope = 'global' | 'shared' | 'local';
+/** Precedence order: later scopes override earlier ones. */
+export const scopes = ['global', 'shared', 'local'] as const satisfies readonly Scope[];
 export type Registration = { name: string; executable: string; purpose: string; schema?: Schema; source: Record<string, string>; scope?: Scope };
 type ToolDocument = { version: 1; tools: Registration[]; disabled?: string[] };
 export const configDir = () => process.env.CLIP_HOME ?? join(homedir(), '.config', 'clip');
@@ -44,7 +46,7 @@ function readDocument(path: string): ToolDocument {
 }
 export function readTools(cwd = process.cwd()): Registration[] {
   const merged = new Map<string, Registration>();
-  for (const scope of ['global', 'shared', 'local'] as const) {
+  for (const scope of scopes) {
     if (scope !== 'global' && !projectRoot(cwd)) continue;
     const document = readDocument(configPath(scope, cwd));
     for (const name of document.disabled ?? []) merged.delete(name);
@@ -79,6 +81,10 @@ export function updateTools(change: (tools: Registration[]) => Registration[], s
     const disabled = (current.disabled ?? []).filter(name => !names.has(name));
     return { version: 1, tools, ...(disabled.length ? { disabled } : {}) };
   }, scope, cwd).tools;
+}
+export function upsertTool(registration: Registration, scope = defaultScope(), cwd = process.cwd()): Registration {
+  updateTools(tools => [...tools.filter(tool => tool.name !== registration.name), registration], scope, cwd);
+  return registration;
 }
 export function removeTool(name: string, scope = defaultScope(), cwd = process.cwd()): void {
   updateDocument(current => {

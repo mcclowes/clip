@@ -1,130 +1,149 @@
 /**
  * ---
- * purpose: Provide the interactive terminal interface for browsing and managing CLIP tools.
+ * purpose: Own interactive UI state and key handling for browsing and managing CLIP tools.
  * related:
+ *   - ./screen.ts - Renders this state as terminal text.
  *   - ./store.ts - Reads and changes registered tools.
  *   - ./registry.ts - Supplies installable registry entries.
  *   - ./skills.ts - Synchronizes registrations into agent skills.
  * ---
  */
 import type { Readable, Writable } from 'node:stream';
-import { catalog, registrySchema, type Entry } from './registry.ts';
-import { executablePath } from './discovery.ts';
-import { readTools, removeTool, updateTools, type Registration, type Scope } from './store.ts';
-import { syncSkills } from './skills.ts';
+import { catalog, registryRegistration, type Entry } from './registry.ts';
+import { readTools, removeTool, upsertTool, type Registration, type Scope } from './store.ts';
+import { defaultSkillsDir, syncSkills } from './skills.ts';
+import { renderScreen, type Item, type Mode, type Tab } from './screen.ts';
 
 type Input = Readable & { isTTY?: boolean; setRawMode?: (value: boolean) => void; resume(): void };
 type Output = Writable & { isTTY?: boolean; columns?: number; rows?: number };
 type Terminal = { input: Input; output: Output; skillsDir?: string; scope?: Scope };
-type Tab = 'registered' | 'registry';
-type Mode = 'browse' | 'search' | 'purpose' | 'remove';
 
-const clear = '\x1b[2J\x1b[H';
-const selected = '\x1b[7m';
-const reset = '\x1b[0m';
+const keys = { escape: '\x1b', enter: '\r', newline: '\n', backspace: '\x7f', interrupt: '\x03', tab: '\t', up: '\x1b[A', down: '\x1b[B' };
+const keyPattern = /\x1b\[[AB]|[\s\S]/g;
+const enterAlternateScreen = '\x1b[?1049h\x1b[?25l';
+const leaveAlternateScreen = '\x1b[?25h\x1b[?1049l';
 
-export async function runUi({ input, output, skillsDir = '.agents/skills', scope }: Terminal): Promise<void> {
+type State = {
+  tab: Tab; mode: Mode; index: number; query: string; draft: string; notice: string;
+  tools: Registration[]; entries: Entry[]; skillsDir: string; scope?: Scope;
+};
+type Outcome = 'quit' | void;
+
+export async function runUi({ input, output, skillsDir = defaultSkillsDir, scope }: Terminal): Promise<void> {
   if (!input.isTTY || !output.isTTY || !input.setRawMode) throw new Error('clip ui requires an interactive terminal.');
-  let tab: Tab = 'registered';
-  let mode: Mode = 'browse';
-  let index = 0;
-  let query = '';
-  let draft = '';
-  let notice = '';
-  let tools = readTools();
-  const entries = catalog();
-
-  const items = (): Array<Registration | Entry> => {
-    const source = tab === 'registered' ? tools : entries;
-    const needle = query.toLowerCase();
-    return needle ? source.filter(item => `${item.name} ${item.purpose}`.toLowerCase().includes(needle)) : source;
+  const state: State = {
+    tab: 'registered', mode: 'browse', index: 0, query: '', draft: '', notice: '',
+    tools: readTools(), entries: catalog(), skillsDir, scope,
   };
-  const current = () => items()[Math.min(index, Math.max(items().length - 1, 0))];
-  const render = () => {
-    const width = Math.max(50, output.columns ?? 80);
-    const height = Math.max(12, output.rows ?? 24);
-    const pageSize = Math.max(1, height - 12);
-    const offset = Math.max(0, Math.min(index, Math.max(items().length - pageSize, 0)));
-    const visible = items().slice(offset, offset + pageSize);
-    const active = current();
-    const lines = [
-      ' CLIP',
-      ` ${tab === 'registered' ? `${selected} Registered ${reset}` : ' Registered '}  ${tab === 'registry' ? `${selected} Registry ${reset}` : ' Registry '}`,
-      ` ${mode === 'search' ? `Search: ${draft}_` : query ? `Search: ${query}` : ''}`,
-      ' ' + '─'.repeat(width - 2),
-      ...visible.map((item, itemIndex) => ` ${itemIndex + offset === index ? selected : ''}${item.name.padEnd(20)} ${item.purpose.slice(0, width - 25)}${itemIndex + offset === index ? reset : ''}`),
-      ...(visible.length ? [] : [' No tools found.']),
-      '',
-      ...(active ? [` ${active.name}`, ` ${active.purpose}`, ` ${'category' in active ? active.category + ' · ' + active.coverage : active.executable}`] : []),
-      ...(mode === 'purpose' ? ['', ` Purpose: ${draft}_`] : []),
-      ...(mode === 'remove' ? ['', ` Remove ${active?.name}? [y/N]`] : []),
-      ...(notice ? ['', ` ${notice}`] : []),
-      '',
-      mode === 'browse'
-        ? ` ↑↓ Move  Tab Switch  / Search  ${tab === 'registry' ? 'Enter Install' : 'd Remove'}  s Sync  q Quit`
-        : ' Enter Confirm  Esc Cancel',
-    ];
-    output.write(clear + lines.slice(0, height).join('\n'));
-  };
-
-  const setNotice = (message: string) => { notice = message; mode = 'browse'; draft = ''; };
-  const install = () => {
-    const entry = current() as Entry | undefined;
-    if (!entry || !draft.trim()) return;
-    const schema = registrySchema(entry);
-    const registration: Registration = {
-      name: schema.name,
-      executable: executablePath(entry.executable),
-      purpose: draft.trim(),
-      schema,
-      source: { kind: 'registry', id: entry.id, version: entry.version, maintainer: entry.maintainer, sha256: entry.sha256 },
-    };
-    updateTools(existing => [...existing.filter(tool => tool.name !== registration.name), registration], scope);
-    tools = readTools();
-    setNotice(`Installed ${entry.name}.`);
-  };
+  const render = () => output.write(renderScreen({ ...state, items: items(state), columns: output.columns, rows: output.rows }));
 
   input.setEncoding('utf8');
   input.setRawMode(true);
   input.resume();
-  output.write('\x1b[?1049h\x1b[?25l');
+  output.write(enterAlternateScreen);
   render();
   try {
-    outer: for await (const chunk of input) {
-      const keys = String(chunk).match(/\x1b\[[AB]|[\s\S]/g) ?? [];
-      for (const key of keys) {
+    for await (const chunk of input) {
+      for (const key of String(chunk).match(keyPattern) ?? []) {
+        let outcome: Outcome = undefined;
         try {
-          if (mode === 'browse') {
-            if (key === 'q' || key === '\x03') break outer;
-            if (key === '\t') { tab = tab === 'registered' ? 'registry' : 'registered'; index = 0; query = ''; notice = ''; }
-            else if (key === '\x1b[A' || key === 'k') index = Math.max(0, index - 1);
-            else if (key === '\x1b[B' || key === 'j') index = Math.min(Math.max(items().length - 1, 0), index + 1);
-            else if (key === '/') { mode = 'search'; draft = query; notice = ''; }
-            else if ((key === '\r' || key === '\n') && tab === 'registry' && current()) { mode = 'purpose'; draft = (current() as Entry).purpose; notice = ''; }
-            else if (key === 'd' && tab === 'registered' && current()) { mode = 'remove'; notice = ''; }
-            else if (key === 's') { const result = syncSkills(tools, skillsDir); setNotice(`Synced ${result.items.length} skill${result.items.length === 1 ? '' : 's'} to ${result.directory}.`); }
-          } else if (key === '\x1b') { mode = 'browse'; draft = ''; }
-          else if (mode === 'remove') {
-            if (key.toLowerCase() === 'y') {
-              const name = current()!.name;
-              removeTool(name, scope);
-              tools = readTools();
-              index = Math.min(index, Math.max(tools.length - 1, 0));
-              setNotice(`Removed ${name}. Run sync to remove its generated skill.`);
-            } else if (key.toLowerCase() === 'n' || key === '\r' || key === '\n') mode = 'browse';
-          } else if (key === '\r' || key === '\n') {
-            if (mode === 'search') { query = draft; index = 0; mode = 'browse'; }
-            else install();
-          } else if (key === '\x7f') draft = draft.slice(0, -1);
-          else if (key >= ' ' && key !== '\x7f') draft += key;
+          outcome = handleKey(state, key);
         } catch (error) {
-          setNotice(error instanceof Error ? error.message : String(error));
+          setNotice(state, error instanceof Error ? error.message : String(error));
         }
         render();
+        if (outcome === 'quit') return;
       }
     }
   } finally {
     input.setRawMode(false);
-    output.write('\x1b[?25h\x1b[?1049l');
+    output.write(leaveAlternateScreen);
   }
+}
+
+function items(state: State): Item[] {
+  const source: Item[] = state.tab === 'registered' ? state.tools : state.entries;
+  const needle = state.query.toLowerCase();
+  return needle ? source.filter(item => `${item.name} ${item.purpose}`.toLowerCase().includes(needle)) : source;
+}
+
+function current(state: State): Item | undefined {
+  const visible = items(state);
+  return visible[Math.min(state.index, Math.max(visible.length - 1, 0))];
+}
+
+function setNotice(state: State, message: string): void {
+  state.notice = message;
+  state.mode = 'browse';
+  state.draft = '';
+}
+
+function handleKey(state: State, key: string): Outcome {
+  if (state.mode === 'browse') return handleBrowse(state, key);
+  if (key === keys.escape) {
+    state.mode = 'browse';
+    state.draft = '';
+    return;
+  }
+  if (state.mode === 'remove') return handleRemove(state, key);
+  return handleTextEntry(state, key);
+}
+
+function handleBrowse(state: State, key: string): Outcome {
+  const active = current(state);
+  const isEnter = key === keys.enter || key === keys.newline;
+  if (key === 'q' || key === keys.interrupt) return 'quit';
+  if (key === keys.tab) {
+    state.tab = state.tab === 'registered' ? 'registry' : 'registered';
+    state.index = 0;
+    state.query = '';
+    state.notice = '';
+  } else if (key === keys.up || key === 'k') state.index = Math.max(0, state.index - 1);
+  else if (key === keys.down || key === 'j') state.index = Math.min(Math.max(items(state).length - 1, 0), state.index + 1);
+  else if (key === '/') startPrompt(state, 'search', state.query);
+  else if (isEnter && state.tab === 'registry' && active) startPrompt(state, 'purpose', (active as Entry).purpose);
+  else if (key === 'd' && state.tab === 'registered' && active) {
+    state.mode = 'remove';
+    state.notice = '';
+  } else if (key === 's') sync(state);
+}
+
+function startPrompt(state: State, mode: Mode, draft: string): void {
+  state.mode = mode;
+  state.draft = draft;
+  state.notice = '';
+}
+
+function handleRemove(state: State, key: string): void {
+  if (key.toLowerCase() === 'y') {
+    const name = current(state)!.name;
+    removeTool(name, state.scope);
+    state.tools = readTools();
+    state.index = Math.min(state.index, Math.max(state.tools.length - 1, 0));
+    setNotice(state, `Removed ${name}. Run sync to remove its generated skill.`);
+  } else if (key.toLowerCase() === 'n' || key === keys.enter || key === keys.newline) state.mode = 'browse';
+}
+
+function handleTextEntry(state: State, key: string): void {
+  if (key === keys.enter || key === keys.newline) {
+    if (state.mode === 'search') {
+      state.query = state.draft;
+      state.index = 0;
+      state.mode = 'browse';
+    } else install(state);
+  } else if (key === keys.backspace) state.draft = state.draft.slice(0, -1);
+  else if (key >= ' ') state.draft += key;
+}
+
+function install(state: State): void {
+  const entry = current(state) as Entry | undefined;
+  if (!entry || !state.draft.trim()) return;
+  upsertTool(registryRegistration(entry, state.draft.trim(), state.scope ?? 'global'), state.scope);
+  state.tools = readTools();
+  setNotice(state, `Installed ${entry.name}.`);
+}
+
+function sync(state: State): void {
+  const result = syncSkills(state.tools, state.skillsDir);
+  setNotice(state, `Synced ${result.items.length} skill${result.items.length === 1 ? '' : 's'} to ${result.directory}.`);
 }

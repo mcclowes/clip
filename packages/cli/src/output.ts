@@ -1,4 +1,12 @@
+/**
+ * ---
+ * purpose: Shape command results for agents (paged JSON) and people (text).
+ * ---
+ */
 import { contract } from './contract.ts';
+export function page<T>(items: T[], limit: number) {
+  return { items: items.slice(0, limit), total: items.length, truncated: items.length > limit };
+}
 export function renderText(result: any): string {
   if (result === contract) return [
     `CLIP ${contract.version} — Command Line Interface Protocol`, '',
