@@ -60,3 +60,28 @@ test('install a community schema without running its executable, and expose offl
   assert.equal(JSON.parse(run('schema').stdout).name, 'clip');
   assert.ok(JSON.parse(run('capabilities').stdout).commands.some((c: any) => c.name === 'register'));
 });
+
+test('reject invalid documents, preserve user skills, and remove stale owned skills', t => {
+  const { dir, run, schema } = fixture(t);
+  writeFileSync(schema, JSON.stringify({ name: '../escape', commands: [{ name: 'x', description: 'x' }] }));
+  const invalid = run('register', process.execPath, '--purpose', 'Test', '--schema', schema);
+  assert.equal(invalid.status, 1);
+  assert.equal(invalid.stdout, '');
+  assert.equal(JSON.parse(invalid.stderr).error.kind, 'invalid_request');
+  assert.equal(JSON.parse(run('list').stdout).items.length, 0);
+  assert.equal(run('register', process.execPath, '--purpose', 'Run scripts').status, 0);
+  const skillDir = join(dir, '.agents/skills/clip-node');
+  mkdirSync(skillDir, { recursive: true });
+  writeFileSync(join(skillDir, 'SKILL.md'), 'User content');
+  assert.equal(run('sync').status, 1);
+  assert.equal(readFileSync(join(skillDir, 'SKILL.md'), 'utf8'), 'User content');
+  const owned = join(dir, 'owned');
+  assert.equal(run('sync', '--skills-dir', owned).status, 0);
+  assert.equal(run('remove', 'node').status, 0);
+  assert.equal(run('remove', 'node').status, 0);
+  assert.equal(run('sync', '--skills-dir', owned).status, 0);
+  assert.equal(existsSync(join(owned, 'clip-node')), false);
+  assert.equal(run('schema-init', 'sample', '--purpose', 'Test', '--file', 'draft.json').status, 0);
+  assert.equal(run('schema-init', 'sample', '--purpose', 'Test', '--file', 'draft.json').status, 1);
+  assert.equal(run('register', process.execPath, '--purpose', 'Test', '--schema', 'draft.json').status, 1);
+});
