@@ -1,0 +1,217 @@
+[
+  {
+    "id": "git",
+    "name": "Git",
+    "executable": "git",
+    "purpose": "Inspect repository changes and commit history",
+    "category": "Development",
+    "maintainer": "mcclowes",
+    "version": "1.0.0",
+    "upstream": "https://git-scm.com/",
+    "documentation": "https://git-scm.com/docs/git-status",
+    "schema": "schemas/git.json",
+    "sha256": "45ca722b00853421c59258363fe669a991695c125f7cfd5ce109254ea9d708e9",
+    "coverage": "Selected inspection commands",
+    "capabilities": {
+      "name": "git",
+      "version": "2.x",
+      "description": "Selected inspection commands for Git repositories. This is a partial community schema, not a CLI Spec conformance claim.",
+      "command_layout": "flat",
+      "output": {
+        "tty": "text",
+        "piped": "text"
+      },
+      "global_args": [
+        {
+          "name": "--no-optional-locks",
+          "type": "boolean",
+          "description": "Disable optional operations that require locks; use for status inspection."
+        }
+      ],
+      "commands": [
+        {
+          "name": "status",
+          "description": "Inspect staged, unstaged, and untracked changes. Use --no-optional-locks to avoid the optional index refresh.",
+          "args": [
+            {
+              "name": "--porcelain",
+              "type": "string",
+              "enum": [
+                "v1",
+                "v2"
+              ],
+              "description": "Stable machine-readable text output."
+            }
+          ],
+          "examples": [
+            "git --no-optional-locks status --porcelain=v1"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "Porcelain status records, not JSON."
+            }
+          ]
+        },
+        {
+          "name": "log",
+          "description": "Inspect commit history. Bound results with -n and disable pagers for unattended use.",
+          "args": [
+            {
+              "name": "-n",
+              "type": "integer",
+              "description": "Maximum number of commits."
+            }
+          ],
+          "examples": [
+            "git --no-pager log -n 10 --oneline"
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "gh",
+    "name": "GitHub CLI",
+    "executable": "gh",
+    "purpose": "Inspect GitHub pull requests from the command line",
+    "category": "Collaboration",
+    "maintainer": "mcclowes",
+    "version": "1.0.0",
+    "upstream": "https://cli.github.com/",
+    "documentation": "https://cli.github.com/manual/gh_pr_list",
+    "schema": "schemas/gh.json",
+    "sha256": "c4aa048ad5c7b0c9c77936b494cdafd1264fbabe30a9d0e5acb76f4be67659e5",
+    "coverage": "Pull request listing",
+    "capabilities": {
+      "name": "gh",
+      "version": "2.x",
+      "description": "Selected GitHub pull request inspection commands. Requires existing gh authentication. Partial community schema.",
+      "command_layout": "flat",
+      "output": {
+        "tty": "text",
+        "piped": "text"
+      },
+      "commands": [
+        {
+          "name": "pr list",
+          "description": "List pull requests in a repository.",
+          "mutating": false,
+          "args": [
+            {
+              "name": "--repo",
+              "type": "string",
+              "description": "Repository in OWNER/REPO form."
+            },
+            {
+              "name": "--state",
+              "type": "string",
+              "enum": [
+                "open",
+                "closed",
+                "merged",
+                "all"
+              ],
+              "default": "open"
+            },
+            {
+              "name": "--limit",
+              "type": "integer",
+              "default": 30
+            },
+            {
+              "name": "--json",
+              "type": "string",
+              "description": "Comma-separated fields, such as number,title,url,state."
+            }
+          ],
+          "examples": [
+            "gh pr list --repo OWNER/REPO --limit 20 --json number,title,url,state"
+          ],
+          "output_fields": [
+            {
+              "name": "number",
+              "type": "integer"
+            },
+            {
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "name": "url",
+              "type": "string"
+            },
+            {
+              "name": "state",
+              "type": "string"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "jq",
+    "name": "jq",
+    "executable": "jq",
+    "purpose": "Filter, inspect, and transform JSON",
+    "category": "Data",
+    "maintainer": "mcclowes",
+    "version": "1.0.0",
+    "upstream": "https://jqlang.org/",
+    "documentation": "https://jqlang.org/manual/",
+    "schema": "schemas/jq.json",
+    "sha256": "b935dc498002ba5e0be1d84a5f61ef7775155a6cca348e484077b39cf1e2ef84",
+    "coverage": "Core JSON filtering",
+    "capabilities": {
+      "name": "jq",
+      "version": "1.8",
+      "description": "Transform and inspect JSON with jq. Partial community schema; jq uses a filter argument rather than subcommands.",
+      "capabilities": [
+        {
+          "name": "<filter> [file...]",
+          "description": "Apply a jq filter to JSON from files or stdin and write matching values to stdout.",
+          "mutating": false,
+          "args": [
+            {
+              "name": "filter",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "--compact-output",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "--raw-output",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "--slurp",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "--arg",
+              "type": "string",
+              "description": "Bind a named string variable; requires NAME VALUE."
+            }
+          ],
+          "examples": [
+            "jq --compact-output '.items[] | {name}' tools.json"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "A stream of JSON values, or raw strings when --raw-output is used."
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

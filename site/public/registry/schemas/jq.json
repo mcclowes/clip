@@ -1,0 +1,8 @@
+{
+  "name": "jq",
+  "version": "1.8",
+  "description": "Transform and inspect JSON with jq. Partial community schema; jq uses a filter argument rather than subcommands.",
+  "capabilities": [
+    { "name": "<filter> [file...]", "description": "Apply a jq filter to JSON from files or stdin and write matching values to stdout.", "mutating": false, "args": [{ "name": "filter", "type": "string", "required": true }, { "name": "--compact-output", "type": "boolean", "default": false }, { "name": "--raw-output", "type": "boolean", "default": false }, { "name": "--slurp", "type": "boolean", "default": false }, { "name": "--arg", "type": "string", "description": "Bind a named string variable; requires NAME VALUE." }], "examples": ["jq --compact-output '.items[] | {name}' tools.json"], "output_fields": [{ "name": "stdout", "type": "string", "description": "A stream of JSON values, or raw strings when --raw-output is used." }] }
+  ]
+}

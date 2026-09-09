@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "git",
+      "name": "Git",
+      "executable": "git",
+      "purpose": "Inspect repository changes and commit history",
+      "category": "Development",
+      "maintainer": "mcclowes",
+      "version": "1.0.0",
+      "upstream": "https://git-scm.com/",
+      "documentation": "https://git-scm.com/docs/git-status",
+      "schema": "schemas/git.json",
+      "sha256": "45ca722b00853421c59258363fe669a991695c125f7cfd5ce109254ea9d708e9",
+      "coverage": "Selected inspection commands"
+    },
+    {
+      "id": "gh",
+      "name": "GitHub CLI",
+      "executable": "gh",
+      "purpose": "Inspect GitHub pull requests from the command line",
+      "category": "Collaboration",
+      "maintainer": "mcclowes",
+      "version": "1.0.0",
+      "upstream": "https://cli.github.com/",
+      "documentation": "https://cli.github.com/manual/gh_pr_list",
+      "schema": "schemas/gh.json",
+      "sha256": "c4aa048ad5c7b0c9c77936b494cdafd1264fbabe30a9d0e5acb76f4be67659e5",
+      "coverage": "Pull request listing"
+    },
+    {
+      "id": "jq",
+      "name": "jq",
+      "executable": "jq",
+      "purpose": "Filter, inspect, and transform JSON",
+      "category": "Data",
+      "maintainer": "mcclowes",
+      "version": "1.0.0",
+      "upstream": "https://jqlang.org/",
+      "documentation": "https://jqlang.org/manual/",
+      "schema": "schemas/jq.json",
+      "sha256": "b935dc498002ba5e0be1d84a5f61ef7775155a6cca348e484077b39cf1e2ef84",
+      "coverage": "Core JSON filtering"
+    }
+  ]
+}

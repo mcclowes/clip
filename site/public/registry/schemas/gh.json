@@ -1,0 +1,10 @@
+{
+  "name": "gh",
+  "version": "2.x",
+  "description": "Selected GitHub pull request inspection commands. Requires existing gh authentication. Partial community schema.",
+  "command_layout": "flat",
+  "output": { "tty": "text", "piped": "text" },
+  "commands": [
+    { "name": "pr list", "description": "List pull requests in a repository.", "mutating": false, "args": [{ "name": "--repo", "type": "string", "description": "Repository in OWNER/REPO form." }, { "name": "--state", "type": "string", "enum": ["open", "closed", "merged", "all"], "default": "open" }, { "name": "--limit", "type": "integer", "default": 30 }, { "name": "--json", "type": "string", "description": "Comma-separated fields, such as number,title,url,state." }], "examples": ["gh pr list --repo OWNER/REPO --limit 20 --json number,title,url,state"], "output_fields": [{ "name": "number", "type": "integer" }, { "name": "title", "type": "string" }, { "name": "url", "type": "string" }, { "name": "state", "type": "string" }] }
+  ]
+}
