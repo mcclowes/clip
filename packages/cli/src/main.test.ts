@@ -31,6 +31,59 @@ test('register a tool, update its purpose, and generate a portable skill', t => 
   assert.equal(run('register', process.execPath, '--purpose', 'Run tests').status, 0);
 });
 
+test('project registrations override shared and global tools', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+  mkdirSync(join(dir, '.clip'));
+  mkdirSync(join(dir, 'config'));
+  const global = { name: 'node', executable: '/global/node', purpose: 'Global purpose', source: { kind: 'manual' } };
+  const shared = { name: 'node', executable: 'node', purpose: 'Shared purpose', source: { kind: 'manual' } };
+  writeFileSync(join(dir, 'config', 'tools.json'), JSON.stringify({ version: 1, tools: [global] }), { flag: 'wx' });
+  writeFileSync(join(dir, '.clip', 'tools.json'), JSON.stringify({ version: 1, tools: [shared] }), { flag: 'wx' });
+
+  const listed = run('list');
+
+  assert.equal(listed.status, 0, listed.stderr);
+  assert.deepEqual(JSON.parse(listed.stdout).items[0], { ...shared, scope: 'shared' });
+});
+
+test('register defaults to local project scope', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+
+  const registered = run('register', process.execPath, '--purpose', 'Run local scripts');
+
+  assert.equal(registered.status, 0, registered.stderr);
+  const document = JSON.parse(readFileSync(join(dir, '.clip', 'tools.local.json'), 'utf8'));
+  assert.equal(document.tools[0].purpose, 'Run local scripts');
+  assert.equal(JSON.parse(run('list').stdout).items[0].scope, 'local');
+});
+
+test('shared registrations store portable executable names', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+
+  const registered = run('register', 'node', '--purpose', 'Run project scripts', '--scope', 'shared');
+
+  assert.equal(registered.status, 0, registered.stderr);
+  const document = JSON.parse(readFileSync(join(dir, '.clip', 'tools.json'), 'utf8'));
+  assert.equal(document.tools[0].executable, 'node');
+  assert.equal(JSON.parse(run('list').stdout).items[0].scope, 'shared');
+});
+
+test('local removal disables an inherited registration', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+  assert.equal(run('register', process.execPath, '--purpose', 'Run scripts', '--scope', 'global').status, 0);
+
+  const removed = run('remove', 'node');
+
+  assert.equal(removed.status, 0, removed.stderr);
+  assert.deepEqual(JSON.parse(run('list').stdout).items, []);
+  const document = JSON.parse(readFileSync(join(dir, '.clip', 'tools.local.json'), 'utf8'));
+  assert.deepEqual(document.disabled, ['node']);
+});
+
 test('probe capabilities explicitly, preserve nested contracts, and discover without executing', t => {
   const { dir, run } = fixture(t);
   const executable = join(dir, 'fixture-tool');

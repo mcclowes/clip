@@ -20,7 +20,7 @@ function terminal() {
 
 test('user can browse the registry and quit the UI', async () => {
   const term = terminal();
-  const running = runUi(term);
+  const running = runUi({ ...term, scope: 'global' });
   term.input.write('\t');
   term.input.write('q');
   await running;
@@ -51,7 +51,7 @@ test('user can add a registry tool with its suggested purpose', async t => {
   });
   const { readTools } = await import('./store.ts');
   const term = terminal();
-  const running = runUi(term);
+  const running = runUi({ ...term, scope: 'global' });
   term.input.write('\t');
   term.input.write('\r');
   term.input.write('\r');
@@ -68,9 +68,9 @@ test('user can remove a registration with confirmation', async t => {
   process.env.CLIP_HOME = dir;
   t.after(() => { if (previous === undefined) delete process.env.CLIP_HOME; else process.env.CLIP_HOME = previous; });
   const { updateTools, readTools } = await import('./store.ts');
-  updateTools(() => [{ name: 'example', executable: '/bin/example', purpose: 'Example tool', source: { kind: 'manual' } }]);
+  updateTools(() => [{ name: 'example', executable: '/bin/example', purpose: 'Example tool', source: { kind: 'manual' } }], 'global');
   const term = terminal();
-  const running = runUi(term);
+  const running = runUi({ ...term, scope: 'global' });
   term.input.write('d');
   term.input.write('y');
   term.input.write('q');

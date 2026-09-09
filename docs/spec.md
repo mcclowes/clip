@@ -8,14 +8,14 @@ CLIP makes installed CLI tools discoverable to people and agents through portabl
 - Register a tool with a user-defined purpose and a capability document supplied locally or obtained through an explicit `schema` or `capabilities` probe.
 - Preserve CLI Spec documents, including nested commands. Accept a minimal capability list when a tool has no native introspection.
 - Generate a starter schema for manual authoring. Never invent verified capabilities from help output.
-- Store registrations in `CLIP_HOME`, defaulting to `~/.config/clip`. Regenerate portable Agent Skills under a chosen directory; the default is `.agents/skills` in the current project.
+- Merge registrations by tool name from global `CLIP_HOME/tools.json`, shared project `.clip/tools.json`, and local project `.clip/tools.local.json`, with local taking precedence. Project changes default to local scope; `--scope shared|global` selects another scope. Shared registrations store executable names rather than machine-specific paths. Regenerate portable Agent Skills under a chosen directory; the default is `.agents/skills` in the current project.
 - Search a curated, Git-backed directory and add versioned community capability documents. Adding a schema doesn't install or execute its CLI.
 - Publish docs and a searchable tool directory backed by the same registry files.
 - Distribute the dependency-free TypeScript CLI through a Homebrew tap, with tagged source releases and CI.
 
 ## Commands
 
-`clip discover [query]`, `clip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities]`, `clip list`, `clip remove <name>`, `clip schema`, `clip capabilities`, `clip schema show <id>`, `clip schema init <name> --purpose <text> --file <path>`, `clip sync [--skills-dir <path>]`, `clip registry search [query]`, and `clip registry add <id> --purpose <text>`.
+`clip discover [query]`, `clip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities] [--scope local|shared|global]`, `clip list`, `clip remove <name> [--scope local|shared|global]`, `clip schema`, `clip capabilities`, `clip schema show <id>`, `clip schema init <name> --purpose <text> --file <path>`, `clip sync [--skills-dir <path>]`, `clip registry search [query]`, and `clip registry add <id> --purpose <text> [--scope local|shared|global]`.
 
 All commands accept `--output auto|json|text`. Non-TTY output defaults to JSON. Errors are structured on stderr. Schema and capabilities work without configuration or network. Registry additions use the bundled catalog, which updates with CLIP releases; community contributions go through GitHub pull requests.
 

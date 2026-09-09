@@ -10,6 +10,7 @@ export const contract = {
   global_args: [
     { name: '--output', aliases: ['-o'], type: 'string', enum: ['auto', 'json', 'text'], default: 'auto', description: 'Output format.' },
     { name: '--limit', type: 'integer', default: 100, description: 'Maximum list results, between 1 and 10000.' },
+    { name: '--scope', type: 'string', enum: ['local', 'shared', 'global'], description: 'Configuration scope for registration changes; defaults to local inside a project and global elsewhere.' },
     { name: '--help', aliases: ['-h'], type: 'boolean', description: 'Describe the command interface.' },
     { name: '--version', type: 'boolean', description: 'Show CLIP version.' },
   ],

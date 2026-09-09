@@ -80,7 +80,9 @@ export default function Docs() {
             <p>
               You can also register without a schema, then add one later. Re-registering updates the
               purpose and schema for that tool. Use <code>clip list</code> to inspect registrations
-              and <code>clip remove mytool</code> to remove one.
+              and <code>clip remove mytool</code> to remove one. Project changes default to the local,
+              uncommitted <code>.clip/tools.local.json</code>. Use <code>--scope shared</code> for a
+              repository toolset or <code>--scope global</code> for user-wide tools.
             </p>
           </section>
           <section id="schemas">
@@ -148,8 +150,10 @@ export default function Docs() {
               instead.
             </p>
             <p>
-              Registrations live in <code>~/.config/clip/tools.json</code>. Set{" "}
-              <code>CLIP_HOME</code> to use another directory. Skills provide guidance; they don’t
+              Registrations merge from <code>~/.config/clip/tools.json</code>, shared project{" "}
+              <code>.clip/tools.json</code>, and local project <code>.clip/tools.local.json</code>.
+              Local entries override shared entries, which override global entries. Set{" "}
+              <code>CLIP_HOME</code> to move the global directory. Skills provide guidance; they don’t
               grant permissions, store credentials, or bypass your agent’s approval rules.
             </p>
           </section>
@@ -190,7 +194,7 @@ export default function Docs() {
             <pre>
               <code>
                 {
-                  "clip discover [query]\nclip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities]\nclip list\nclip remove <name>\nclip schema\nclip capabilities\nclip schema show <id>\nclip schema init <name> --purpose <text> --file <path>\nclip sync [--skills-dir <path>]\nclip registry search [query]\nclip registry add <id> --purpose <text>"
+                  "clip discover [query]\nclip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities] [--scope local|shared|global]\nclip list\nclip remove <name> [--scope local|shared|global]\nclip schema\nclip capabilities\nclip schema show <id>\nclip schema init <name> --purpose <text> --file <path>\nclip sync [--skills-dir <path>]\nclip registry search [query]\nclip registry add <id> --purpose <text> [--scope local|shared|global]"
                 }
               </code>
             </pre>

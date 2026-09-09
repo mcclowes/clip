@@ -10,12 +10,12 @@
 import type { Readable, Writable } from 'node:stream';
 import { catalog, registrySchema, type Entry } from './registry.ts';
 import { executablePath } from './discovery.ts';
-import { readTools, updateTools, type Registration } from './store.ts';
+import { readTools, removeTool, updateTools, type Registration, type Scope } from './store.ts';
 import { syncSkills } from './skills.ts';
 
 type Input = Readable & { isTTY?: boolean; setRawMode?: (value: boolean) => void; resume(): void };
 type Output = Writable & { isTTY?: boolean; columns?: number; rows?: number };
-type Terminal = { input: Input; output: Output; skillsDir?: string };
+type Terminal = { input: Input; output: Output; skillsDir?: string; scope?: Scope };
 type Tab = 'registered' | 'registry';
 type Mode = 'browse' | 'search' | 'purpose' | 'remove';
 
@@ -23,7 +23,7 @@ const clear = '\x1b[2J\x1b[H';
 const selected = '\x1b[7m';
 const reset = '\x1b[0m';
 
-export async function runUi({ input, output, skillsDir = '.agents/skills' }: Terminal): Promise<void> {
+export async function runUi({ input, output, skillsDir = '.agents/skills', scope }: Terminal): Promise<void> {
   if (!input.isTTY || !output.isTTY || !input.setRawMode) throw new Error('clip ui requires an interactive terminal.');
   let tab: Tab = 'registered';
   let mode: Mode = 'browse';
@@ -79,7 +79,7 @@ export async function runUi({ input, output, skillsDir = '.agents/skills' }: Ter
       schema,
       source: { kind: 'registry', id: entry.id, version: entry.version, maintainer: entry.maintainer, sha256: entry.sha256 },
     };
-    updateTools(existing => [...existing.filter(tool => tool.name !== registration.name), registration]);
+    updateTools(existing => [...existing.filter(tool => tool.name !== registration.name), registration], scope);
     tools = readTools();
     setNotice(`Installed ${entry.name}.`);
   };
@@ -107,7 +107,7 @@ export async function runUi({ input, output, skillsDir = '.agents/skills' }: Ter
           else if (mode === 'remove') {
             if (key.toLowerCase() === 'y') {
               const name = current()!.name;
-              updateTools(existing => existing.filter(tool => tool.name !== name));
+              removeTool(name, scope);
               tools = readTools();
               index = Math.min(index, Math.max(tools.length - 1, 0));
               setNotice(`Removed ${name}. Run sync to remove its generated skill.`);

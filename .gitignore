@@ -5,6 +5,7 @@ dist/
 !.env.example
 *.tgz
 .agents/skills/clip-*/
+.clip/tools.local.json
 
 # Added by saggar — local files that shouldn't be committed
 .saggar/**/*.local.*

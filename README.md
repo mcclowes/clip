@@ -57,7 +57,9 @@ A minimal capability document:
 
 CLIP accepts `capabilities` instead of `commands`, and preserves richer native CLI Spec fields, including nested commands. Missing mutation markers mean unknown. Schemas describe capabilities; they never grant authorization.
 
-Use `clip list` and `clip remove mytool` to maintain registrations. Run `clip sync` after changes. Set `--skills-dir` to your agent's skills directory. CLIP refuses to replace unowned skill directories; generated files should be edited through their source schemas.
+Use `clip list` and `clip remove mytool` to maintain registrations. Inside a Git project, changes default to the uncommitted `.clip/tools.local.json`. Use `--scope shared` for the repository's `.clip/tools.json`, or `--scope global` for `~/.config/clip/tools.json`. Local registrations override shared registrations, which override global ones. Removing an inherited tool disables it in the selected project scope.
+
+Run `clip sync` after changes. Set `--skills-dir` to your agent's skills directory. CLIP refuses to replace unowned skill directories; generated files should be edited through their source schemas.
 
 ## CLI behavior
 
@@ -66,7 +68,7 @@ Use `clip list` and `clip remove mytool` to maintain registrations. Run `clip sy
 - List results use an `items` envelope with `total` and `truncated`. `--limit` defaults to 100.
 - Failures exit 1 and write a structured error to stderr.
 - Discovery scans PATH without executing tools. Native probing is explicit, shell-free, and bounded to five seconds and 1 MiB.
-- Registrations live under `CLIP_HOME`, defaulting to `~/.config/clip`.
+- Registrations merge from global, shared project, and local project configuration. `CLIP_HOME` changes the global directory.
 - The first release bundles the community registry. Upgrade CLIP, add the schema again, and sync to adopt an update. Local schema files can be updated independently.
 
 ## Development
