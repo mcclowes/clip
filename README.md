@@ -27,6 +27,8 @@ clip sync
 
 This writes `.agents/skills/clip-git/SKILL.md` and its `schema.json` in your project. Adding a registry schema requires the executable to be installed already. It doesn't install or execute the tool.
 
+If you need to install a CLI first, [getcli](https://getcli.dev/) provides a separate registry for discovering, installing, and verifying command-line tools. CLIP can then describe the installed tool and generate its agent skill.
+
 For tools with native introspection:
 
 ```sh

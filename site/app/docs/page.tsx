@@ -173,6 +173,11 @@ export default function Docs() {
               already be installed.
             </p>
             <p>
+              If you need to install a CLI first, <a href="https://getcli.dev/">getcli</a> provides
+              a separate registry for discovering, installing, and verifying command-line tools.
+              CLIP can then describe the installed tool and generate its agent skill.
+            </p>
+            <p>
               The first release bundles the catalog for offline use. Upgrade CLIP to get catalog
               updates, then reinstall an entry and sync to update its generated skills. You can
               always register a newer local schema with <code>--schema</code>.
