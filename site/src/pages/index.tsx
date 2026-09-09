@@ -5,7 +5,7 @@ export default function Home(): React.JSX.Element {
   return (
     <Layout title="Tools for people and agents" description="Share command-line tools with your agents.">
       <main className="shell home-shell">
-        <section className="hero">
+        <section className="clip-hero">
           <p className="eyebrow"><span>clip@0.1</span> : command line interface protocol</p>
           <h1>Your tools,<br />exposed to<br /><span>every agent.</span><i className="cursor" /></h1>
           <p className="lede">Give agents the tools you already use. CLIP connects installed CLIs to clear capabilities and portable skills.</p>

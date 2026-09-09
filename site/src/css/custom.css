@@ -62,7 +62,7 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .navbar-sidebar { background: var(--background); }
 
 .shell { max-width: 1240px; padding: 0 24px; margin: auto; }
-.hero { padding: 82px 0 50px; max-width: 780px; }
+.clip-hero { padding: 82px 0 50px; max-width: 780px; }
 .eyebrow, .number { color: var(--primary); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 .eyebrow span { color: #071008; background: var(--primary); padding: 3px 6px; }
 .home-shell h1 { font-size: clamp(42px, 6.3vw, 78px); line-height: 1.04; letter-spacing: -.065em; font-weight: 500; margin: 28px 0; }
@@ -168,9 +168,9 @@ code { font-family: inherit; }
 .breadcrumbs__link { border-radius: 0; }
 
 @media (min-width: 1100px) {
-  .shell:has(.hero) { display: grid; grid-template-columns: 1fr 1fr; column-gap: 64px; }
-  .hero h1 { font-size: 63px; }
-  .hero { padding-bottom: 84px; }
+  .shell:has(.clip-hero) { display: grid; grid-template-columns: 1fr 1fr; column-gap: 64px; }
+  .clip-hero h1 { font-size: 63px; }
+  .clip-hero { padding-bottom: 84px; }
   .terminal { align-self: center; margin: 42px 0 0; }
   .terminal pre { font-size: 11px; padding: 22px; }
   .section, .callout { grid-column: 1/-1; }
@@ -181,7 +181,7 @@ code { font-family: inherit; }
   .nav-note { display: none; }
   nav { gap: 9px; font-size: 10px; margin-left: auto; }
   .shell { padding: 0 18px; }
-  .hero { padding-top: 52px; }
+  .clip-hero { padding-top: 52px; }
   .lede { font-size: 14px; }
   .three { grid-template-columns: 1fr; }
   .callout { flex-direction: column; align-items: start; padding: 24px; }
