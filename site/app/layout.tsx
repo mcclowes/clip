@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
 export const metadata: Metadata = {
-  metadataBase: new URL("https://clip-protocol.plucky-bay-1824.chatgpt.site"),
+  metadataBase: new URL("https://clip-protocol.mcclowes.chatgpt.site"),
   title: { default: "CLIP — tools for people and agents", template: "%s | CLIP" },
   description:
     "Register CLI tools, describe their capabilities, and generate portable agent skills. Browse community-maintained CLI schemas.",
@@ -10,13 +10,13 @@ export const metadata: Metadata = {
     title: "CLIP — tools for people and agents",
     description: "Your command line, shared with your agents.",
     type: "website",
-    images: ["https://clip-protocol.plucky-bay-1824.chatgpt.site/og.png"],
+    images: ["https://clip-protocol.mcclowes.chatgpt.site/og.png"],
   },
   twitter: {
     card: "summary_large_image",
     title: "CLIP — tools for people and agents",
     description: "Your command line, shared with your agents.",
-    images: ["https://clip-protocol.plucky-bay-1824.chatgpt.site/og.png"],
+    images: ["https://clip-protocol.mcclowes.chatgpt.site/og.png"],
   },
 };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
