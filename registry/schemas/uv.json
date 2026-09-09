@@ -1,0 +1,101 @@
+{
+  "name": "uv",
+  "description": "Inspect packages in an existing Python environment. Partial community schema; project resolution, installation, and execution are excluded. Interpreter discovery and caching may have side effects, so mutation status is unknown.",
+  "command_layout": "flat",
+  "commands": [
+    {
+      "name": "pip list",
+      "description": "List installed packages.",
+      "documentation": "https://docs.astral.sh/uv/reference/cli/#uv-pip-list",
+      "args": [
+        {
+          "name": "--python",
+          "type": "string",
+          "description": "Python interpreter path or request."
+        },
+        {
+          "name": "--format",
+          "type": "string",
+          "enum": [
+            "columns",
+            "freeze",
+            "json"
+          ]
+        },
+        {
+          "name": "--editable",
+          "type": "boolean"
+        }
+      ],
+      "examples": [
+        "uv pip list --python .venv/bin/python --format json"
+      ],
+      "output_fields": [
+        {
+          "name": "stdout",
+          "type": "string",
+          "description": "A table by default; --format json emits an array of package records."
+        }
+      ]
+    },
+    {
+      "name": "pip show",
+      "description": "Inspect installed package metadata.",
+      "documentation": "https://docs.astral.sh/uv/reference/cli/#uv-pip-show",
+      "args": [
+        {
+          "name": "package",
+          "type": "string",
+          "required": true,
+          "description": "One or more package names."
+        },
+        {
+          "name": "--python",
+          "type": "string",
+          "description": "Python interpreter path or request."
+        },
+        {
+          "name": "--files",
+          "type": "boolean"
+        }
+      ],
+      "examples": [
+        "uv pip show --python .venv/bin/python pip"
+      ],
+      "output_fields": [
+        {
+          "name": "stdout",
+          "type": "string",
+          "description": "Text metadata, optionally including installed file paths."
+        }
+      ]
+    },
+    {
+      "name": "pip freeze",
+      "description": "Print installed packages in requirements format.",
+      "documentation": "https://docs.astral.sh/uv/reference/cli/#uv-pip-freeze",
+      "args": [
+        {
+          "name": "--python",
+          "type": "string",
+          "description": "Python interpreter path or request."
+        },
+        {
+          "name": "--exclude-editable",
+          "type": "boolean"
+        }
+      ],
+      "examples": [
+        "uv pip freeze --python .venv/bin/python"
+      ],
+      "output_fields": [
+        {
+          "name": "stdout",
+          "type": "string",
+          "description": "Requirements text; this does not create a project lockfile."
+        }
+      ]
+    }
+  ],
+  "documentation": "https://docs.astral.sh/uv/reference/cli/"
+}

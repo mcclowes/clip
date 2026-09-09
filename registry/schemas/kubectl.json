@@ -1,0 +1,146 @@
+{
+  "name": "kubectl",
+  "description": "Inspect Kubernetes resources using an existing kubeconfig. Partial community schema; apply, delete, exec, and rollout changes are excluded. Discovery caches and credential plugins may have side effects, so mutation status is unknown.",
+  "command_layout": "flat",
+  "global_args": [
+    {
+      "name": "--context",
+      "type": "string",
+      "description": "Kubeconfig context to use."
+    },
+    {
+      "name": "--namespace",
+      "type": "string",
+      "description": "Namespace for this request."
+    },
+    {
+      "name": "--request-timeout",
+      "type": "string",
+      "description": "Request timeout as a duration, such as 30s."
+    }
+  ],
+  "commands": [
+    {
+      "name": "get",
+      "description": "Read resources from the selected cluster.",
+      "documentation": "https://kubernetes.io/docs/reference/kubectl/generated/kubectl_get/",
+      "args": [
+        {
+          "name": "resource",
+          "type": "string",
+          "required": true,
+          "description": "Resource type and optional name, such as pods or pods/app."
+        },
+        {
+          "name": "--output",
+          "type": "string",
+          "enum": [
+            "json",
+            "yaml",
+            "wide",
+            "name"
+          ]
+        },
+        {
+          "name": "--selector",
+          "type": "string",
+          "description": "Label selector."
+        },
+        {
+          "name": "--all-namespaces",
+          "type": "boolean"
+        }
+      ],
+      "examples": [
+        "kubectl --namespace default --request-timeout 30s get pods --output json"
+      ],
+      "output_fields": [
+        {
+          "name": "stdout",
+          "type": "string",
+          "description": "A table by default; JSON and YAML return a resource or a list object depending on the query."
+        }
+      ]
+    },
+    {
+      "name": "describe",
+      "description": "Inspect resource details and related events.",
+      "documentation": "https://kubernetes.io/docs/reference/kubectl/generated/kubectl_describe/",
+      "args": [
+        {
+          "name": "resource",
+          "type": "string",
+          "required": true,
+          "description": "Resource type and optional name."
+        },
+        {
+          "name": "--selector",
+          "type": "string",
+          "description": "Label selector."
+        },
+        {
+          "name": "--show-events",
+          "type": "boolean",
+          "default": true
+        }
+      ],
+      "examples": [
+        "kubectl --namespace default --request-timeout 30s describe pod app"
+      ],
+      "output_fields": [
+        {
+          "name": "stdout",
+          "type": "string",
+          "description": "Human-readable resource details; not a stable machine-readable format."
+        }
+      ]
+    },
+    {
+      "name": "logs",
+      "description": "Read logs from a pod or supported workload resource.",
+      "documentation": "https://kubernetes.io/docs/reference/kubectl/generated/kubectl_logs/",
+      "args": [
+        {
+          "name": "pod-or-resource",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "--container",
+          "type": "string",
+          "description": "Container name."
+        },
+        {
+          "name": "--tail",
+          "type": "integer",
+          "description": "Number of trailing lines; use a positive bound."
+        },
+        {
+          "name": "--since",
+          "type": "string",
+          "description": "Relative duration, such as 10m."
+        },
+        {
+          "name": "--previous",
+          "type": "boolean"
+        },
+        {
+          "name": "--follow",
+          "type": "boolean",
+          "description": "Stream logs until interrupted."
+        }
+      ],
+      "examples": [
+        "kubectl --namespace default logs app --tail 100 --since 10m"
+      ],
+      "output_fields": [
+        {
+          "name": "stdout",
+          "type": "string",
+          "description": "Application log text. --follow keeps the command running."
+        }
+      ]
+    }
+  ],
+  "documentation": "https://kubernetes.io/docs/reference/kubectl/"
+}

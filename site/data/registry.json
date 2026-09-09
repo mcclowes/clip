@@ -705,5 +705,595 @@
         }
       ]
     }
+  },
+  {
+    "id": "npm",
+    "name": "npm",
+    "executable": "npm",
+    "purpose": "Inspect JavaScript dependencies and package metadata",
+    "category": "Development",
+    "maintainer": "mcclowes",
+    "version": "1.0.0",
+    "upstream": "https://www.npmjs.com/",
+    "documentation": "https://docs.npmjs.com/cli/v11/",
+    "schema": "schemas/npm.json",
+    "sha256": "e9f7e64a6d8a307cb691277b2238d5238ae69ec0b2bc0adfb72235d3e41f599e",
+    "coverage": "Installed dependency listing and registry metadata",
+    "capabilities": {
+      "name": "npm",
+      "version": "11.x",
+      "description": "Inspect installed dependencies and registry metadata. Partial community schema; installation, scripts, and publishing are excluded. npm can write logs and caches, so mutation status is unknown.",
+      "command_layout": "flat",
+      "commands": [
+        {
+          "name": "ls",
+          "description": "Inspect installed dependency versions. Missing or invalid dependencies can produce a nonzero exit status.",
+          "documentation": "https://docs.npmjs.com/cli/v11/commands/npm-ls/",
+          "args": [
+            {
+              "name": "package-spec",
+              "type": "string",
+              "description": "Optional package filter."
+            },
+            {
+              "name": "--json",
+              "type": "boolean"
+            },
+            {
+              "name": "--all",
+              "type": "boolean"
+            },
+            {
+              "name": "--depth",
+              "type": "integer",
+              "description": "Maximum dependency depth."
+            },
+            {
+              "name": "--workspace",
+              "type": "string",
+              "description": "Workspace name or path; repeatable."
+            }
+          ],
+          "examples": [
+            "npm ls --depth=0 --json"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "Dependency tree as text, or a JSON object with --json."
+            }
+          ]
+        },
+        {
+          "name": "view",
+          "description": "Read package metadata from the configured npm registry.",
+          "documentation": "https://docs.npmjs.com/cli/v11/commands/npm-view/",
+          "args": [
+            {
+              "name": "package-spec",
+              "type": "string",
+              "required": true,
+              "description": "Package name with an optional version or tag."
+            },
+            {
+              "name": "field",
+              "type": "string",
+              "description": "Optional metadata field, such as engines."
+            },
+            {
+              "name": "--json",
+              "type": "boolean"
+            }
+          ],
+          "examples": [
+            "npm view typescript@5.9.3 engines --json"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "Selected metadata; --json emits JSON whose shape depends on the fields and versions requested."
+            }
+          ]
+        }
+      ],
+      "documentation": "https://docs.npmjs.com/cli/v11/"
+    }
+  },
+  {
+    "id": "uv",
+    "name": "uv",
+    "executable": "uv",
+    "purpose": "Inspect packages in Python environments",
+    "category": "Development",
+    "maintainer": "mcclowes",
+    "version": "1.0.0",
+    "upstream": "https://docs.astral.sh/uv/",
+    "documentation": "https://docs.astral.sh/uv/reference/cli/",
+    "schema": "schemas/uv.json",
+    "sha256": "1e3fb694e3c151b4a97e481ed5712af600b7728ca3038a76ce84ec4f943fe711",
+    "coverage": "Installed package listing, metadata, and requirements output",
+    "capabilities": {
+      "name": "uv",
+      "description": "Inspect packages in an existing Python environment. Partial community schema; project resolution, installation, and execution are excluded. Interpreter discovery and caching may have side effects, so mutation status is unknown.",
+      "command_layout": "flat",
+      "commands": [
+        {
+          "name": "pip list",
+          "description": "List installed packages.",
+          "documentation": "https://docs.astral.sh/uv/reference/cli/#uv-pip-list",
+          "args": [
+            {
+              "name": "--python",
+              "type": "string",
+              "description": "Python interpreter path or request."
+            },
+            {
+              "name": "--format",
+              "type": "string",
+              "enum": [
+                "columns",
+                "freeze",
+                "json"
+              ]
+            },
+            {
+              "name": "--editable",
+              "type": "boolean"
+            }
+          ],
+          "examples": [
+            "uv pip list --python .venv/bin/python --format json"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "A table by default; --format json emits an array of package records."
+            }
+          ]
+        },
+        {
+          "name": "pip show",
+          "description": "Inspect installed package metadata.",
+          "documentation": "https://docs.astral.sh/uv/reference/cli/#uv-pip-show",
+          "args": [
+            {
+              "name": "package",
+              "type": "string",
+              "required": true,
+              "description": "One or more package names."
+            },
+            {
+              "name": "--python",
+              "type": "string",
+              "description": "Python interpreter path or request."
+            },
+            {
+              "name": "--files",
+              "type": "boolean"
+            }
+          ],
+          "examples": [
+            "uv pip show --python .venv/bin/python pip"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "Text metadata, optionally including installed file paths."
+            }
+          ]
+        },
+        {
+          "name": "pip freeze",
+          "description": "Print installed packages in requirements format.",
+          "documentation": "https://docs.astral.sh/uv/reference/cli/#uv-pip-freeze",
+          "args": [
+            {
+              "name": "--python",
+              "type": "string",
+              "description": "Python interpreter path or request."
+            },
+            {
+              "name": "--exclude-editable",
+              "type": "boolean"
+            }
+          ],
+          "examples": [
+            "uv pip freeze --python .venv/bin/python"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "Requirements text; this does not create a project lockfile."
+            }
+          ]
+        }
+      ],
+      "documentation": "https://docs.astral.sh/uv/reference/cli/"
+    }
+  },
+  {
+    "id": "kubectl",
+    "name": "kubectl",
+    "executable": "kubectl",
+    "purpose": "Inspect Kubernetes resources and container logs",
+    "category": "Infrastructure",
+    "maintainer": "mcclowes",
+    "version": "1.0.0",
+    "upstream": "https://kubernetes.io/",
+    "documentation": "https://kubernetes.io/docs/reference/kubectl/",
+    "schema": "schemas/kubectl.json",
+    "sha256": "3f074412f701ea95b687c191d509748f9a8186d438a922eb9b0192be581e095e",
+    "coverage": "Resource retrieval, descriptions, and logs",
+    "capabilities": {
+      "name": "kubectl",
+      "description": "Inspect Kubernetes resources using an existing kubeconfig. Partial community schema; apply, delete, exec, and rollout changes are excluded. Discovery caches and credential plugins may have side effects, so mutation status is unknown.",
+      "command_layout": "flat",
+      "global_args": [
+        {
+          "name": "--context",
+          "type": "string",
+          "description": "Kubeconfig context to use."
+        },
+        {
+          "name": "--namespace",
+          "type": "string",
+          "description": "Namespace for this request."
+        },
+        {
+          "name": "--request-timeout",
+          "type": "string",
+          "description": "Request timeout as a duration, such as 30s."
+        }
+      ],
+      "commands": [
+        {
+          "name": "get",
+          "description": "Read resources from the selected cluster.",
+          "documentation": "https://kubernetes.io/docs/reference/kubectl/generated/kubectl_get/",
+          "args": [
+            {
+              "name": "resource",
+              "type": "string",
+              "required": true,
+              "description": "Resource type and optional name, such as pods or pods/app."
+            },
+            {
+              "name": "--output",
+              "type": "string",
+              "enum": [
+                "json",
+                "yaml",
+                "wide",
+                "name"
+              ]
+            },
+            {
+              "name": "--selector",
+              "type": "string",
+              "description": "Label selector."
+            },
+            {
+              "name": "--all-namespaces",
+              "type": "boolean"
+            }
+          ],
+          "examples": [
+            "kubectl --namespace default --request-timeout 30s get pods --output json"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "A table by default; JSON and YAML return a resource or a list object depending on the query."
+            }
+          ]
+        },
+        {
+          "name": "describe",
+          "description": "Inspect resource details and related events.",
+          "documentation": "https://kubernetes.io/docs/reference/kubectl/generated/kubectl_describe/",
+          "args": [
+            {
+              "name": "resource",
+              "type": "string",
+              "required": true,
+              "description": "Resource type and optional name."
+            },
+            {
+              "name": "--selector",
+              "type": "string",
+              "description": "Label selector."
+            },
+            {
+              "name": "--show-events",
+              "type": "boolean",
+              "default": true
+            }
+          ],
+          "examples": [
+            "kubectl --namespace default --request-timeout 30s describe pod app"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "Human-readable resource details; not a stable machine-readable format."
+            }
+          ]
+        },
+        {
+          "name": "logs",
+          "description": "Read logs from a pod or supported workload resource.",
+          "documentation": "https://kubernetes.io/docs/reference/kubectl/generated/kubectl_logs/",
+          "args": [
+            {
+              "name": "pod-or-resource",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "--container",
+              "type": "string",
+              "description": "Container name."
+            },
+            {
+              "name": "--tail",
+              "type": "integer",
+              "description": "Number of trailing lines; use a positive bound."
+            },
+            {
+              "name": "--since",
+              "type": "string",
+              "description": "Relative duration, such as 10m."
+            },
+            {
+              "name": "--previous",
+              "type": "boolean"
+            },
+            {
+              "name": "--follow",
+              "type": "boolean",
+              "description": "Stream logs until interrupted."
+            }
+          ],
+          "examples": [
+            "kubectl --namespace default logs app --tail 100 --since 10m"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "Application log text. --follow keeps the command running."
+            }
+          ]
+        }
+      ],
+      "documentation": "https://kubernetes.io/docs/reference/kubectl/"
+    }
+  },
+  {
+    "id": "terraform",
+    "name": "Terraform",
+    "executable": "terraform",
+    "purpose": "Inspect infrastructure state, plans, and outputs",
+    "category": "Infrastructure",
+    "maintainer": "mcclowes",
+    "version": "1.0.0",
+    "upstream": "https://developer.hashicorp.com/terraform",
+    "documentation": "https://developer.hashicorp.com/terraform/cli/commands",
+    "schema": "schemas/terraform.json",
+    "sha256": "c944b28eb2414aaabe10dec174e19aeeaa10d10906b4e9e72cc1c09363ddb1f1",
+    "coverage": "Saved plan and state display, outputs, and resource addresses",
+    "capabilities": {
+      "name": "terraform",
+      "version": "1.x",
+      "description": "Inspect Terraform state and saved plans in an initialized working directory. Partial community schema; init, plan, apply, and state edits are excluded. Backends and provider plugins may have side effects, so mutation status is unknown.",
+      "command_layout": "flat",
+      "commands": [
+        {
+          "name": "show",
+          "description": "Display current state or a saved state or plan file. JSON includes sensitive values in plaintext.",
+          "documentation": "https://developer.hashicorp.com/terraform/cli/commands/show",
+          "args": [
+            {
+              "name": "file",
+              "type": "string",
+              "description": "Optional saved state or plan path."
+            },
+            {
+              "name": "-json",
+              "type": "boolean"
+            },
+            {
+              "name": "-no-color",
+              "type": "boolean"
+            }
+          ],
+          "examples": [
+            "terraform show -json saved.tfplan"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "Human-readable state or plan by default; -json emits a structured object."
+            }
+          ]
+        },
+        {
+          "name": "output",
+          "description": "Read root module outputs from state. JSON and raw output reveal sensitive values.",
+          "documentation": "https://developer.hashicorp.com/terraform/cli/commands/output",
+          "args": [
+            {
+              "name": "name",
+              "type": "string",
+              "description": "Optional output name."
+            },
+            {
+              "name": "-json",
+              "type": "boolean"
+            },
+            {
+              "name": "-raw",
+              "type": "boolean",
+              "description": "Print a named string, number, or boolean without JSON encoding."
+            }
+          ],
+          "examples": [
+            "terraform output -json"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "All outputs or a named value; -json returns JSON and -raw returns a scalar string."
+            }
+          ]
+        },
+        {
+          "name": "state list",
+          "description": "List resource addresses recorded in state.",
+          "documentation": "https://developer.hashicorp.com/terraform/cli/commands/state/list",
+          "args": [
+            {
+              "name": "address",
+              "type": "string",
+              "description": "Optional address filters; multiple accepted."
+            },
+            {
+              "name": "-id",
+              "type": "string",
+              "description": "Filter by resource ID."
+            }
+          ],
+          "examples": [
+            "terraform state list"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "One resource address per line."
+            }
+          ]
+        }
+      ],
+      "documentation": "https://developer.hashicorp.com/terraform/cli/commands"
+    }
+  },
+  {
+    "id": "yq",
+    "name": "yq (Mike Farah)",
+    "executable": "yq",
+    "purpose": "Query and combine YAML documents",
+    "category": "Data",
+    "maintainer": "mcclowes",
+    "version": "1.0.0",
+    "upstream": "https://github.com/mikefarah/yq",
+    "documentation": "https://mikefarah.gitbook.io/yq/",
+    "schema": "schemas/yq.json",
+    "sha256": "f40eb322755f6cf14cf7b98531127815a2f61876d4e5f1f40f7b607ca9272899",
+    "coverage": "YAML expression evaluation across individual or multiple documents; excludes file writes",
+    "capabilities": {
+      "name": "yq",
+      "version": "4.x",
+      "description": "Query YAML with Mike Farah yq v4, not the Python jq wrapper of the same name. Partial community schema; in-place editing and split-file output are excluded.",
+      "command_layout": "flat",
+      "commands": [
+        {
+          "name": "eval",
+          "description": "Evaluate an expression separately against each input document.",
+          "documentation": "https://mikefarah.gitbook.io/yq/commands/evaluate",
+          "mutating": false,
+          "args": [
+            {
+              "name": "expression",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "file",
+              "type": "string",
+              "description": "One or more files; use - for stdin."
+            },
+            {
+              "name": "--output-format",
+              "type": "string",
+              "enum": [
+                "yaml",
+                "json"
+              ]
+            },
+            {
+              "name": "--no-colors",
+              "type": "boolean"
+            },
+            {
+              "name": "--exit-status",
+              "type": "boolean",
+              "description": "Fail when there are no matches or the result is null or false."
+            }
+          ],
+          "examples": [
+            "yq eval --output-format json '.services' compose.yaml"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "YAML by default, or JSON with --output-format json. Multiple documents can produce multiple values."
+            }
+          ]
+        },
+        {
+          "name": "eval-all",
+          "description": "Load all documents before evaluating one expression across them.",
+          "documentation": "https://mikefarah.gitbook.io/yq/commands/evaluate-all",
+          "mutating": false,
+          "args": [
+            {
+              "name": "expression",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "file",
+              "type": "string",
+              "required": true,
+              "description": "One or more files; use - for stdin."
+            },
+            {
+              "name": "--output-format",
+              "type": "string",
+              "enum": [
+                "yaml",
+                "json"
+              ]
+            },
+            {
+              "name": "--no-colors",
+              "type": "boolean"
+            }
+          ],
+          "examples": [
+            "yq eval-all '[.]' first.yaml second.yaml"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "Expression result as YAML by default. All inputs are held in memory."
+            }
+          ]
+        }
+      ],
+      "documentation": "https://mikefarah.gitbook.io/yq/"
+    }
   }
 ]

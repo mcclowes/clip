@@ -1,0 +1,81 @@
+{
+  "name": "npm",
+  "version": "11.x",
+  "description": "Inspect installed dependencies and registry metadata. Partial community schema; installation, scripts, and publishing are excluded. npm can write logs and caches, so mutation status is unknown.",
+  "command_layout": "flat",
+  "commands": [
+    {
+      "name": "ls",
+      "description": "Inspect installed dependency versions. Missing or invalid dependencies can produce a nonzero exit status.",
+      "documentation": "https://docs.npmjs.com/cli/v11/commands/npm-ls/",
+      "args": [
+        {
+          "name": "package-spec",
+          "type": "string",
+          "description": "Optional package filter."
+        },
+        {
+          "name": "--json",
+          "type": "boolean"
+        },
+        {
+          "name": "--all",
+          "type": "boolean"
+        },
+        {
+          "name": "--depth",
+          "type": "integer",
+          "description": "Maximum dependency depth."
+        },
+        {
+          "name": "--workspace",
+          "type": "string",
+          "description": "Workspace name or path; repeatable."
+        }
+      ],
+      "examples": [
+        "npm ls --depth=0 --json"
+      ],
+      "output_fields": [
+        {
+          "name": "stdout",
+          "type": "string",
+          "description": "Dependency tree as text, or a JSON object with --json."
+        }
+      ]
+    },
+    {
+      "name": "view",
+      "description": "Read package metadata from the configured npm registry.",
+      "documentation": "https://docs.npmjs.com/cli/v11/commands/npm-view/",
+      "args": [
+        {
+          "name": "package-spec",
+          "type": "string",
+          "required": true,
+          "description": "Package name with an optional version or tag."
+        },
+        {
+          "name": "field",
+          "type": "string",
+          "description": "Optional metadata field, such as engines."
+        },
+        {
+          "name": "--json",
+          "type": "boolean"
+        }
+      ],
+      "examples": [
+        "npm view typescript@5.9.3 engines --json"
+      ],
+      "output_fields": [
+        {
+          "name": "stdout",
+          "type": "string",
+          "description": "Selected metadata; --json emits JSON whose shape depends on the fields and versions requested."
+        }
+      ]
+    }
+  ],
+  "documentation": "https://docs.npmjs.com/cli/v11/"
+}

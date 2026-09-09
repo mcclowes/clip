@@ -98,6 +98,76 @@
       "schema": "schemas/docker.json",
       "sha256": "0f9aab5c283384a9cc1bdc67c81deb56a1489698f607d63b22aa34a7082275bc",
       "coverage": "Container listing, inspection, logs, and image listing"
+    },
+    {
+      "id": "npm",
+      "name": "npm",
+      "executable": "npm",
+      "purpose": "Inspect JavaScript dependencies and package metadata",
+      "category": "Development",
+      "maintainer": "mcclowes",
+      "version": "1.0.0",
+      "upstream": "https://www.npmjs.com/",
+      "documentation": "https://docs.npmjs.com/cli/v11/",
+      "schema": "schemas/npm.json",
+      "sha256": "e9f7e64a6d8a307cb691277b2238d5238ae69ec0b2bc0adfb72235d3e41f599e",
+      "coverage": "Installed dependency listing and registry metadata"
+    },
+    {
+      "id": "uv",
+      "name": "uv",
+      "executable": "uv",
+      "purpose": "Inspect packages in Python environments",
+      "category": "Development",
+      "maintainer": "mcclowes",
+      "version": "1.0.0",
+      "upstream": "https://docs.astral.sh/uv/",
+      "documentation": "https://docs.astral.sh/uv/reference/cli/",
+      "schema": "schemas/uv.json",
+      "sha256": "1e3fb694e3c151b4a97e481ed5712af600b7728ca3038a76ce84ec4f943fe711",
+      "coverage": "Installed package listing, metadata, and requirements output"
+    },
+    {
+      "id": "kubectl",
+      "name": "kubectl",
+      "executable": "kubectl",
+      "purpose": "Inspect Kubernetes resources and container logs",
+      "category": "Infrastructure",
+      "maintainer": "mcclowes",
+      "version": "1.0.0",
+      "upstream": "https://kubernetes.io/",
+      "documentation": "https://kubernetes.io/docs/reference/kubectl/",
+      "schema": "schemas/kubectl.json",
+      "sha256": "3f074412f701ea95b687c191d509748f9a8186d438a922eb9b0192be581e095e",
+      "coverage": "Resource retrieval, descriptions, and logs"
+    },
+    {
+      "id": "terraform",
+      "name": "Terraform",
+      "executable": "terraform",
+      "purpose": "Inspect infrastructure state, plans, and outputs",
+      "category": "Infrastructure",
+      "maintainer": "mcclowes",
+      "version": "1.0.0",
+      "upstream": "https://developer.hashicorp.com/terraform",
+      "documentation": "https://developer.hashicorp.com/terraform/cli/commands",
+      "schema": "schemas/terraform.json",
+      "sha256": "c944b28eb2414aaabe10dec174e19aeeaa10d10906b4e9e72cc1c09363ddb1f1",
+      "coverage": "Saved plan and state display, outputs, and resource addresses"
+    },
+    {
+      "id": "yq",
+      "name": "yq (Mike Farah)",
+      "executable": "yq",
+      "purpose": "Query and combine YAML documents",
+      "category": "Data",
+      "maintainer": "mcclowes",
+      "version": "1.0.0",
+      "upstream": "https://github.com/mikefarah/yq",
+      "documentation": "https://mikefarah.gitbook.io/yq/",
+      "schema": "schemas/yq.json",
+      "sha256": "f40eb322755f6cf14cf7b98531127815a2f61876d4e5f1f40f7b607ca9272899",
+      "coverage": "YAML expression evaluation across individual or multiple documents; excludes file writes"
     }
   ]
 }

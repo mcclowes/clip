@@ -1,0 +1,97 @@
+{
+  "name": "terraform",
+  "version": "1.x",
+  "description": "Inspect Terraform state and saved plans in an initialized working directory. Partial community schema; init, plan, apply, and state edits are excluded. Backends and provider plugins may have side effects, so mutation status is unknown.",
+  "command_layout": "flat",
+  "commands": [
+    {
+      "name": "show",
+      "description": "Display current state or a saved state or plan file. JSON includes sensitive values in plaintext.",
+      "documentation": "https://developer.hashicorp.com/terraform/cli/commands/show",
+      "args": [
+        {
+          "name": "file",
+          "type": "string",
+          "description": "Optional saved state or plan path."
+        },
+        {
+          "name": "-json",
+          "type": "boolean"
+        },
+        {
+          "name": "-no-color",
+          "type": "boolean"
+        }
+      ],
+      "examples": [
+        "terraform show -json saved.tfplan"
+      ],
+      "output_fields": [
+        {
+          "name": "stdout",
+          "type": "string",
+          "description": "Human-readable state or plan by default; -json emits a structured object."
+        }
+      ]
+    },
+    {
+      "name": "output",
+      "description": "Read root module outputs from state. JSON and raw output reveal sensitive values.",
+      "documentation": "https://developer.hashicorp.com/terraform/cli/commands/output",
+      "args": [
+        {
+          "name": "name",
+          "type": "string",
+          "description": "Optional output name."
+        },
+        {
+          "name": "-json",
+          "type": "boolean"
+        },
+        {
+          "name": "-raw",
+          "type": "boolean",
+          "description": "Print a named string, number, or boolean without JSON encoding."
+        }
+      ],
+      "examples": [
+        "terraform output -json"
+      ],
+      "output_fields": [
+        {
+          "name": "stdout",
+          "type": "string",
+          "description": "All outputs or a named value; -json returns JSON and -raw returns a scalar string."
+        }
+      ]
+    },
+    {
+      "name": "state list",
+      "description": "List resource addresses recorded in state.",
+      "documentation": "https://developer.hashicorp.com/terraform/cli/commands/state/list",
+      "args": [
+        {
+          "name": "address",
+          "type": "string",
+          "description": "Optional address filters; multiple accepted."
+        },
+        {
+          "name": "-id",
+          "type": "string",
+          "description": "Filter by resource ID."
+        }
+      ],
+      "examples": [
+        "terraform state list"
+      ],
+      "output_fields": [
+        {
+          "name": "stdout",
+          "type": "string",
+          "description": "One resource address per line."
+        }
+      ]
+    }
+  ],
+  "documentation": "https://developer.hashicorp.com/terraform/cli/commands"
+}

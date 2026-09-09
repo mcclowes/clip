@@ -1,0 +1,95 @@
+{
+  "name": "yq",
+  "version": "4.x",
+  "description": "Query YAML with Mike Farah yq v4, not the Python jq wrapper of the same name. Partial community schema; in-place editing and split-file output are excluded.",
+  "command_layout": "flat",
+  "commands": [
+    {
+      "name": "eval",
+      "description": "Evaluate an expression separately against each input document.",
+      "documentation": "https://mikefarah.gitbook.io/yq/commands/evaluate",
+      "mutating": false,
+      "args": [
+        {
+          "name": "expression",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "file",
+          "type": "string",
+          "description": "One or more files; use - for stdin."
+        },
+        {
+          "name": "--output-format",
+          "type": "string",
+          "enum": [
+            "yaml",
+            "json"
+          ]
+        },
+        {
+          "name": "--no-colors",
+          "type": "boolean"
+        },
+        {
+          "name": "--exit-status",
+          "type": "boolean",
+          "description": "Fail when there are no matches or the result is null or false."
+        }
+      ],
+      "examples": [
+        "yq eval --output-format json '.services' compose.yaml"
+      ],
+      "output_fields": [
+        {
+          "name": "stdout",
+          "type": "string",
+          "description": "YAML by default, or JSON with --output-format json. Multiple documents can produce multiple values."
+        }
+      ]
+    },
+    {
+      "name": "eval-all",
+      "description": "Load all documents before evaluating one expression across them.",
+      "documentation": "https://mikefarah.gitbook.io/yq/commands/evaluate-all",
+      "mutating": false,
+      "args": [
+        {
+          "name": "expression",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "file",
+          "type": "string",
+          "required": true,
+          "description": "One or more files; use - for stdin."
+        },
+        {
+          "name": "--output-format",
+          "type": "string",
+          "enum": [
+            "yaml",
+            "json"
+          ]
+        },
+        {
+          "name": "--no-colors",
+          "type": "boolean"
+        }
+      ],
+      "examples": [
+        "yq eval-all '[.]' first.yaml second.yaml"
+      ],
+      "output_fields": [
+        {
+          "name": "stdout",
+          "type": "string",
+          "description": "Expression result as YAML by default. All inputs are held in memory."
+        }
+      ]
+    }
+  ],
+  "documentation": "https://mikefarah.gitbook.io/yq/"
+}
