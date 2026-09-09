@@ -5,7 +5,7 @@
  */
 const arg = (name: string, description: string, required = false) => ({ name, type: 'string', description, required });
 export const contract = {
-  name: 'clip', version: '0.1.0', description: 'Register CLI tools and share their capabilities with agents.',
+  name: 'clip', version: '0.2.0', description: 'Register CLI tools and share their capabilities with agents.',
   command_layout: 'flat', output: { tty: 'text', piped: 'json' },
   global_args: [
     { name: '--output', aliases: ['-o'], type: 'string', enum: ['auto', 'json', 'text'], default: 'auto', description: 'Output format.' },
