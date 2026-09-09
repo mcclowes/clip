@@ -29,6 +29,8 @@ test('register a tool, update its purpose, and generate a portable skill', t => 
   assert.match(skill, /Run project scripts/);
   assert.match(skill, /--version/);
   assert.equal(JSON.parse(run('schema', 'node').stdout).name, 'node');
+  assert.equal(run('register', process.execPath, '--purpose', 'Run tests').status, 0);
+  assert.equal(JSON.parse(run('schema', 'node').stdout).commands[0].name, '--version');
 });
 
 test('probe capabilities explicitly, preserve nested contracts, and discover without executing', t => {

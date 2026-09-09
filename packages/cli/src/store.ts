@@ -6,7 +6,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync, unlinkSync, openSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { validateSchema, type Schema } from './schema.ts';
+import { toolName, validateSchema, type Schema } from './schema.ts';
 
 export type Registration = { name: string; executable: string; purpose: string; schema?: Schema; source: Record<string, string> };
 export const configDir = () => process.env.CLIP_HOME ?? join(homedir(), '.config', 'clip');
@@ -17,6 +17,7 @@ export function readTools(): Registration[] {
   if (data.version !== 1 || !Array.isArray(data.tools)) throw new Error('Unsupported or invalid CLIP configuration.');
   for (const tool of data.tools) {
     if (typeof tool.name !== 'string' || typeof tool.executable !== 'string' || typeof tool.purpose !== 'string') throw new Error('Invalid tool registration.');
+    toolName(tool.name);
     if (tool.schema) validateSchema(tool.schema);
   }
   return data.tools;
