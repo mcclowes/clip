@@ -1,0 +1,24 @@
+name: Release CLI
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test && npm run build && npm run registry:check
+      - name: Check release version
+        run: node -e 'const p=require("./packages/cli/package.json"); if(process.env.GITHUB_REF_NAME!==`v${p.version}`) process.exit(1)'
+      - run: node scripts/package-release.mjs
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.sha256 --verify-tag --generate-notes

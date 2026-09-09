@@ -1,0 +1,41 @@
+name: Check CLIP
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  cli:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm run registry:check
+      - run: node packages/cli/dist/main.js schema
+      - run: node scripts/package-release.mjs
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: node scripts/site-registry.mjs
+      - run: git diff --exit-code -- site/data site/public/registry
+      - run: npm ci
+        working-directory: site
+      - run: npm run build
+        working-directory: site
+      - run: npm run lint
+        working-directory: site

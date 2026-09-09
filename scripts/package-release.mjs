@@ -1,0 +1,18 @@
+import { cpSync, mkdirSync, readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+const root = new URL('../', import.meta.url);
+const { version } = JSON.parse(readFileSync(new URL('packages/cli/package.json', root), 'utf8'));
+const staging = mkdtempSync(join(tmpdir(), 'clip-release-'));
+const directory = join(staging, `clip-${version}`);
+mkdirSync(directory);
+cpSync(new URL('packages/cli/dist/', root), join(directory, 'dist'), { recursive: true });
+for (const [source, destination] of [['packages/cli/package.json', 'package.json'], ['LICENSE', 'LICENSE'], ['README.md', 'README.md']]) cpSync(new URL(source, root), join(directory, destination));
+mkdirSync(new URL('dist/', root), { recursive: true });
+const archive = resolve(`dist/clip-${version}.tar.gz`);
+execFileSync('tar', ['-czf', archive, '-C', staging, `clip-${version}`]);
+const digest = createHash('sha256').update(readFileSync(archive)).digest('hex');
+writeFileSync(`${archive}.sha256`, `${digest}  clip-${version}.tar.gz\n`);
+console.log(`${archive}\n${digest}`);
