@@ -1,0 +1,25 @@
+{
+  "name": "fd",
+  "description": "Find filesystem entries by name. Partial community schema covering discovery only; command execution options are excluded. Some distributions install the executable as fdfind rather than fd.",
+  "documentation": "https://github.com/sharkdp/fd#how-to-use",
+  "capabilities": [
+    {
+      "name": "[pattern] [path...]",
+      "description": "Find matching names beneath the supplied directories. Defaults to the current directory and skips hidden and ignored entries.",
+      "mutating": false,
+      "args": [
+        { "name": "pattern", "type": "string", "description": "Regular expression matched against entry names; omit to match all." },
+        { "name": "path", "type": "string", "description": "One or more directories to search." },
+        { "name": "--glob", "type": "boolean", "description": "Interpret the pattern as a glob." },
+        { "name": "--type", "type": "string", "enum": ["f", "d", "l", "x", "e", "s", "p"], "description": "Filter files, directories, symlinks, executables, empty entries, sockets, or pipes." },
+        { "name": "--extension", "type": "string", "description": "Filter by extension without a leading dot. Repeatable." },
+        { "name": "--hidden", "type": "boolean" },
+        { "name": "--exclude", "type": "string", "description": "Exclude a glob. Repeatable." },
+        { "name": "--max-depth", "type": "integer" },
+        { "name": "--print0", "type": "boolean", "description": "Terminate results with NUL." }
+      ],
+      "examples": ["fd --type f --extension ts . packages", "fd --glob '*.json' registry", "fd --type d --max-depth 2 . src"],
+      "output_fields": [{ "name": "stdout", "type": "string", "description": "Matching paths separated by newlines, or NUL with --print0. Terminal output may contain colors." }]
+    }
+  ]
+}

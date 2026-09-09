@@ -1,0 +1,38 @@
+{
+  "name": "rg",
+  "description": "Search file contents with ripgrep. Partial community schema covering text search and file listing; preprocessing, indexing, and replacement options are excluded. Configuration can add options with side effects, so mutation status is unknown. Examples disable configuration.",
+  "documentation": "https://github.com/BurntSushi/ripgrep/blob/master/crates/core/flags/defs.rs",
+  "global_args": [
+    { "name": "--no-config", "type": "boolean", "description": "Ignore RIPGREP_CONFIG_PATH configuration." }
+  ],
+  "capabilities": [
+    {
+      "name": "<pattern> [path...]",
+      "description": "Search a regular expression in files or stdin. Hidden and ignored files are skipped by default.",
+      "args": [
+        { "name": "pattern", "type": "string", "required": true },
+        { "name": "path", "type": "string", "description": "One or more files or directories; use - for stdin." },
+        { "name": "--fixed-strings", "type": "boolean", "description": "Match literal text instead of a regular expression." },
+        { "name": "--ignore-case", "type": "boolean" },
+        { "name": "--glob", "type": "string", "description": "Include matching paths; a leading ! excludes them. Repeatable." },
+        { "name": "--line-number", "type": "boolean" },
+        { "name": "--json", "type": "boolean", "description": "Emit newline-delimited JSON events." }
+      ],
+      "examples": ["rg --no-config --json --glob '*.ts' 'validateSchema' packages", "rg --no-config --line-number --fixed-strings -- 'TODO' src"],
+      "output_fields": [{ "name": "stdout", "type": "string", "description": "Matching text, or JSON events with --json; not a JSON array." }],
+      "exit_codes": { "0": "Matches found.", "1": "No matches found.", "2": "An error occurred." }
+    },
+    {
+      "name": "--files [path...]",
+      "description": "List searchable files without inspecting their contents.",
+      "args": [
+        { "name": "path", "type": "string", "description": "One or more directories; defaults to the current directory." },
+        { "name": "--glob", "type": "string", "description": "Filter paths with a glob. Repeatable." },
+        { "name": "--hidden", "type": "boolean", "description": "Include hidden files and directories." },
+        { "name": "--null", "type": "boolean", "description": "Terminate paths with NUL instead of a newline." }
+      ],
+      "examples": ["rg --no-config --files --glob '*.ts' packages"],
+      "output_fields": [{ "name": "stdout", "type": "string", "description": "File paths separated by newlines, or NUL with --null." }]
+    }
+  ]
+}

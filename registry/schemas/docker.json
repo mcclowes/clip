@@ -1,0 +1,64 @@
+{
+  "name": "docker",
+  "description": "Inspect containers, logs, and local images through an existing Docker daemon connection. Partial community schema; container lifecycle, builds, exec, Compose, and registry writes are excluded.",
+  "documentation": "https://docs.docker.com/reference/cli/docker/",
+  "command_layout": "flat",
+  "commands": [
+    {
+      "name": "container ls",
+      "description": "List running containers, or include stopped containers with --all.",
+      "documentation": "https://docs.docker.com/reference/cli/docker/container/ls/",
+      "mutating": false,
+      "args": [
+        { "name": "--all", "type": "boolean", "default": false },
+        { "name": "--filter", "type": "string", "description": "Filter with key=value conditions. Repeatable." },
+        { "name": "--format", "type": "string", "description": "Go template applied to each container." },
+        { "name": "--no-trunc", "type": "boolean" }
+      ],
+      "examples": ["docker container ls --all --format '{{json .}}'"],
+      "output_fields": [{ "name": "stdout", "type": "string", "description": "A table by default; {{json .}} emits one JSON object per container, not an array." }]
+    },
+    {
+      "name": "container inspect",
+      "description": "Read metadata for one or more containers.",
+      "documentation": "https://docs.docker.com/reference/cli/docker/container/inspect/",
+      "mutating": false,
+      "args": [
+        { "name": "container", "type": "string", "required": true, "description": "One or more container names or IDs." },
+        { "name": "--format", "type": "string", "description": "Format each result with a Go template." }
+      ],
+      "examples": ["docker container inspect app"],
+      "output_fields": [{ "name": "stdout", "type": "string", "description": "A JSON array of container metadata by default; --format changes the output." }]
+    },
+    {
+      "name": "container logs",
+      "description": "Retrieve container logs. Availability depends on the logging driver; bound output with --tail or --since.",
+      "documentation": "https://docs.docker.com/reference/cli/docker/container/logs/",
+      "mutating": false,
+      "args": [
+        { "name": "container", "type": "string", "required": true },
+        { "name": "--tail", "type": "string", "default": "all", "description": "Number of trailing lines, or all." },
+        { "name": "--since", "type": "string", "description": "Timestamp or relative duration, such as 10m." },
+        { "name": "--timestamps", "type": "boolean" },
+        { "name": "--follow", "type": "boolean", "description": "Keep streaming new logs until interrupted." }
+      ],
+      "examples": ["docker container logs --tail 100 --timestamps app"],
+      "output_fields": [{ "name": "stdout/stderr", "type": "string", "description": "Container log streams; content depends on the application and TTY configuration." }]
+    },
+    {
+      "name": "image ls",
+      "description": "List images stored by the connected Docker daemon.",
+      "documentation": "https://docs.docker.com/reference/cli/docker/image/ls/",
+      "mutating": false,
+      "args": [
+        { "name": "repository[:tag]", "type": "string", "description": "Restrict results to a repository and optional tag." },
+        { "name": "--all", "type": "boolean" },
+        { "name": "--filter", "type": "string", "description": "Filter with key=value conditions. Repeatable." },
+        { "name": "--format", "type": "string", "description": "Go template applied to each image." },
+        { "name": "--digests", "type": "boolean" }
+      ],
+      "examples": ["docker image ls --format '{{json .}}'"],
+      "output_fields": [{ "name": "stdout", "type": "string", "description": "A table by default; {{json .}} emits one JSON object per image row, not an array." }]
+    }
+  ]
+}

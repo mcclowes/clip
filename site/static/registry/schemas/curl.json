@@ -1,0 +1,36 @@
+{
+  "name": "curl",
+  "description": "Transfer data over HTTP or HTTPS. Partial community schema; remote side effects depend on the endpoint, method, and configuration, so mutation status is unknown. Examples disable default configuration and bound request time. Other protocols, uploads, and authentication options are excluded.",
+  "documentation": "https://curl.se/docs/manpage.html",
+  "global_args": [
+    { "name": "--disable", "type": "boolean", "description": "Skip the default curl configuration file. Must be the first argument." },
+    { "name": "--max-time", "type": "number", "description": "Limit the transfer duration in seconds." },
+    { "name": "--silent", "type": "boolean", "description": "Suppress the progress meter and errors; pair with --show-error to retain errors." },
+    { "name": "--show-error", "type": "boolean" }
+  ],
+  "capabilities": [
+    {
+      "name": "<url>",
+      "description": "Fetch a response body. HTTP defaults to GET unless other options change the method.",
+      "args": [
+        { "name": "url", "type": "string", "required": true },
+        { "name": "--header", "type": "string", "description": "Add a request header in NAME: VALUE form. Repeatable." },
+        { "name": "--location", "type": "boolean", "description": "Follow redirects." },
+        { "name": "--fail", "type": "boolean", "description": "Fail on HTTP errors, normally suppressing the response body." },
+        { "name": "--write-out", "type": "string", "description": "Append transfer metadata using curl variables such as %{http_code}." }
+      ],
+      "examples": ["curl --disable --silent --show-error --fail --max-time 30 https://example.com/"],
+      "output_fields": [{ "name": "stdout", "type": "string", "description": "Response bytes, followed by --write-out text if requested. Content is not necessarily JSON." }]
+    },
+    {
+      "name": "--head <url>",
+      "description": "Send an HTTP HEAD request and print response headers.",
+      "args": [
+        { "name": "url", "type": "string", "required": true },
+        { "name": "--location", "type": "boolean", "description": "Follow redirects; output can contain multiple header blocks." }
+      ],
+      "examples": ["curl --disable --silent --show-error --head --max-time 30 https://example.com/"],
+      "output_fields": [{ "name": "stdout", "type": "string", "description": "HTTP status lines and headers as text." }]
+    }
+  ]
+}

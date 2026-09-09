@@ -213,5 +213,497 @@
         }
       ]
     }
+  },
+  {
+    "id": "rg",
+    "name": "ripgrep",
+    "executable": "rg",
+    "purpose": "Search file contents and list project files",
+    "category": "Development",
+    "maintainer": "mcclowes",
+    "version": "1.0.0",
+    "upstream": "https://github.com/BurntSushi/ripgrep",
+    "documentation": "https://github.com/BurntSushi/ripgrep/blob/master/crates/core/flags/defs.rs",
+    "schema": "schemas/rg.json",
+    "sha256": "5c58d122abad2d0a2844071d6d7b0b66ffda1d22030085357ab5944bdb213ae1",
+    "coverage": "Text search and file listing; excludes preprocessing and indexing",
+    "capabilities": {
+      "name": "rg",
+      "description": "Search file contents with ripgrep. Partial community schema covering text search and file listing; preprocessing, indexing, and replacement options are excluded. Configuration can add options with side effects, so mutation status is unknown. Examples disable configuration.",
+      "documentation": "https://github.com/BurntSushi/ripgrep/blob/master/crates/core/flags/defs.rs",
+      "global_args": [
+        {
+          "name": "--no-config",
+          "type": "boolean",
+          "description": "Ignore RIPGREP_CONFIG_PATH configuration."
+        }
+      ],
+      "capabilities": [
+        {
+          "name": "<pattern> [path...]",
+          "description": "Search a regular expression in files or stdin. Hidden and ignored files are skipped by default.",
+          "args": [
+            {
+              "name": "pattern",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "path",
+              "type": "string",
+              "description": "One or more files or directories; use - for stdin."
+            },
+            {
+              "name": "--fixed-strings",
+              "type": "boolean",
+              "description": "Match literal text instead of a regular expression."
+            },
+            {
+              "name": "--ignore-case",
+              "type": "boolean"
+            },
+            {
+              "name": "--glob",
+              "type": "string",
+              "description": "Include matching paths; a leading ! excludes them. Repeatable."
+            },
+            {
+              "name": "--line-number",
+              "type": "boolean"
+            },
+            {
+              "name": "--json",
+              "type": "boolean",
+              "description": "Emit newline-delimited JSON events."
+            }
+          ],
+          "examples": [
+            "rg --no-config --json --glob '*.ts' 'validateSchema' packages",
+            "rg --no-config --line-number --fixed-strings -- 'TODO' src"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "Matching text, or JSON events with --json; not a JSON array."
+            }
+          ],
+          "exit_codes": {
+            "0": "Matches found.",
+            "1": "No matches found.",
+            "2": "An error occurred."
+          }
+        },
+        {
+          "name": "--files [path...]",
+          "description": "List searchable files without inspecting their contents.",
+          "args": [
+            {
+              "name": "path",
+              "type": "string",
+              "description": "One or more directories; defaults to the current directory."
+            },
+            {
+              "name": "--glob",
+              "type": "string",
+              "description": "Filter paths with a glob. Repeatable."
+            },
+            {
+              "name": "--hidden",
+              "type": "boolean",
+              "description": "Include hidden files and directories."
+            },
+            {
+              "name": "--null",
+              "type": "boolean",
+              "description": "Terminate paths with NUL instead of a newline."
+            }
+          ],
+          "examples": [
+            "rg --no-config --files --glob '*.ts' packages"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "File paths separated by newlines, or NUL with --null."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "fd",
+    "name": "fd",
+    "executable": "fd",
+    "purpose": "Find files and directories by name",
+    "category": "Development",
+    "maintainer": "mcclowes",
+    "version": "1.0.0",
+    "upstream": "https://github.com/sharkdp/fd",
+    "documentation": "https://github.com/sharkdp/fd#how-to-use",
+    "schema": "schemas/fd.json",
+    "sha256": "d66024b47953a7dbc68ded8168dea24d405ca21056b5fe7588d5a55d0ebeb6fb",
+    "coverage": "File and directory discovery; excludes command execution",
+    "capabilities": {
+      "name": "fd",
+      "description": "Find filesystem entries by name. Partial community schema covering discovery only; command execution options are excluded. Some distributions install the executable as fdfind rather than fd.",
+      "documentation": "https://github.com/sharkdp/fd#how-to-use",
+      "capabilities": [
+        {
+          "name": "[pattern] [path...]",
+          "description": "Find matching names beneath the supplied directories. Defaults to the current directory and skips hidden and ignored entries.",
+          "mutating": false,
+          "args": [
+            {
+              "name": "pattern",
+              "type": "string",
+              "description": "Regular expression matched against entry names; omit to match all."
+            },
+            {
+              "name": "path",
+              "type": "string",
+              "description": "One or more directories to search."
+            },
+            {
+              "name": "--glob",
+              "type": "boolean",
+              "description": "Interpret the pattern as a glob."
+            },
+            {
+              "name": "--type",
+              "type": "string",
+              "enum": [
+                "f",
+                "d",
+                "l",
+                "x",
+                "e",
+                "s",
+                "p"
+              ],
+              "description": "Filter files, directories, symlinks, executables, empty entries, sockets, or pipes."
+            },
+            {
+              "name": "--extension",
+              "type": "string",
+              "description": "Filter by extension without a leading dot. Repeatable."
+            },
+            {
+              "name": "--hidden",
+              "type": "boolean"
+            },
+            {
+              "name": "--exclude",
+              "type": "string",
+              "description": "Exclude a glob. Repeatable."
+            },
+            {
+              "name": "--max-depth",
+              "type": "integer"
+            },
+            {
+              "name": "--print0",
+              "type": "boolean",
+              "description": "Terminate results with NUL."
+            }
+          ],
+          "examples": [
+            "fd --type f --extension ts . packages",
+            "fd --glob '*.json' registry",
+            "fd --type d --max-depth 2 . src"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "Matching paths separated by newlines, or NUL with --print0. Terminal output may contain colors."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "curl",
+    "name": "curl",
+    "executable": "curl",
+    "purpose": "Fetch HTTP responses and inspect headers",
+    "category": "Networking",
+    "maintainer": "mcclowes",
+    "version": "1.0.0",
+    "upstream": "https://curl.se/",
+    "documentation": "https://curl.se/docs/manpage.html",
+    "schema": "schemas/curl.json",
+    "sha256": "a6632e72bd8f1b0974a56954ddb8d814e09f692dd50bae3d78fb67c5f2e2214e",
+    "coverage": "HTTP response bodies and HEAD requests; excludes uploads and authentication options",
+    "capabilities": {
+      "name": "curl",
+      "description": "Transfer data over HTTP or HTTPS. Partial community schema; remote side effects depend on the endpoint, method, and configuration, so mutation status is unknown. Examples disable default configuration and bound request time. Other protocols, uploads, and authentication options are excluded.",
+      "documentation": "https://curl.se/docs/manpage.html",
+      "global_args": [
+        {
+          "name": "--disable",
+          "type": "boolean",
+          "description": "Skip the default curl configuration file. Must be the first argument."
+        },
+        {
+          "name": "--max-time",
+          "type": "number",
+          "description": "Limit the transfer duration in seconds."
+        },
+        {
+          "name": "--silent",
+          "type": "boolean",
+          "description": "Suppress the progress meter and errors; pair with --show-error to retain errors."
+        },
+        {
+          "name": "--show-error",
+          "type": "boolean"
+        }
+      ],
+      "capabilities": [
+        {
+          "name": "<url>",
+          "description": "Fetch a response body. HTTP defaults to GET unless other options change the method.",
+          "args": [
+            {
+              "name": "url",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "--header",
+              "type": "string",
+              "description": "Add a request header in NAME: VALUE form. Repeatable."
+            },
+            {
+              "name": "--location",
+              "type": "boolean",
+              "description": "Follow redirects."
+            },
+            {
+              "name": "--fail",
+              "type": "boolean",
+              "description": "Fail on HTTP errors, normally suppressing the response body."
+            },
+            {
+              "name": "--write-out",
+              "type": "string",
+              "description": "Append transfer metadata using curl variables such as %{http_code}."
+            }
+          ],
+          "examples": [
+            "curl --disable --silent --show-error --fail --max-time 30 https://example.com/"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "Response bytes, followed by --write-out text if requested. Content is not necessarily JSON."
+            }
+          ]
+        },
+        {
+          "name": "--head <url>",
+          "description": "Send an HTTP HEAD request and print response headers.",
+          "args": [
+            {
+              "name": "url",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "--location",
+              "type": "boolean",
+              "description": "Follow redirects; output can contain multiple header blocks."
+            }
+          ],
+          "examples": [
+            "curl --disable --silent --show-error --head --max-time 30 https://example.com/"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "HTTP status lines and headers as text."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "docker",
+    "name": "Docker",
+    "executable": "docker",
+    "purpose": "Inspect containers, logs, and local images",
+    "category": "Development",
+    "maintainer": "mcclowes",
+    "version": "1.0.0",
+    "upstream": "https://www.docker.com/",
+    "documentation": "https://docs.docker.com/reference/cli/docker/",
+    "schema": "schemas/docker.json",
+    "sha256": "0f9aab5c283384a9cc1bdc67c81deb56a1489698f607d63b22aa34a7082275bc",
+    "coverage": "Container listing, inspection, logs, and image listing",
+    "capabilities": {
+      "name": "docker",
+      "description": "Inspect containers, logs, and local images through an existing Docker daemon connection. Partial community schema; container lifecycle, builds, exec, Compose, and registry writes are excluded.",
+      "documentation": "https://docs.docker.com/reference/cli/docker/",
+      "command_layout": "flat",
+      "commands": [
+        {
+          "name": "container ls",
+          "description": "List running containers, or include stopped containers with --all.",
+          "documentation": "https://docs.docker.com/reference/cli/docker/container/ls/",
+          "mutating": false,
+          "args": [
+            {
+              "name": "--all",
+              "type": "boolean",
+              "default": false
+            },
+            {
+              "name": "--filter",
+              "type": "string",
+              "description": "Filter with key=value conditions. Repeatable."
+            },
+            {
+              "name": "--format",
+              "type": "string",
+              "description": "Go template applied to each container."
+            },
+            {
+              "name": "--no-trunc",
+              "type": "boolean"
+            }
+          ],
+          "examples": [
+            "docker container ls --all --format '{{json .}}'"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "A table by default; {{json .}} emits one JSON object per container, not an array."
+            }
+          ]
+        },
+        {
+          "name": "container inspect",
+          "description": "Read metadata for one or more containers.",
+          "documentation": "https://docs.docker.com/reference/cli/docker/container/inspect/",
+          "mutating": false,
+          "args": [
+            {
+              "name": "container",
+              "type": "string",
+              "required": true,
+              "description": "One or more container names or IDs."
+            },
+            {
+              "name": "--format",
+              "type": "string",
+              "description": "Format each result with a Go template."
+            }
+          ],
+          "examples": [
+            "docker container inspect app"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "A JSON array of container metadata by default; --format changes the output."
+            }
+          ]
+        },
+        {
+          "name": "container logs",
+          "description": "Retrieve container logs. Availability depends on the logging driver; bound output with --tail or --since.",
+          "documentation": "https://docs.docker.com/reference/cli/docker/container/logs/",
+          "mutating": false,
+          "args": [
+            {
+              "name": "container",
+              "type": "string",
+              "required": true
+            },
+            {
+              "name": "--tail",
+              "type": "string",
+              "default": "all",
+              "description": "Number of trailing lines, or all."
+            },
+            {
+              "name": "--since",
+              "type": "string",
+              "description": "Timestamp or relative duration, such as 10m."
+            },
+            {
+              "name": "--timestamps",
+              "type": "boolean"
+            },
+            {
+              "name": "--follow",
+              "type": "boolean",
+              "description": "Keep streaming new logs until interrupted."
+            }
+          ],
+          "examples": [
+            "docker container logs --tail 100 --timestamps app"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout/stderr",
+              "type": "string",
+              "description": "Container log streams; content depends on the application and TTY configuration."
+            }
+          ]
+        },
+        {
+          "name": "image ls",
+          "description": "List images stored by the connected Docker daemon.",
+          "documentation": "https://docs.docker.com/reference/cli/docker/image/ls/",
+          "mutating": false,
+          "args": [
+            {
+              "name": "repository[:tag]",
+              "type": "string",
+              "description": "Restrict results to a repository and optional tag."
+            },
+            {
+              "name": "--all",
+              "type": "boolean"
+            },
+            {
+              "name": "--filter",
+              "type": "string",
+              "description": "Filter with key=value conditions. Repeatable."
+            },
+            {
+              "name": "--format",
+              "type": "string",
+              "description": "Go template applied to each image."
+            },
+            {
+              "name": "--digests",
+              "type": "boolean"
+            }
+          ],
+          "examples": [
+            "docker image ls --format '{{json .}}'"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "A table by default; {{json .}} emits one JSON object per image row, not an array."
+            }
+          ]
+        }
+      ]
+    }
   }
 ]

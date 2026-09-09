@@ -42,6 +42,62 @@
       "schema": "schemas/jq.json",
       "sha256": "b935dc498002ba5e0be1d84a5f61ef7775155a6cca348e484077b39cf1e2ef84",
       "coverage": "Core JSON filtering"
+    },
+    {
+      "id": "rg",
+      "name": "ripgrep",
+      "executable": "rg",
+      "purpose": "Search file contents and list project files",
+      "category": "Development",
+      "maintainer": "mcclowes",
+      "version": "1.0.0",
+      "upstream": "https://github.com/BurntSushi/ripgrep",
+      "documentation": "https://github.com/BurntSushi/ripgrep/blob/master/crates/core/flags/defs.rs",
+      "schema": "schemas/rg.json",
+      "sha256": "5c58d122abad2d0a2844071d6d7b0b66ffda1d22030085357ab5944bdb213ae1",
+      "coverage": "Text search and file listing; excludes preprocessing and indexing"
+    },
+    {
+      "id": "fd",
+      "name": "fd",
+      "executable": "fd",
+      "purpose": "Find files and directories by name",
+      "category": "Development",
+      "maintainer": "mcclowes",
+      "version": "1.0.0",
+      "upstream": "https://github.com/sharkdp/fd",
+      "documentation": "https://github.com/sharkdp/fd#how-to-use",
+      "schema": "schemas/fd.json",
+      "sha256": "d66024b47953a7dbc68ded8168dea24d405ca21056b5fe7588d5a55d0ebeb6fb",
+      "coverage": "File and directory discovery; excludes command execution"
+    },
+    {
+      "id": "curl",
+      "name": "curl",
+      "executable": "curl",
+      "purpose": "Fetch HTTP responses and inspect headers",
+      "category": "Networking",
+      "maintainer": "mcclowes",
+      "version": "1.0.0",
+      "upstream": "https://curl.se/",
+      "documentation": "https://curl.se/docs/manpage.html",
+      "schema": "schemas/curl.json",
+      "sha256": "a6632e72bd8f1b0974a56954ddb8d814e09f692dd50bae3d78fb67c5f2e2214e",
+      "coverage": "HTTP response bodies and HEAD requests; excludes uploads and authentication options"
+    },
+    {
+      "id": "docker",
+      "name": "Docker",
+      "executable": "docker",
+      "purpose": "Inspect containers, logs, and local images",
+      "category": "Development",
+      "maintainer": "mcclowes",
+      "version": "1.0.0",
+      "upstream": "https://www.docker.com/",
+      "documentation": "https://docs.docker.com/reference/cli/docker/",
+      "schema": "schemas/docker.json",
+      "sha256": "0f9aab5c283384a9cc1bdc67c81deb56a1489698f607d63b22aa34a7082275bc",
+      "coverage": "Container listing, inspection, logs, and image listing"
     }
   ]
 }
