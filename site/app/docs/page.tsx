@@ -50,7 +50,7 @@ export default function Docs() {
             </p>
             <pre>
               <code>
-                {'clip registry install git --purpose "Review repository changes"\nclip sync'}
+                {'clip registry add git --purpose "Review repository changes"\nclip sync'}
               </code>
             </pre>
             <p>
@@ -94,7 +94,7 @@ export default function Docs() {
             <p>When a tool has no schema, start a draft:</p>
             <pre>
               <code>
-                {'clip schema-init mytool --purpose "Manage deployments" --file mytool.json'}
+                {'clip schema init mytool --purpose "Manage deployments" --file mytool.json'}
               </code>
             </pre>
             <p>Add real operations to the empty commands list before registration. For example:</p>
@@ -158,7 +158,7 @@ export default function Docs() {
             <pre>
               <code>
                 {
-                  'clip registry search github\nclip registry show gh\nclip registry install gh --purpose "Review pull requests"\nclip sync'
+                  'clip registry search github\nclip schema show gh\nclip registry add gh --purpose "Review pull requests"\nclip sync'
                 }
               </code>
             </pre>
@@ -190,7 +190,7 @@ export default function Docs() {
             <pre>
               <code>
                 {
-                  "clip discover [query]\nclip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities]\nclip list\nclip remove <name>\nclip schema [name]\nclip capabilities\nclip schema-init <name> --purpose <text> --file <path>\nclip sync [--skills-dir <path>]\nclip registry search [query]\nclip registry show <id>\nclip registry install <id> --purpose <text>"
+                  "clip discover [query]\nclip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities]\nclip list\nclip remove <name>\nclip schema\nclip capabilities\nclip schema show <id>\nclip schema init <name> --purpose <text> --file <path>\nclip sync [--skills-dir <path>]\nclip registry search [query]\nclip registry add <id> --purpose <text>"
                 }
               </code>
             </pre>

@@ -20,12 +20,12 @@ The Homebrew formula installs Node.js 24 or later. No runtime npm dependencies a
 ```sh
 clip discover
 clip registry search git
-clip registry show git
-clip registry install git --purpose "Review repository changes"
+clip schema show git
+clip registry add git --purpose "Review repository changes"
 clip sync
 ```
 
-This writes `.agents/skills/clip-git/SKILL.md` and its `schema.json` in your project. Installing a registry schema requires the executable to be installed already. It doesn't install or execute the tool.
+This writes `.agents/skills/clip-git/SKILL.md` and its `schema.json` in your project. Adding a registry schema requires the executable to be installed already. It doesn't install or execute the tool.
 
 For tools with native introspection:
 
@@ -38,7 +38,7 @@ clip sync
 For tools without it:
 
 ```sh
-clip schema-init mytool --purpose "Manage deployments" --file mytool.json
+clip schema init mytool --purpose "Manage deployments" --file mytool.json
 # Add real operations to the draft's commands list.
 clip register mytool --purpose "Manage deployments" --schema mytool.json
 clip sync
@@ -57,7 +57,7 @@ A minimal capability document:
 
 CLIP accepts `capabilities` instead of `commands`, and preserves richer native CLI Spec fields, including nested commands. Missing mutation markers mean unknown. Schemas describe capabilities; they never grant authorization.
 
-Use `clip list`, `clip schema mytool`, and `clip remove mytool` to maintain registrations. Run `clip sync` after changes. Set `--skills-dir` to your agent's skills directory. CLIP refuses to replace unowned skill directories; generated files should be edited through their source schemas.
+Use `clip list` and `clip remove mytool` to maintain registrations. Run `clip sync` after changes. Set `--skills-dir` to your agent's skills directory. CLIP refuses to replace unowned skill directories; generated files should be edited through their source schemas.
 
 ## CLI behavior
 
@@ -67,7 +67,7 @@ Use `clip list`, `clip schema mytool`, and `clip remove mytool` to maintain regi
 - Failures exit 1 and write a structured error to stderr.
 - Discovery scans PATH without executing tools. Native probing is explicit, shell-free, and bounded to five seconds and 1 MiB.
 - Registrations live under `CLIP_HOME`, defaulting to `~/.config/clip`.
-- The first release bundles the community registry. Upgrade CLIP, reinstall a schema, and sync to adopt an update. Local schema files can be updated independently.
+- The first release bundles the community registry. Upgrade CLIP, add the schema again, and sync to adopt an update. Local schema files can be updated independently.
 
 ## Development
 

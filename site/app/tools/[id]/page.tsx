@@ -61,7 +61,7 @@ export default async function Tool({ params }: { params: Promise<{ id: string }>
               the tool.
             </p>
             <pre>
-              <code>{`clip registry install ${entry.id} --purpose "${entry.purpose}"\nclip sync`}</code>
+              <code>{`clip registry add ${entry.id} --purpose "${entry.purpose}"\nclip sync`}</code>
             </pre>
             <p>
               Coverage: {entry.coverage}. This is a partial community description, not a claim of

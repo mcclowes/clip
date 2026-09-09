@@ -1,6 +1,6 @@
 /**
  * ---
- * purpose: Load the bundled community catalog and verify capability documents before installation.
+ * purpose: Load the bundled community catalog and verify capability documents before registration.
  * ---
  */
 import { existsSync, readFileSync } from 'node:fs';
