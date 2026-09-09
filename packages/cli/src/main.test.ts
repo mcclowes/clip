@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -29,4 +29,20 @@ test('register a tool, update its purpose, and generate a portable skill', t => 
   assert.match(skill, /Run project scripts/);
   assert.match(skill, /--version/);
   assert.equal(JSON.parse(run('schema', 'node').stdout).name, 'node');
+});
+
+test('probe capabilities explicitly, preserve nested contracts, and discover without executing', t => {
+  const { dir, run } = fixture(t);
+  const executable = join(dir, 'fixture-tool');
+  const marker = join(dir, 'executed');
+  writeFileSync(executable, `#!${process.execPath}\nrequire('node:fs').writeFileSync(${JSON.stringify(marker)}, 'yes'); console.log(JSON.stringify({name:'fixture',commands:[{name:'project',description:'Projects',subcommands:[{name:'list',description:'List projects',mutating:false}]}]}));`, { mode: 0o755 });
+  const discovered = spawnSync(process.execPath, [main.pathname, 'discover', 'fixture-tool'], { encoding: 'utf8', env: { ...process.env, PATH: dir } });
+  assert.equal(discovered.status, 0, discovered.stderr);
+  assert.equal(JSON.parse(discovered.stdout).items[0].name, 'fixture-tool');
+  assert.equal(existsSync(marker), false);
+  const probe = run('register', executable, '--purpose', 'Manage projects', '--probe', 'capabilities');
+  assert.equal(probe.status, 0, probe.stderr);
+  assert.equal(existsSync(marker), true);
+  assert.equal(run('sync').status, 0);
+  assert.match(readFileSync(join(dir, '.agents/skills/clip-fixture/SKILL.md'), 'utf8'), /project list/);
 });
