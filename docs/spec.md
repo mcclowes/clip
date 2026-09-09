@@ -40,4 +40,4 @@ Exercise the public CLI in temporary directories: registration and purpose updat
 
 ## Publishing
 
-GitHub owner is pending confirmation. The site and source will be prepared locally before publication. No existing repository or files were present at task start.
+Source: https://github.com/mcclowes/clip. Homebrew tap: https://github.com/mcclowes/homebrew-clip. Initial release: v0.1.0. Implementation is tracked in issue #1. The docs and directory are hosted through Sites, with public access awaiting the owner's audience choice. No existing repository or files were present at task start.
