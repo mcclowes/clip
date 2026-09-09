@@ -1,0 +1,12 @@
+{
+  "name": "clip-workspace",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test packages/cli/src/*.test.ts",
+    "build": "tsc -p packages/cli/tsconfig.json && node scripts/copy-registry.mjs",
+    "check": "tsc -p packages/cli/tsconfig.json --noEmit",
+    "registry:check": "node scripts/validate-registry.ts"
+  },
+  "devDependencies": { "@types/node": "^24.0.0", "typescript": "^5.9.0" }
+}
