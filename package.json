@@ -3,10 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test packages/cli/src/*.test.ts",
+    "test": "node --test packages/cli/src/*.test.ts evals/*.test.ts",
     "build": "tsc -p packages/cli/tsconfig.json && node scripts/copy-registry.mjs",
-    "check": "tsc -p packages/cli/tsconfig.json --noEmit",
-    "registry:check": "node scripts/validate-registry.ts"
+    "check": "tsc -p packages/cli/tsconfig.json --noEmit && tsc -p evals/tsconfig.json",
+    "registry:check": "node scripts/validate-registry.ts",
+    "eval": "node evals/run.ts",
+    "eval:report": "node evals/report.ts"
   },
   "devDependencies": { "@types/node": "^24.0.0", "typescript": "^5.9.0" }
 }

@@ -11,3 +11,6 @@ dist/
 .saggar/**/*.local.*
 .saggar/scratchpad.md
 .saggar/jobs/
+
+# Eval transcripts and raw results
+evals/results/
