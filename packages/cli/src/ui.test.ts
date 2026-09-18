@@ -78,3 +78,33 @@ test('user can remove a registration with confirmation', async t => {
   assert.deepEqual(readTools(), []);
   assert.match(term.screen(), /Removed example/);
 });
+
+const lastFrame = (screen: string) => screen.split('\x1b[2J\x1b[H').at(-1)!;
+
+test('user can search the registry and cancel a second search', async () => {
+  const term = terminal();
+  const running = runUi({ ...term, scope: 'global' });
+  for (const key of ['\t', '/', ...'docker', '\r', '/', 'x', '\x7f', 'z', '\x1b', 'q']) term.input.write(key);
+  await running;
+  const frame = lastFrame(term.screen());
+  assert.match(frame, /Search: docker/);
+  assert.match(frame, /Inspect containers/);
+  assert.doesNotMatch(frame, /Filter, inspect, and transform JSON/);
+});
+
+test('user can move to another registration and decline then confirm removal', async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'clip-ui-test-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const previous = process.env.CLIP_HOME;
+  process.env.CLIP_HOME = dir;
+  t.after(() => { if (previous === undefined) delete process.env.CLIP_HOME; else process.env.CLIP_HOME = previous; });
+  const { updateTools, readTools } = await import('./store.ts');
+  const tool = (name: string) => ({ name, executable: `/bin/${name}`, purpose: `${name} tool`, source: { kind: 'manual' } });
+  updateTools(() => [tool('first'), tool('second')], 'global');
+  const term = terminal();
+  const running = runUi({ ...term, scope: 'global' });
+  for (const key of ['j', 'j', 'k', '\x1b[B', 'd', 'n', 'd', '\r', 'd', 'Y', 'q']) term.input.write(key);
+  await running;
+  assert.deepEqual(readTools().map(item => item.name), ['first']);
+  assert.match(lastFrame(term.screen()), /Removed second/);
+});

@@ -25,7 +25,8 @@ const minRows = 12;
 const chromeRows = 12;
 const nameColumn = 20;
 
-const isEntry = (item: Item): item is Entry => 'category' in item;
+export const isEntry = (item: Item): item is Entry => 'category' in item;
+export const clampIndex = (index: number, count: number) => Math.min(index, Math.max(count - 1, 0));
 const detail = (item: Item) => (isEntry(item) ? `${item.category} · ${item.coverage}` : item.executable);
 const highlight = (text: string, active: boolean) => (active ? `${invert}${text}${reset}` : text);
 
@@ -39,7 +40,7 @@ export function renderScreen(view: View): string {
   const height = Math.max(minRows, view.rows ?? 24);
   const { offset, pageSize } = visibleRange(view.items.length, view.index, view.rows);
   const visible = view.items.slice(offset, offset + pageSize);
-  const active = view.items[Math.min(view.index, Math.max(view.items.length - 1, 0))];
+  const active = view.items[clampIndex(view.index, view.items.length)];
   const lines = [
     ' CLIP',
     ` ${highlight(' Registered ', view.tab === 'registered')}  ${highlight(' Registry ', view.tab === 'registry')}`,
