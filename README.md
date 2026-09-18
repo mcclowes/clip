@@ -92,4 +92,4 @@ npm run dev
 
 The CLI is TypeScript with no runtime dependencies. The site uses React and the Next.js App Router API through Vinext, with a static export. Registry JSON is the source of truth for both surfaces.
 
-See [the specification](docs/spec.md), [contributing](CONTRIBUTING.md), and [release instructions](docs/releasing.md).
+See [the specification](docs/spec.md), [eval findings](docs/evals.md), [contributing](CONTRIBUTING.md), and [release instructions](docs/releasing.md).
