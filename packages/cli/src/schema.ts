@@ -5,6 +5,8 @@
  */
 export type Operation = { name: string; description: string; mutating?: boolean; subcommands?: Operation[]; [key: string]: unknown };
 export type Schema = { name: string; commands?: Operation[]; capabilities?: Operation[]; [key: string]: unknown };
+const maxDepth = 16;
+const maxOperations = 2000;
 export function toolName(value: string): string {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$/.test(value)) throw new Error('Tool names must contain only letters, numbers, dots, underscores, and hyphens.');
   return value;
@@ -18,10 +20,10 @@ export function validateSchema(value: unknown): Schema {
   if (!Array.isArray(operations) || !operations.length) throw new Error('Schema requires a nonempty commands or capabilities list.');
   let count = 0;
   function validate(items: Operation[], depth: number) {
-    if (depth > 16) throw new Error('Schema command nesting exceeds 16 levels.');
+    if (depth > maxDepth) throw new Error(`Schema command nesting exceeds ${maxDepth} levels.`);
     const names = new Set<string>();
     for (const item of items) {
-      if (++count > 2000) throw new Error('Schema exceeds 2000 operations.');
+      if (++count > maxOperations) throw new Error(`Schema exceeds ${maxOperations} operations.`);
       if (!item || typeof item.name !== 'string' || !item.name.trim() || typeof item.description !== 'string' || !item.description.trim()) throw new Error('Every operation needs a name and description.');
       if (names.has(item.name)) throw new Error(`Duplicate operation: ${item.name}`);
       names.add(item.name);
@@ -36,12 +38,17 @@ export function validateSchema(value: unknown): Schema {
   return schema;
 }
 
+function mutationLabel(mutating: boolean | undefined): string {
+  if (mutating === undefined) return 'unknown';
+  return mutating ? 'yes' : 'no';
+}
+
 export function describeOperations(schema: Schema): string[] {
   const result: string[] = [];
   function visit(items: Operation[], prefix = '') {
     for (const item of items) {
       const path = `${prefix}${item.name}`;
-      result.push(`- ${path}: ${item.description} (mutation: ${item.mutating === undefined ? 'unknown' : item.mutating ? 'yes' : 'no'})`);
+      result.push(`- ${path}: ${item.description} (mutation: ${mutationLabel(item.mutating)})`);
       if (item.subcommands) visit(item.subcommands, `${path} `);
     }
   }

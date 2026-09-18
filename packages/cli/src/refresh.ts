@@ -32,19 +32,20 @@ function reloadSource(tool: Registration): Registration {
 export type Diagnosis = { name: string; source: string; status: 'current' | 'drifted' | 'missing' | 'unrefreshable' | 'error'; message?: string };
 export const healthyStatuses: Diagnosis['status'][] = ['current', 'unrefreshable'];
 
+const fingerprint = ({ schema, source }: Registration) => JSON.stringify([schema, source]);
+const hasDrifted = (before: Registration, after: Registration) => fingerprint(before) !== fingerprint(after);
+
 export function diagnoseRegistration(tool: Registration): Diagnosis {
-  const source = tool.source.kind;
+  const subject = { name: tool.name, source: tool.source.kind };
   try {
     executablePath(tool.executable);
   } catch (error) {
-    return { name: tool.name, source, status: 'missing', message: (error as Error).message };
+    return { ...subject, status: 'missing', message: (error as Error).message };
   }
-  if (!refreshable(tool)) return { name: tool.name, source, status: 'unrefreshable' };
+  if (!refreshable(tool)) return { ...subject, status: 'unrefreshable' };
   try {
-    const refreshed = refreshRegistration(tool);
-    const drifted = JSON.stringify(refreshed.schema) !== JSON.stringify(tool.schema) || JSON.stringify(refreshed.source) !== JSON.stringify(tool.source);
-    return { name: tool.name, source, status: drifted ? 'drifted' : 'current' };
+    return { ...subject, status: hasDrifted(tool, refreshRegistration(tool)) ? 'drifted' : 'current' };
   } catch (error) {
-    return { name: tool.name, source, status: 'error', message: (error as Error).message };
+    return { ...subject, status: 'error', message: (error as Error).message };
   }
 }
