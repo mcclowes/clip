@@ -7,22 +7,27 @@ import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { validateSchema, toolName } from './schema.ts';
 import { executablePath } from './discovery.ts';
-import type { Registration, Scope } from './store.ts';
-export type Entry = { id: string; name: string; executable: string; purpose: string; category: string; maintainer: string; version: string; upstream: string; documentation: string; schema: string; sha256: string; coverage: string };
+import { storedExecutable, type Registration, type Scope } from './store.ts';
+const entryFields = ['id', 'name', 'executable', 'purpose', 'category', 'maintainer', 'version', 'upstream', 'documentation', 'schema', 'sha256', 'coverage'] as const;
+export type Entry = Record<(typeof entryFields)[number], string>;
 const root = existsSync(new URL('./registry/index.json', import.meta.url)) ? new URL('./registry/', import.meta.url) : new URL('../../../registry/', import.meta.url);
 export function catalog(): Entry[] {
   const data = JSON.parse(readFileSync(new URL('index.json', root), 'utf8'));
   if (data.version !== 1 || !Array.isArray(data.items)) throw new Error('Unsupported registry format.');
   const ids = new Set<string>();
   for (const item of data.items) {
-    for (const key of ['id', 'name', 'executable', 'purpose', 'category', 'maintainer', 'version', 'upstream', 'documentation', 'schema', 'sha256', 'coverage']) if (typeof item[key] !== 'string' || !item[key].trim()) throw new Error(`Registry entry requires ${key}.`);
-    toolName(item.id); toolName(item.executable);
+    validateEntry(item);
     if (ids.has(item.id)) throw new Error(`Duplicate registry ID: ${item.id}`);
     ids.add(item.id);
-    if (!/^schemas\/[a-zA-Z0-9._-]+\.json$/.test(item.schema) || !/^[a-f0-9]{64}$/.test(item.sha256)) throw new Error('Invalid registry schema path or digest.');
-    if (![item.upstream, item.documentation].every(url => new URL(url).protocol === 'https:')) throw new Error('Registry links must use HTTPS.');
   }
   return data.items;
+}
+function validateEntry(item: Record<string, unknown>): asserts item is Entry {
+  for (const key of entryFields) if (typeof item[key] !== 'string' || !item[key].trim()) throw new Error(`Registry entry requires ${key}.`);
+  const entry = item as Entry;
+  toolName(entry.id); toolName(entry.executable);
+  if (!/^schemas\/[a-zA-Z0-9._-]+\.json$/.test(entry.schema) || !/^[a-f0-9]{64}$/.test(entry.sha256)) throw new Error('Invalid registry schema path or digest.');
+  if (![entry.upstream, entry.documentation].every(url => new URL(url).protocol === 'https:')) throw new Error('Registry links must use HTTPS.');
 }
 export function findEntry(id: string | undefined): Entry {
   const entry = catalog().find(item => item.id === id);
@@ -39,9 +44,9 @@ export function registrySchema(entry: Entry) {
 export function registrySource(entry: Entry): Registration['source'] {
   return { kind: 'registry', id: entry.id, version: entry.version, maintainer: entry.maintainer, sha256: entry.sha256 };
 }
-/** Verifies the executable is installed; shared registrations keep the portable name rather than the resolved path. */
+/** Verifies the executable is installed without running it. */
 export function registryRegistration(entry: Entry, purpose: string, scope: Scope): Registration {
   const schema = registrySchema(entry);
   const resolved = executablePath(entry.executable);
-  return { name: schema.name, executable: scope === 'shared' ? entry.executable : resolved, purpose, schema, source: registrySource(entry) };
+  return { name: schema.name, executable: storedExecutable(scope, entry.executable, resolved), purpose, schema, source: registrySource(entry) };
 }

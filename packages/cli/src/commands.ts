@@ -9,7 +9,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { validateSchema, toolName, type Schema } from './schema.ts';
-import { readTools, removeTool, scopes, updateTools, upsertTool, type Registration, type Scope } from './store.ts';
+import { readTools, removeTool, scopes, storedExecutable, updateTools, upsertTool, type Registration, type Scope } from './store.ts';
 import { defaultSkillsDir, syncSkills } from './skills.ts';
 import { discover, executablePath, probeSchema } from './discovery.ts';
 import { catalog, findEntry, registryRegistration, registrySchema } from './registry.ts';
@@ -89,7 +89,7 @@ function register({ args: [name], options, scope }: Invocation): Registration {
   const previous = readTools().find(tool => (tool.executable === executable || tool.executable === name) && (!loaded || loaded.schema.name === tool.name));
   const registration: Registration = {
     name: toolName(loaded?.schema.name ?? previous?.name ?? basename(executable)),
-    executable: scope === 'shared' ? name : executable,
+    executable: storedExecutable(scope, name, executable),
     purpose: options.purpose,
     schema: loaded?.schema ?? previous?.schema,
     source: loaded?.source ?? previous?.source ?? { kind: 'manual' },

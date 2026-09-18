@@ -26,6 +26,8 @@ export function projectRoot(cwd = process.cwd()): string | undefined {
 export function defaultScope(cwd = process.cwd()): Scope {
   return projectRoot(cwd) ? 'local' : 'global';
 }
+/** Shared registrations travel between machines, so they keep the portable name rather than the resolved path. */
+export const storedExecutable = (scope: Scope, name: string, resolved: string) => (scope === 'shared' ? name : resolved);
 function configPath(scope: Scope, cwd = process.cwd()): string {
   if (scope === 'global') return join(configDir(), 'tools.json');
   const root = projectRoot(cwd);
@@ -46,14 +48,15 @@ function readDocument(path: string): ToolDocument {
 }
 export function readTools(cwd = process.cwd()): Registration[] {
   const merged = new Map<string, Registration>();
-  for (const scope of scopes) {
-    if (scope !== 'global' && !projectRoot(cwd)) continue;
+  const available: readonly Scope[] = projectRoot(cwd) ? scopes : ['global'];
+  for (const scope of available) {
     const document = readDocument(configPath(scope, cwd));
     for (const name of document.disabled ?? []) merged.delete(name);
     for (const tool of document.tools) merged.set(tool.name, { ...tool, scope });
   }
   return [...merged.values()];
 }
+const toDocument = (tools: Registration[], disabled: string[]): ToolDocument => ({ version: 1, tools, ...(disabled.length ? { disabled } : {}) });
 function updateDocument(change: (document: ToolDocument) => ToolDocument, scope: Scope, cwd: string): ToolDocument {
   const path = configPath(scope, cwd);
   const dir = dirname(path);
@@ -78,8 +81,7 @@ export function updateTools(change: (tools: Registration[]) => Registration[], s
   return updateDocument(current => {
     const tools = change(current.tools).map(({ scope: _scope, ...tool }) => tool);
     const names = new Set(tools.map(tool => tool.name));
-    const disabled = (current.disabled ?? []).filter(name => !names.has(name));
-    return { version: 1, tools, ...(disabled.length ? { disabled } : {}) };
+    return toDocument(tools, (current.disabled ?? []).filter(name => !names.has(name)));
   }, scope, cwd).tools;
 }
 export function upsertTool(registration: Registration, scope = defaultScope(), cwd = process.cwd()): Registration {
@@ -89,7 +91,6 @@ export function upsertTool(registration: Registration, scope = defaultScope(), c
 export function removeTool(name: string, scope = defaultScope(), cwd = process.cwd()): void {
   updateDocument(current => {
     const tools = current.tools.filter(tool => tool.name !== name);
-    const disabled = scope === 'global' ? [] : [...new Set([...(current.disabled ?? []), name])];
-    return { version: 1, tools, ...(disabled.length ? { disabled } : {}) };
+    return toDocument(tools, scope === 'global' ? [] : [...new Set([...(current.disabled ?? []), name])]);
   }, scope, cwd);
 }
