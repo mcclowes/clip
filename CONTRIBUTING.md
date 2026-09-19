@@ -1,6 +1,6 @@
 # Contributing
 
-Start with a GitHub issue for a new feature or a substantial change. Keep pull requests focused and describe what changed and how you tested it.
+Start with a GitHub issue for a new feature or a substantial change. Keep pull requests focused and describe what changed and how you tested it. Add a line under `Unreleased` in `CHANGELOG.md` for any change users will notice. Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md); report security issues as described in [SECURITY.md](SECURITY.md), not in public issues.
 
 ## Add or improve a community schema
 

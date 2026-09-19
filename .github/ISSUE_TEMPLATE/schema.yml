@@ -1,0 +1,34 @@
+name: Schema request or correction
+description: Ask for a community schema, or report a wrong one.
+labels: [schema]
+body:
+  - type: input
+    id: tool
+    attributes:
+      label: Tool
+      description: Executable name and a link to its official docs.
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Request
+      options:
+        - New schema
+        - Missing commands in an existing schema
+        - Incorrect schema, such as a wrong mutation marker
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: The commands agents need, or what's wrong and how you verified it. Include the tool version.
+    validations:
+      required: true
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to open the pull request myself. See [CONTRIBUTING.md](https://github.com/mcclowes/clip/blob/main/CONTRIBUTING.md).

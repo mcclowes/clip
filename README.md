@@ -1,5 +1,9 @@
 # CLIP
 
+[![CI](https://github.com/mcclowes/clip/actions/workflows/ci.yml/badge.svg)](https://github.com/mcclowes/clip/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/mcclowes/clip)](https://github.com/mcclowes/clip/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 Command Line Interface Protocol. Register CLI tools, describe their capabilities, and generate skills that let agents use the same tools you do.
 
 CLIP keeps execution on the command line. It doesn't proxy commands or manage credentials. Agents call the original executable with its existing authentication and permissions.
@@ -92,4 +96,4 @@ npm run dev
 
 The CLI is TypeScript with no runtime dependencies. The docs site is a static Docusaurus build. Registry JSON is the source of truth for both surfaces.
 
-See [the specification](docs/spec.md), [eval findings](docs/evals.md), [contributing](CONTRIBUTING.md), and [release instructions](docs/releasing.md).
+See [the specification](docs/spec.md), [eval findings](docs/evals.md), [contributing](CONTRIBUTING.md), [the changelog](CHANGELOG.md), and [release instructions](docs/releasing.md). Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).

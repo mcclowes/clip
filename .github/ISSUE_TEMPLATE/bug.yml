@@ -1,0 +1,32 @@
+name: Bug report
+description: CLIP did something wrong or crashed.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what you got. Include the structured error from stderr if there was one.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      render: sh
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: CLIP version
+      description: Output of `clip --version`.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS, Node.js version, and install method
+      placeholder: macOS 15, Node 24.3, Homebrew
+    validations:
+      required: true
