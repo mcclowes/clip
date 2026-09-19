@@ -7,6 +7,10 @@ dist/
 .agents/skills/clip-*/
 .clip/tools.local.json
 
+# Copied in by prepack
+packages/cli/README.md
+packages/cli/LICENSE
+
 # Added by saggar — local files that shouldn't be committed
 .saggar/**/*.local.*
 .saggar/scratchpad.md

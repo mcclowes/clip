@@ -2,9 +2,16 @@
   "name": "@mcclowes/clip",
   "version": "0.2.0",
   "description": "CLI capabilities shared by people and agents",
+  "keywords": ["cli", "agents", "skills", "mcp", "clispec", "llm"],
+  "homepage": "https://clip.marginalutility.dev",
+  "bugs": "https://github.com/mcclowes/clip/issues",
+  "repository": { "type": "git", "url": "git+https://github.com/mcclowes/clip.git", "directory": "packages/cli" },
+  "author": "Max Clayton Clowes (https://mcclowes.com)",
   "type": "module",
   "bin": { "clip": "dist/main.js" },
   "engines": { "node": ">=24" },
   "license": "MIT",
-  "files": ["dist"]
+  "files": ["dist"],
+  "scripts": { "prepack": "cp ../../README.md ../../LICENSE ." },
+  "publishConfig": { "access": "public" }
 }
