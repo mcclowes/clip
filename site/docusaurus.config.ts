@@ -6,7 +6,7 @@ const config: Config = {
   title: 'CLIP',
   tagline: 'Command Line Interface Protocol',
   favicon: 'img/favicon.svg',
-  url: 'https://clip-protocol.mcclowes.chatgpt.site',
+  url: 'https://clip.marginalutility.dev',
   baseUrl: '/',
   organizationName: 'mcclowes',
   projectName: 'clip',

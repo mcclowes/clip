@@ -16,4 +16,4 @@ The catalog is bundled into CLIP releases. Maintainers review contributions in G
 
 ## Checks
 
-Run `npm test`, `npm run build`, and `npm run registry:check` at the repository root. For site changes, regenerate the catalog and run `npm ci`, `npm run build`, and `npm run lint` in `site/`.
+Run `npm test`, `npm run build`, and `npm run registry:check` at the repository root. For site changes, regenerate the catalog and run `npm ci`, `npm run build`, and `npm run typecheck` in `site/`.
