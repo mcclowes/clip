@@ -68,7 +68,7 @@ function updateDocument(change: (document: ToolDocument) => ToolDocument, scope:
   try {
     const current = readDocument(path);
     const updated = change(current);
-    writeFileSync(temp, JSON.stringify(updated, null, 2) + '\n', { mode: 0o600 });
+    writeFileSync(temp, `${JSON.stringify(updated, null, 2)}\n`, { mode: 0o600 });
     renameSync(temp, path);
     return updated;
   } finally {

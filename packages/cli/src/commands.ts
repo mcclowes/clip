@@ -49,7 +49,7 @@ const commands: Record<string, Command> = {
   'schema init': { positionals: 1, run: ({ args: [name], options }) => {
     if (!name || !options.purpose?.trim() || !options.file) throw new Error('schema init requires a name, --purpose, and --file.');
     const schema = { name: toolName(name), description: options.purpose, commands: [] };
-    writeFileSync(options.file, JSON.stringify(schema, null, 2) + '\n', { flag: 'wx' });
+    writeFileSync(options.file, `${JSON.stringify(schema, null, 2)}\n`, { flag: 'wx' });
     return { file: resolve(options.file), next: 'Add command names, descriptions, arguments, and mutation markers before registering this draft.' };
   } },
   'registry search': { positionals: 1, run: ({ args: [query = ''], limit }) => {

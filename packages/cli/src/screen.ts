@@ -45,7 +45,7 @@ export function renderScreen(view: View): string {
     ' CLIP',
     ` ${highlight(' Registered ', view.tab === 'registered')}  ${highlight(' Registry ', view.tab === 'registry')}`,
     ` ${searchLine(view)}`,
-    ' ' + '─'.repeat(width - 2),
+    ` ${'─'.repeat(width - 2)}`,
     ...visible.map((item, row) => ` ${highlight(`${item.name.padEnd(nameColumn)} ${item.purpose.slice(0, width - 25)}`, row + offset === view.index)}`),
     ...(visible.length ? [] : [' No tools found.']),
     '',

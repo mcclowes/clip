@@ -47,7 +47,7 @@ function writeSkill(dir: string, tool: Registration): void {
   writeFileSync(join(dir, 'SKILL.md'), renderSkill(tool));
   writeFileSync(join(dir, marker), markerText);
   const schemaPath = join(dir, 'schema.json');
-  if (tool.schema) writeFileSync(schemaPath, JSON.stringify(tool.schema, null, 2) + '\n');
+  if (tool.schema) writeFileSync(schemaPath, `${JSON.stringify(tool.schema, null, 2)}\n`);
   else if (existsSync(schemaPath)) unlinkSync(schemaPath);
 }
 

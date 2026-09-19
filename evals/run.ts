@@ -30,7 +30,7 @@ const outDir = options.out ?? join(here, 'results', `${new Date().toISOString().
 const concurrency = Number(options.concurrency);
 mkdirSync(join(outDir, 'transcripts'), { recursive: true });
 
-const record = (file: string, row: object) => appendFileSync(join(outDir, file), JSON.stringify(row) + '\n');
+const record = (file: string, row: object) => appendFileSync(join(outDir, file), `${JSON.stringify(row)}\n`);
 
 async function runTasks() {
   const chosen = { conditions: options.conditions.split(',') as Condition[], tasks: tasks.filter(task => options.tasks.split(',').includes(task.id)) };

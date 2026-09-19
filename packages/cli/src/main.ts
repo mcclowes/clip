@@ -25,7 +25,7 @@ try {
     if (!command.interactive) print(result, format);
   }
 } catch (error) {
-  process.stderr.write(JSON.stringify({ error: { kind: 'invalid_request', message: error instanceof Error ? error.message : String(error) } }) + '\n');
+  process.stderr.write(`${JSON.stringify({ error: { kind: 'invalid_request', message: error instanceof Error ? error.message : String(error) } })}\n`);
   process.exitCode = 1;
 }
 
@@ -46,5 +46,5 @@ function parseCli() {
 /** Piped output defaults to JSON so agents parse it; a terminal gets text. */
 function print(result: unknown, format: Format, text: (result: unknown) => string = renderText): void {
   const json = format === 'json' || (format === 'auto' && !process.stdout.isTTY);
-  process.stdout.write((json ? JSON.stringify(result) : text(result)) + '\n');
+  process.stdout.write(`${json ? JSON.stringify(result) : text(result)}\n`);
 }

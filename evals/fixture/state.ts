@@ -37,7 +37,7 @@ function statePath(): string {
 }
 
 export const readState = (path = statePath()): State => JSON.parse(readFileSync(path, 'utf8'));
-export const writeState = (state: State, path = statePath()) => writeFileSync(path, JSON.stringify(state, null, 2) + '\n');
+export const writeState = (state: State, path = statePath()) => writeFileSync(path, `${JSON.stringify(state, null, 2)}\n`);
 
 export function execute(command: Command, values: Values): unknown {
   const state = readState();

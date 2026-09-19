@@ -50,11 +50,11 @@ function main(argv: string[]): number {
   }
   try {
     if (!command) throw new UsageError(`Unknown command: ${argv.join(' ')}. Run "brindle --help".`);
-    process.stdout.write(JSON.stringify(execute(command, parseArgs(command, rest)), null, 2) + '\n');
+    process.stdout.write(`${JSON.stringify(execute(command, parseArgs(command, rest)), null, 2)}\n`);
     return 0;
   } catch (error) {
     if (!(error instanceof UsageError)) throw error;
-    process.stderr.write(JSON.stringify({ error: error.message }) + '\n');
+    process.stderr.write(`${JSON.stringify({ error: error.message })}\n`);
     return 2;
   }
 }

@@ -44,5 +44,5 @@ createInterface({ input: process.stdin }).on('line', line => {
   } catch (error) {
     reply = { error: { code: -32601, message: (error as Error).message } };
   }
-  process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id: request.id, ...reply }) + '\n');
+  process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id: request.id, ...reply })}\n`);
 });
