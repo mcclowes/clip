@@ -17,3 +17,9 @@ The catalog is bundled into CLIP releases. Maintainers review contributions in G
 ## Checks
 
 Run `npm run lint`, `npm run check`, `npm test`, `npm run build`, and `npm run registry:check` at the repository root. CI also enforces 85% line coverage through `npm run test:coverage`. For site changes, regenerate the catalog and run `npm ci`, `npm run build`, and `npm run typecheck` in `site/`.
+
+## Release
+
+Releases are driven by tags. Bump `version` in `packages/cli/package.json`, move the `Unreleased` entries in `CHANGELOG.md` under the new version, then push a matching `v<version>` tag. The release workflow builds, checks that the tag matches the manifest, attaches the archive to a GitHub release, and publishes to npm with provenance through trusted publishing.
+
+Publishing by hand is only for the first release of a package, because npm can't be configured as a trusted publisher until the package exists. Run `npm run release:npm` from the repository root, after `npm login`; use `npm run release:npm:dry` to inspect the tarball first. Don't run `npm publish` from `packages/cli` by hand — publishing from the repository root instead picks up the private workspace manifest and fails with a confusing `Cannot read properties of null (reading 'prerelease')`.

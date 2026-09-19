@@ -7,6 +7,8 @@
     "test:coverage": "node --test --experimental-test-coverage --test-coverage-exclude='**/*.test.ts' --test-coverage-lines=85 packages/cli/src/*.test.ts evals/*.test.ts",
     "lint": "biome lint",
     "build": "tsc -p packages/cli/tsconfig.json && node scripts/copy-registry.mjs",
+    "release:npm": "npm run build && npm publish ./packages/cli",
+    "release:npm:dry": "npm run build && npm publish ./packages/cli --dry-run",
     "check": "tsc -p packages/cli/tsconfig.json --noEmit && tsc -p evals/tsconfig.json",
     "registry:check": "node scripts/validate-registry.ts",
     "eval": "node evals/run.ts",
