@@ -23,7 +23,8 @@ const { values: options, positionals } = parseArgs({
     tasks: { type: 'string', default: tasks.map(task => task.id).join(',') },
     prompts: { type: 'string', default: 'named' },
     distractors: { type: 'boolean', default: false },
-    sizes: { type: 'string', default: '8,32,100' },
+    // The first size is the fixture as it stands, so adding a command does not mislabel the column.
+    sizes: { type: 'string', default: `${commands.length},32,100` },
     out: { type: 'string' },
   },
 });
