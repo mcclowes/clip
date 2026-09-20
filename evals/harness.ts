@@ -10,9 +10,12 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { clipSchema, paddedCommands, toolDescription } from './fixture/spec.ts';
 import { seed, writeState } from './fixture/state.ts';
+import { skillFormatByCondition, type ClipSchema } from './skill-formats.ts';
 
-export const conditions = ['cli-bare', 'cli-hint', 'cli-clip', 'mcp-eager', 'mcp-deferred'] as const;
-export type Condition = (typeof conditions)[number] | 'baseline';
+/** Skill formats appear as their own conditions, so a format change is measured without touching packages/cli. */
+export const skillConditions = [...skillFormatByCondition.keys()];
+export const conditions = ['cli-bare', 'cli-hint', ...skillConditions, 'mcp-eager', 'mcp-deferred'];
+export type Condition = string;
 
 const here = dirname(fileURLToPath(import.meta.url));
 const clipMain = resolve(here, '../packages/cli/src/main.ts');
@@ -20,7 +23,13 @@ const builtinTools = ['Bash', 'Read', 'Skill'];
 const runTimeoutMs = 6 * 60_000;
 /** Stands in for the one line a project would otherwise put in CLAUDE.md. */
 const cliHint = 'The brindle CLI is installed and on PATH.';
-const cliConditions: Condition[] = ['cli-bare', 'cli-hint', 'cli-clip'];
+export const skillsDir = '.claude/skills';
+const isCliCondition = (condition: Condition) => condition === 'cli-bare' || condition === 'cli-hint' || skillFormatByCondition.has(condition);
+
+export function assertKnownConditions(chosen: Condition[]): void {
+  const unknown = chosen.filter(condition => !conditions.includes(condition));
+  if (unknown.length) throw new Error(`Unknown conditions: ${unknown.join(', ')}. Known: ${conditions.join(', ')}`);
+}
 
 export type Workspace = { root: string; cwd: string; statePath: string; env: NodeJS.ProcessEnv; claudeArgs: string[] };
 
@@ -37,19 +46,22 @@ export function prepare(condition: Condition, extraCommands = 0): Workspace {
   const tools = [...builtinTools];
   const claudeArgs: string[] = [];
 
-  if (cliConditions.includes(condition)) {
+  if (isCliCondition(condition)) {
     const shim = join(bin, 'brindle');
     writeFileSync(shim, `#!/bin/sh\nexec "${process.execPath}" "${join(here, 'fixture/cli.ts')}" "$@"\n`);
     chmodSync(shim, 0o755);
     env.PATH = `${bin}:${process.env.PATH}`;
   }
   if (condition === 'cli-hint') claudeArgs.push('--append-system-prompt', cliHint);
-  if (condition === 'cli-clip') {
+  const format = skillFormatByCondition.get(condition);
+  if (format) {
     const schemaPath = join(root, 'brindle.schema.json');
-    writeFileSync(schemaPath, JSON.stringify(clipSchema(paddedCommands(extraCommands)), null, 2));
-    const clip = (...args: string[]) => execFileSync(process.execPath, [clipMain, ...args], { cwd, env, stdio: 'pipe' });
-    clip('register', 'brindle', '--purpose', toolDescription, '--schema', schemaPath);
-    clip('sync', '--skills-dir', '.claude/skills');
+    const schema = clipSchema(paddedCommands(extraCommands)) as ClipSchema;
+    writeFileSync(schemaPath, JSON.stringify(schema, null, 2));
+    format.render({
+      skillsDir: join(cwd, skillsDir), schema, schemaPath, executable: join(bin, 'brindle'), purpose: toolDescription,
+      clip: (...args: string[]) => void execFileSync(process.execPath, [clipMain, ...args], { cwd, env, stdio: 'pipe' }),
+    });
   }
   if (condition === 'mcp-eager' || condition === 'mcp-deferred') {
     const config = join(root, 'mcp.json');

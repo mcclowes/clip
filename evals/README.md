@@ -11,8 +11,19 @@ One fictional tool, `brindle`, is exposed through every interface from a single 
 | `cli-bare` | `brindle` on PATH, nothing else |
 | `cli-hint` | `brindle` on PATH plus one system prompt line saying so, standing in for a CLAUDE.md mention |
 | `cli-clip` | `brindle` on PATH plus the skill from the real `clip register` and `clip sync` |
+| `cli-clip-signatures` | The same, rendered with compact argument signatures and a relative schema path ([#11](https://github.com/mcclowes/clip/issues/11)) |
 | `mcp-eager` | An MCP server with tool schemas loaded upfront |
 | `mcp-deferred` | The same server with schemas deferred behind tool search |
+
+## Skill formats
+
+`skill-formats.ts` holds one renderer per proposed skill format, and each becomes its own condition, so a format can be measured before `packages/cli` changes. `current` calls the real `clip register` and `clip sync` and keeps the plain `cli-clip` name; every other format `x` is the condition `cli-clip-x`. A renderer receives the skills directory, the CLIP schema, its path on disk, and the resolved executable, and writes whatever skill it wants:
+
+```ts
+{ id: 'signatures', summary: '…', render: ({ schema, purpose, executable, skillsDir }) => { /* write SKILL.md */ } }
+```
+
+Adding an entry to `skillFormats` is enough; the conditions list, the task matrix, and the context report pick it up.
 
 Each run is headless Claude Code (`claude -p`) in a fresh temp directory with `--setting-sources project --strict-mcp-config`, so your global skills, plugins, and MCP servers stay out. Built-in tools are fixed at Bash, Read, and Skill, plus ToolSearch for `mcp-deferred`. State lives outside the working directory; touching it directly fails the run.
 

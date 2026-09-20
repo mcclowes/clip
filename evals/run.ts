@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { clipSchema, commands, helpText, mcpTools, paddedCommands } from './fixture/spec.ts';
 import { readState } from './fixture/state.ts';
-import { cleanup, conditions, parseTranscript, pool, prepare, runClaude, type Condition } from './harness.ts';
+import { assertKnownConditions, cleanup, conditions, parseTranscript, pool, prepare, runClaude, skillConditions, skillsDir, type Condition } from './harness.ts';
 import { extractAnswer, taskPrompt, tasks } from './tasks.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -32,8 +32,14 @@ mkdirSync(join(outDir, 'transcripts'), { recursive: true });
 
 const record = (file: string, row: object) => appendFileSync(join(outDir, file), `${JSON.stringify(row)}\n`);
 
+function chosenConditions(): Condition[] {
+  const chosen = options.conditions.split(',').map(name => name.trim()).filter(Boolean);
+  assertKnownConditions(chosen);
+  return chosen;
+}
+
 async function runTasks() {
-  const chosen = { conditions: options.conditions.split(',') as Condition[], tasks: tasks.filter(task => options.tasks.split(',').includes(task.id)) };
+  const chosen = { conditions: chosenConditions(), tasks: tasks.filter(task => options.tasks.split(',').includes(task.id)) };
   const jobs = chosen.conditions.flatMap(condition => chosen.tasks.flatMap(task => Array.from({ length: Number(options.trials) }, (_, trial) => ({ condition, task, trial }))));
   let done = 0;
   await pool(jobs, concurrency, async ({ condition, task, trial }) => {
@@ -75,20 +81,23 @@ async function firstTurnInput(condition: Condition, extra: number, prompt: strin
 /** What each interface loads on demand, as the text the agent would actually receive. */
 function onDemandArtifacts(extra: number): Record<string, string> {
   const list = paddedCommands(extra);
-  const workspace = prepare('cli-clip', extra);
-  try {
-    const skill = join(workspace.cwd, '.claude/skills/clip-brindle');
-    return {
-      'clip SKILL.md': readFileSync(join(skill, 'SKILL.md'), 'utf8'),
-      'clip schema.json': readFileSync(join(skill, 'schema.json'), 'utf8'),
-      'cli root --help': helpText(list),
-      'cli one command --help': helpText(list, 'load queue'),
-      'mcp tool definitions': JSON.stringify(mcpTools(list)),
-      'clip schema, one command': JSON.stringify(clipSchema(list).commands.find(command => command.name === 'load queue'), null, 2),
-    };
-  } finally {
-    cleanup(workspace);
+  const artifacts: Record<string, string> = {
+    'cli root --help': helpText(list),
+    'cli one command --help': helpText(list, 'load queue'),
+    'mcp tool definitions': JSON.stringify(mcpTools(list)),
+    'clip schema, one command': JSON.stringify(clipSchema(list).commands.find(command => command.name === 'load queue'), null, 2),
+  };
+  for (const condition of skillConditions) {
+    const workspace = prepare(condition, extra);
+    try {
+      const skill = join(workspace.cwd, skillsDir, 'clip-brindle');
+      artifacts[`${condition} SKILL.md`] = readFileSync(join(skill, 'SKILL.md'), 'utf8');
+      artifacts[`${condition} schema.json`] = readFileSync(join(skill, 'schema.json'), 'utf8');
+    } finally {
+      cleanup(workspace);
+    }
   }
+  return artifacts;
 }
 
 async function runContext() {
