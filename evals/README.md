@@ -17,7 +17,7 @@ One fictional tool, `brindle`, is exposed through every interface from a single 
 
 ## Skill formats
 
-`skill-formats.ts` holds one renderer per proposed skill format, and each becomes its own condition, so a format can be measured before `packages/cli` changes. `current` calls the real `clip register` and `clip sync` and keeps the plain `cli-clip` name; every other format `x` is the condition `cli-clip-x`. A renderer receives the skills directory, the CLIP schema, its path on disk, and the resolved executable, and writes whatever skill it wants:
+`skill-formats.ts` holds one renderer per proposed skill format, and each becomes its own condition, so a format can be measured before `packages/cli` changes. `current` calls the real `clip register` and `clip sync` and keeps the plain `cli-clip` name; every other format `x` is the condition `cli-clip-x`. A renderer gets the skills directory, the CLIP schema, its path on disk, and the resolved executable, and writes whatever skill it wants:
 
 ```ts
 { id: 'signatures', summary: '…', render: ({ schema, purpose, executable, skillsDir }) => { /* write SKILL.md */ } }
@@ -35,20 +35,21 @@ Composition tasks run against a scaled fixture (500 loads, appended to the 13 ha
 
 ## Prompt variants and distractors
 
-`--prompts` picks how a prompt refers to the tool: `named` ("the studio's brindle tool", what the first run used), `cli-worded` ("brindle CLI"), or `unnamed`, which names nothing so the agent has to select by purpose. `--distractors` adds 20 unrelated fictional tools in whichever namespace the condition uses — skills for the CLI conditions, a second MCP server for the MCP ones. Both default off, so the main matrix keeps its size.
+`--prompts` picks how a prompt refers to the tool: `named` ("the studio's brindle tool", what the first run used), `cli-worded` ("brindle CLI"), or `unnamed`, which names nothing so the agent has to select by purpose. `--distractors` adds 20 unrelated fictional tools in whichever namespace the condition uses: skills for the CLI conditions, a second MCP server for the MCP ones. Both default off, so the main matrix keeps its size.
 
 ## Run
 
-Requires the `claude` CLI, logged in. Runs use your Claude quota: the full task matrix is 120 Sonnet sessions.
+Requires the `claude` CLI, logged in. Runs use your Claude quota, so every scenario is selectable and worth targeting. The full matrix at three trials is 270 sessions; the second run instead spent 234 across the four commands below.
 
 ```sh
-npm run eval -- tasks --trials 3
-npm run eval -- context
-npm run eval -- tasks --conditions cli-hint,cli-clip --tasks queue-by-name --trials 1
+npm run eval -- tasks --trials 1 --out evals/results/v2-smoke
+npm run eval -- context --out evals/results/v2-context
+npm run eval -- tasks --tasks count-filtered,usage-report,tempting-move --prompts unnamed --distractors --trials 3
+npm run eval -- tasks --conditions cli-bare --tasks count-filtered,usage-report,stale-priors --prompts named,cli-worded --trials 3
 npm run eval:report -- evals/results/<directory>
 ```
 
-Options: `--model` (default `sonnet`; tool search deferral doesn't work on Haiku), `--trials`, `--concurrency`, `--conditions`, `--tasks`, `--sizes` (command counts for `context`), and `--out`. Raw results and transcripts go to `evals/results/`, which isn't committed.
+Options: `--model` (default `sonnet`; tool search deferral doesn't work on Haiku), `--trials`, `--concurrency`, `--conditions`, `--tasks`, `--prompts`, `--distractors`, `--sizes` (command counts for `context`, defaulting to the fixture size then 32 and 100), and `--out`. Unknown condition and prompt names fail fast rather than running nothing. Raw results and transcripts go to `evals/results/`, which isn't committed.
 
 ## Metrics
 
@@ -65,3 +66,5 @@ Options: `--model` (default `sonnet`; tool search deferral doesn't work on Haiku
 ## Limits
 
 One fixture, one agent harness, and a small trial count. A fictional tool measures the upper bound of a schema's value; on tools the model already knows, expect less. The MCP server is minimal, so real servers with longer descriptions cost more per tool.
+
+Two things bite harder than they look. Claude Code spills oversized tool results to a file, so any interface with Bash can read a large result back with `jq` rather than pulling it through context, which blunts the composition tasks. And the harness prompt itself moves between patch releases: 2.1.276 to 2.1.278 halved it and flipped a headline result, so record the version with every run and don't compare across them without saying so.
