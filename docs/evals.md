@@ -6,9 +6,8 @@ The fixture is a fictional eight-command CLI, so these numbers show the most a s
 
 ## Summary
 
-- An unregistered CLI is invisible. With the tool on PATH and no pointer, the agent passed 9 of 24 runs, and mostly never tried Bash.
-- Any pointer fixes that. A one-line hint and a CLIP skill both passed 24 of 24.
-- The CLIP skill didn't beat the one-line hint. It used slightly more calls, tokens, and money, and made more usage errors.
+- CLIP took an unfamiliar CLI from 9 of 24 passes to 24 of 24, for 36 tokens of always-loaded context. Bare is the real-world default: with the tool on PATH and no pointer, the agent mostly never tried Bash.
+- The `cli-hint` condition is a control that shows where that win comes from. A one-line pointer also passed 24 of 24, so the gain is discovery. The skill body and schema added nothing on top: slightly more calls and tokens than the hint, and more usage errors.
 - MCP was the easiest interface to use: about half the tool calls, no discovery, no usage errors, and the lowest total tokens.
 - CLIP's always-loaded cost is tiny and flat (36 tokens). Eager MCP grows at about 184 tokens per tool. Deferred MCP, which Claude Code now does by default, closes most of that gap.
 - CLIP's on-demand cost is the highest of any interface, because `schema.json` is read whole.
@@ -64,7 +63,7 @@ To use one command of a 100-command tool, `--help` costs about 4,100 tokens, def
 
 ## What this means for CLIP
 
-1. The defensible claim is discovery, not ease of use: CLIP makes installed CLIs visible to agents at 36 tokens each. A line in CLAUDE.md does the same, so the value is in generating and maintaining those pointers across tools and agents.
+1. Discovery is the proven win: CLIP makes an unfamiliar CLI usable at 36 tokens. Nobody hand-writes a pointer for every tool, so generating and maintaining them across tools and agents is the product. Expect a smaller gain on tools the model already knows, since it tries those unprompted.
 2. "Saves context versus MCP" holds strongly against eager loading, and weakly against deferred loading.
 3. The skill format needs work before it can claim to help usage:
    - Put compact argument signatures in `SKILL.md`, so one load replaces `--help`.
@@ -73,6 +72,8 @@ To use one command of a 100-command tool, `--help` costs about 4,100 tokens, def
 
 ## Not yet measured
 
+- Prompts that don't name the tool. A skill description says what the tool is for, which a bare pointer doesn't, so CLIP may beat the hint there.
+- Prompt wording. Tasks said "brindle tool"; "brindle CLI" may rescue some bare runs.
 - Tools the model already knows (`git`, `gh`), where a schema likely adds less.
 - A real MCP server against its CLI, such as GitHub's. Real servers have longer descriptions, so eager costs will be higher than here.
 - Larger tools in the task eval, where eager MCP context and whole-schema reads should start to hurt.
