@@ -52,6 +52,18 @@ function taskReport(rows: Row[]): string {
       return all.length ? `${all.filter(row => row.success).length}/${all.length}` : '';
     })])), '',
   ] : [];
+  const longRuns = valid.filter(row => row.task === 'long-session' && row.success);
+  const longSession = longRuns.length ? [
+    '### Long session (many unrelated turns, one tool use)', '',
+    'The tool does the same work as `count-filtered`. Everything else is unrelated chores, so an always-loaded interface is resent on every turn.', '',
+    table(['Condition', 'Pass', 'Turns (median)', 'Cumulative input (median)', 'Per turn'], conditions.map(condition => {
+      const all = valid.filter(row => row.condition === condition && row.task === 'long-session');
+      const passed = all.filter(row => row.success);
+      const turns = median(metric(passed, 'turns'));
+      const input = median(metric(passed, 'cumulativeInput'));
+      return [condition, `${passed.length}/${all.length}`, round(turns), Math.round(input), turns ? Math.round(input / turns) : ''];
+    })), '',
+  ] : [];
   return [
     '## Ease of use', '',
     'Tool calls, discovery calls, tokens, cost, and time cover passing runs only, so failures that give up early do not look cheap. Errors per run covers all runs.', '',
@@ -59,6 +71,7 @@ function taskReport(rows: Row[]): string {
     '### Pass rate by task (mean tool calls)', '', table(['Task', ...conditions], perTask), '',
     ...byVariant,
     ...composition,
+    ...longSession,
     ...(harnessErrors ? [`${harnessErrors} runs hit harness errors and are excluded.`, ''] : []),
   ].join('\n');
 }

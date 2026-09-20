@@ -10,11 +10,31 @@ export type Task = {
   id: string; kind: 'read' | 'mutate' | 'refuse'; prompt: string; answerFormat: string;
   /** Loads to seed. Composition tasks scale this so aggregate results are too large to read one by one. */
   loads?: number;
+  /** Many turns around a single tool use, so always-loaded context is paid for repeatedly. */
+  long?: true;
   verify: (verdict: Verdict) => boolean;
 };
 
 /** Enough loads that listing them all costs real context, and enough that counting by eye is not an option. */
 export const compositionLoads = 500;
+
+/**
+ * Chores that have nothing to do with the fixture, so a session spends many turns with the interface loaded
+ * and used once. Step 6 is the only one that needs the tool.
+ */
+const chores = [
+  'Print the result of 17 * 23.',
+  'Print the number of lines in /etc/hosts.',
+  'Print "MERIDIAN" in lower case.',
+  'Print the sixth Fibonacci number, counting 1, 1, 2 as the first three.',
+  'Print the number of vowels in the word "correspondence".',
+  'Say how many loads are queued for a reduction firing.',
+  'Print the first eight characters of the SHA-256 hex digest of the text "anvil".',
+  'Print the absolute path of the current working directory.',
+  'Print "postscript" reversed.',
+  'Print the number of days between 2026-03-01 and 2026-09-01.',
+  'Print the largest prime below 100.',
+];
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const normalize = (answer: string) => answer.toLowerCase().replace(/[^a-z0-9,-]/g, '');
@@ -109,6 +129,13 @@ export const tasks: Task[] = [
     prompt: 'Of every load in the system, what percentage is a reduction firing? Round to the nearest whole percent.',
     answerFormat: 'the number of percent, digits only',
     verify: ({ answer, before, after }) => count(answer) === expectReductionShare(before) && same(before, after),
+  },
+  // Same tool work as count-filtered, surrounded by unrelated turns, so always-loaded context is paid for repeatedly.
+  {
+    id: 'long-session', kind: 'read', long: true,
+    prompt: ['Work through this checklist one step at a time, in order. Run a separate command for each step and report its result before starting the next one; do not combine steps.', '', ...chores.map((chore, index) => `${index + 1}. ${chore}`)].join('\n'),
+    answerFormat: 'the number from step 6',
+    verify: ({ answer, before, after }) => count(answer) === 2 && same(before, after),
   },
 ];
 

@@ -35,6 +35,7 @@ const solutions: Record<string, (state: State) => string> = {
   },
   'count-beyond-flags': state => String(listed(state, { status: 'done' }).items.filter(item => item.cone === '10' && item.pieces > 20).length),
   'reduction-share': state => `${Math.round((listed(state, { atmosphere: 'reduction' }).total / listed(state).total) * 100)}%`,
+  'long-session': state => String(listed(state, { status: 'queued', atmosphere: 'reduction' }).total),
 };
 
 for (const task of tasks) {
@@ -62,6 +63,15 @@ test('the scaled fixture is deterministic, and only appends to the hand-written 
     assert.ok(item.pieces >= 1 && item.pieces <= capacity.get(item.kiln)!, `${item.id} exceeds its kiln capacity`);
     assert.equal(item.status === 'done', item.fired_on !== undefined, `${item.id} fired date does not match its status`);
   }
+});
+
+test('the long session asks for many unrelated steps around one tool use', () => {
+  const task = tasks.find(item => item.id === 'long-session')!;
+  const steps = task.prompt.split('\n').filter(line => /^\d+\. /.test(line));
+  assert.ok(steps.length >= 10, `${steps.length} steps`);
+  assert.equal(steps.filter(step => /load|firing|kiln/.test(step)).length, 1, 'exactly one step should need the tool');
+  assert.ok(steps[5]!.startsWith('6. '), 'the tool step is numbered 6, which the answer format cites');
+  assert.equal(task.long, true);
 });
 
 test('composition tasks need more than the tool can filter, and a scaled listing is expensive to read', () => {
