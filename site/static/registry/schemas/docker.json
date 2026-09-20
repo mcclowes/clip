@@ -11,11 +11,12 @@
       "mutating": false,
       "args": [
         { "name": "--all", "type": "boolean", "default": false },
+        { "name": "--last", "aliases": ["-n"], "type": "integer", "description": "Show the n most recently created containers, including stopped ones." },
         { "name": "--filter", "type": "string", "description": "Filter with key=value conditions. Repeatable." },
         { "name": "--format", "type": "string", "description": "Go template applied to each container." },
         { "name": "--no-trunc", "type": "boolean" }
       ],
-      "examples": ["docker container ls --all --format '{{json .}}'"],
+      "examples": ["docker container ls --last 20 --format '{{json .}}'", "docker container ls --all --format '{{json .}}'"],
       "output_fields": [{ "name": "stdout", "type": "string", "description": "A table by default; {{json .}} emits one JSON object per container, not an array." }]
     },
     {
@@ -27,7 +28,7 @@
         { "name": "container", "type": "string", "required": true, "description": "One or more container names or IDs." },
         { "name": "--format", "type": "string", "description": "Format each result with a Go template." }
       ],
-      "examples": ["docker container inspect app"],
+      "examples": ["docker container inspect app --format '{{json .State}}'", "docker container inspect app"],
       "output_fields": [{ "name": "stdout", "type": "string", "description": "A JSON array of container metadata by default; --format changes the output." }]
     },
     {

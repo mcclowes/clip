@@ -16,9 +16,10 @@
         { "name": "--ignore-case", "type": "boolean" },
         { "name": "--glob", "type": "string", "description": "Include matching paths; a leading ! excludes them. Repeatable." },
         { "name": "--line-number", "type": "boolean" },
+        { "name": "--max-count", "aliases": ["-m"], "type": "integer", "description": "Stop after this many matching lines in each file." },
         { "name": "--json", "type": "boolean", "description": "Emit newline-delimited JSON events." }
       ],
-      "examples": ["rg --no-config --json --glob '*.ts' 'validateSchema' packages", "rg --no-config --line-number --fixed-strings -- 'TODO' src"],
+      "examples": ["rg --no-config --json --max-count 20 --glob '*.ts' 'validateSchema' packages", "rg --no-config --line-number --fixed-strings -- 'TODO' src"],
       "output_fields": [{ "name": "stdout", "type": "string", "description": "Matching text, or JSON events with --json; not a JSON array." }],
       "exit_codes": { "0": "Matches found.", "1": "No matches found.", "2": "An error occurred." }
     },

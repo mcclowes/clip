@@ -52,7 +52,8 @@
         }
       ],
       "examples": [
-        "kubectl --namespace default --request-timeout 30s get pods --output json"
+        "kubectl --namespace default --request-timeout 30s get pods --output name",
+        "kubectl --namespace default --request-timeout 30s get pod app --output json"
       ],
       "output_fields": [
         {

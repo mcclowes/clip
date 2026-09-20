@@ -80,7 +80,7 @@
         }
       ],
       "examples": [
-        "yq eval-all '[.]' first.yaml second.yaml"
+        "yq eval-all --output-format json '[.]' first.yaml second.yaml"
       ],
       "output_fields": [
         {

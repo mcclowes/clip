@@ -6,11 +6,11 @@
     "purpose": "Inspect repository changes and commit history",
     "category": "Development",
     "maintainer": "mcclowes",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "upstream": "https://git-scm.com/",
     "documentation": "https://git-scm.com/docs/git-status",
     "schema": "schemas/git.json",
-    "sha256": "45ca722b00853421c59258363fe669a991695c125f7cfd5ce109254ea9d708e9",
+    "sha256": "c180ea54c8848b312750d03f9e4f081885f1139ec357bbd553f4e761e098e550",
     "coverage": "Selected inspection commands",
     "capabilities": {
       "name": "git",
@@ -26,6 +26,11 @@
           "name": "--no-optional-locks",
           "type": "boolean",
           "description": "Disable optional operations that require locks; use for status inspection."
+        },
+        {
+          "name": "--no-pager",
+          "type": "boolean",
+          "description": "Write straight to stdout instead of a pager; use for unattended reads."
         }
       ],
       "commands": [
@@ -62,10 +67,22 @@
               "name": "-n",
               "type": "integer",
               "description": "Maximum number of commits."
+            },
+            {
+              "name": "--oneline",
+              "type": "boolean",
+              "description": "One abbreviated hash and subject per commit."
             }
           ],
           "examples": [
-            "git --no-pager log -n 10 --oneline"
+            "git --no-pager log -n 20 --oneline"
+          ],
+          "output_fields": [
+            {
+              "name": "stdout",
+              "type": "string",
+              "description": "One commit per line with --oneline; the default format is a multi-line human-readable record."
+            }
           ]
         }
       ]
@@ -221,11 +238,11 @@
     "purpose": "Search file contents and list project files",
     "category": "Development",
     "maintainer": "mcclowes",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "upstream": "https://github.com/BurntSushi/ripgrep",
     "documentation": "https://github.com/BurntSushi/ripgrep/blob/master/crates/core/flags/defs.rs",
     "schema": "schemas/rg.json",
-    "sha256": "5c58d122abad2d0a2844071d6d7b0b66ffda1d22030085357ab5944bdb213ae1",
+    "sha256": "6d9091461388dbcd323859556658961572ac80085d5c8b410c63e77c6196a9b9",
     "coverage": "Text search and file listing; excludes preprocessing and indexing",
     "capabilities": {
       "name": "rg",
@@ -272,13 +289,21 @@
               "type": "boolean"
             },
             {
+              "name": "--max-count",
+              "aliases": [
+                "-m"
+              ],
+              "type": "integer",
+              "description": "Stop after this many matching lines in each file."
+            },
+            {
               "name": "--json",
               "type": "boolean",
               "description": "Emit newline-delimited JSON events."
             }
           ],
           "examples": [
-            "rg --no-config --json --glob '*.ts' 'validateSchema' packages",
+            "rg --no-config --json --max-count 20 --glob '*.ts' 'validateSchema' packages",
             "rg --no-config --line-number --fixed-strings -- 'TODO' src"
           ],
           "output_fields": [
@@ -432,15 +457,15 @@
     "purpose": "Fetch HTTP responses and inspect headers",
     "category": "Networking",
     "maintainer": "mcclowes",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "upstream": "https://curl.se/",
     "documentation": "https://curl.se/docs/manpage.html",
     "schema": "schemas/curl.json",
-    "sha256": "a6632e72bd8f1b0974a56954ddb8d814e09f692dd50bae3d78fb67c5f2e2214e",
+    "sha256": "66970c1b0e42c5975c99318e3e8205197abbc30af065359055a7d7a8dce6454f",
     "coverage": "HTTP response bodies and HEAD requests; excludes uploads and authentication options",
     "capabilities": {
       "name": "curl",
-      "description": "Transfer data over HTTP or HTTPS. Partial community schema; remote side effects depend on the endpoint, method, and configuration, so mutation status is unknown. Examples disable default configuration and bound request time. Other protocols, uploads, and authentication options are excluded.",
+      "description": "Transfer data over HTTP or HTTPS. Partial community schema; remote side effects depend on the endpoint, method, and configuration, so mutation status is unknown. Examples disable default configuration and bound request time and response size. Other protocols, uploads, and authentication options are excluded.",
       "documentation": "https://curl.se/docs/manpage.html",
       "global_args": [
         {
@@ -452,6 +477,11 @@
           "name": "--max-time",
           "type": "number",
           "description": "Limit the transfer duration in seconds."
+        },
+        {
+          "name": "--max-filesize",
+          "type": "integer",
+          "description": "Refuse a response larger than this many bytes; curl exits 63 without transferring it."
         },
         {
           "name": "--silent",
@@ -495,6 +525,7 @@
             }
           ],
           "examples": [
+            "curl --disable --silent --show-error --fail --max-time 30 --max-filesize 1000000 --write-out '\\n%{http_code}\\n' --header 'Accept: application/json' https://example.com/api/items",
             "curl --disable --silent --show-error --fail --max-time 30 https://example.com/"
           ],
           "output_fields": [
@@ -541,11 +572,11 @@
     "purpose": "Inspect containers, logs, and local images",
     "category": "Development",
     "maintainer": "mcclowes",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "upstream": "https://www.docker.com/",
     "documentation": "https://docs.docker.com/reference/cli/docker/",
     "schema": "schemas/docker.json",
-    "sha256": "0f9aab5c283384a9cc1bdc67c81deb56a1489698f607d63b22aa34a7082275bc",
+    "sha256": "6df87ee3519c0bcb928f0aa4a31e7d588b6d22034d9cf8196d5d0e4566d664d7",
     "coverage": "Container listing, inspection, logs, and image listing",
     "capabilities": {
       "name": "docker",
@@ -565,6 +596,14 @@
               "default": false
             },
             {
+              "name": "--last",
+              "aliases": [
+                "-n"
+              ],
+              "type": "integer",
+              "description": "Show the n most recently created containers, including stopped ones."
+            },
+            {
               "name": "--filter",
               "type": "string",
               "description": "Filter with key=value conditions. Repeatable."
@@ -580,6 +619,7 @@
             }
           ],
           "examples": [
+            "docker container ls --last 20 --format '{{json .}}'",
             "docker container ls --all --format '{{json .}}'"
           ],
           "output_fields": [
@@ -609,6 +649,7 @@
             }
           ],
           "examples": [
+            "docker container inspect app --format '{{json .State}}'",
             "docker container inspect app"
           ],
           "output_fields": [
@@ -923,11 +964,11 @@
     "purpose": "Inspect Kubernetes resources and container logs",
     "category": "Infrastructure",
     "maintainer": "mcclowes",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "upstream": "https://kubernetes.io/",
     "documentation": "https://kubernetes.io/docs/reference/kubectl/",
     "schema": "schemas/kubectl.json",
-    "sha256": "3f074412f701ea95b687c191d509748f9a8186d438a922eb9b0192be581e095e",
+    "sha256": "2fed96b24edb2874dbd6fe8f8c40cdf057f10515e4d6e0cc0a7a626536bb3370",
     "coverage": "Resource retrieval, descriptions, and logs",
     "capabilities": {
       "name": "kubectl",
@@ -983,7 +1024,8 @@
             }
           ],
           "examples": [
-            "kubectl --namespace default --request-timeout 30s get pods --output json"
+            "kubectl --namespace default --request-timeout 30s get pods --output name",
+            "kubectl --namespace default --request-timeout 30s get pod app --output json"
           ],
           "output_fields": [
             {
@@ -1194,11 +1236,11 @@
     "purpose": "Query and combine YAML documents",
     "category": "Data",
     "maintainer": "mcclowes",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "upstream": "https://github.com/mikefarah/yq",
     "documentation": "https://mikefarah.gitbook.io/yq/",
     "schema": "schemas/yq.json",
-    "sha256": "f40eb322755f6cf14cf7b98531127815a2f61876d4e5f1f40f7b607ca9272899",
+    "sha256": "f64c38c18fdac466e1f38bd1e8c6ec52568c2daa9ce1bff101db5af6e71e2ef6",
     "coverage": "YAML expression evaluation across individual or multiple documents; excludes file writes",
     "capabilities": {
       "name": "yq",
@@ -1282,7 +1324,7 @@
             }
           ],
           "examples": [
-            "yq eval-all '[.]' first.yaml second.yaml"
+            "yq eval-all --output-format json '[.]' first.yaml second.yaml"
           ],
           "output_fields": [
             {
