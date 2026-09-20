@@ -144,6 +144,34 @@ export function parseTranscript(transcript: string): Metrics {
   };
 }
 
+/**
+ * The harness prompt moves between patch releases: 2.1.276 to 2.1.278 halved it and flipped a headline
+ * result, so every row records the version that produced it and a rerun can demand a specific one.
+ */
+export function parseClaudeVersion(raw: string): string {
+  const match = /\b\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?\b/.exec(raw);
+  if (!match) throw new Error(`No version in \`claude --version\` output: ${JSON.stringify(raw.trim().slice(0, 200))}`);
+  return match[0];
+}
+
+export function assertClaudeVersion(required: string, actual: string): void {
+  if (required !== actual) throw new Error(`Required Claude Code ${required} but \`claude --version\` reports ${actual}. Results from different versions are not comparable.`);
+}
+
+let cachedVersion: string | undefined;
+
+export function claudeVersion(): string {
+  if (cachedVersion) return cachedVersion;
+  let raw: string;
+  try {
+    raw = execFileSync('claude', ['--version'], { encoding: 'utf8' });
+  } catch (error) {
+    throw new Error(`Could not run \`claude --version\`: ${(error as Error).message}`);
+  }
+  cachedVersion = parseClaudeVersion(raw);
+  return cachedVersion;
+}
+
 export function runClaude(workspace: Workspace, prompt: string, model: string): Promise<string> {
   return new Promise((resolvePromise, reject) => {
     const child = spawn('claude', ['-p', prompt, '--model', model, ...workspace.claudeArgs], { cwd: workspace.cwd, env: workspace.env, stdio: ['ignore', 'pipe', 'pipe'] });

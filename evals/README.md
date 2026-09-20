@@ -49,7 +49,13 @@ npm run eval -- tasks --conditions cli-bare --tasks count-filtered,usage-report,
 npm run eval:report -- evals/results/<directory>
 ```
 
-Options: `--model` (default `sonnet`; tool search deferral doesn't work on Haiku), `--trials`, `--concurrency`, `--conditions`, `--tasks`, `--prompts`, `--distractors`, `--sizes` (command counts for `context`, defaulting to the fixture size then 32 and 100), and `--out`. Unknown condition and prompt names fail fast rather than running nothing. Raw results and transcripts go to `evals/results/`, which isn't committed.
+Options: `--model` (default `sonnet`; tool search deferral doesn't work on Haiku), `--trials`, `--concurrency`, `--conditions`, `--tasks`, `--prompts`, `--distractors`, `--sizes` (command counts for `context`, defaulting to the fixture size then 32 and 100), `--require-version`, and `--out`. Unknown condition and prompt names fail fast rather than running nothing. Raw results and transcripts go to `evals/results/`, which isn't committed.
+
+## Claude Code version
+
+Every run prints the installed Claude Code version at the start and records it on every `runs.jsonl` and `context.jsonl` row, because the harness prompt changes between patch releases and can move a result on its own ([#30](https://github.com/mcclowes/clip/issues/30)). `--require-version 2.1.278` makes a rerun meant to reproduce an earlier result fail fast instead of quietly measuring something else.
+
+`eval:report` refuses to report across more than one version, and counts rows written before this existed as `unknown`. Pass `--allow-mixed-versions` to report anyway; the header then says so in bold.
 
 ## Metrics
 
@@ -67,4 +73,4 @@ Options: `--model` (default `sonnet`; tool search deferral doesn't work on Haiku
 
 One fixture, one agent harness, and a small trial count. A fictional tool measures the upper bound of a schema's value; on tools the model already knows, expect less. The MCP server is minimal, so real servers with longer descriptions cost more per tool.
 
-Two things bite harder than they look. Claude Code spills oversized tool results to a file, so any interface with Bash can read a large result back with `jq` rather than pulling it through context, which blunts the composition tasks. And the harness prompt itself moves between patch releases: 2.1.276 to 2.1.278 halved it and flipped a headline result, so record the version with every run and don't compare across them without saying so.
+Two things bite harder than they look. Claude Code spills oversized tool results to a file, so any interface with Bash can read a large result back with `jq` rather than pulling it through context, which blunts the composition tasks. And the harness prompt itself moves between patch releases: 2.1.276 to 2.1.278 halved it and flipped a headline result, which is why every row carries its version and the report won't mix them.

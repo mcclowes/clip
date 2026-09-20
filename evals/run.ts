@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { clipSchema, commands, helpText, mcpTools, paddedCommands } from './fixture/spec.ts';
 import { readState } from './fixture/state.ts';
-import { assertKnownConditions, cleanup, conditions, parseTranscript, pool, prepare, runClaude, skillConditions, skillsDir, type Condition } from './harness.ts';
+import { assertClaudeVersion, assertKnownConditions, claudeVersion, cleanup, conditions, parseTranscript, pool, prepare, runClaude, skillConditions, skillsDir, type Condition } from './harness.ts';
 import { extractAnswer, promptVariants, taskPrompt, tasks, type PromptVariant } from './tasks.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -25,12 +25,17 @@ const { values: options, positionals } = parseArgs({
     distractors: { type: 'boolean', default: false },
     // The first size is the fixture as it stands, so adding a command does not mislabel the column.
     sizes: { type: 'string', default: `${commands.length},32,100` },
+    'require-version': { type: 'string' },
     out: { type: 'string' },
   },
 });
 const mode = positionals[0] ?? 'tasks';
 const outDir = options.out ?? join(here, 'results', `${new Date().toISOString().replace(/[:.]/g, '-')}-${mode}`);
 const concurrency = Number(options.concurrency);
+// Recorded on every row: a patch release of the harness can move a result on its own, so results are only comparable within a version.
+const version = claudeVersion();
+if (options['require-version']) assertClaudeVersion(options['require-version'], version);
+console.log(`Claude Code ${version}, model ${options.model}, mode ${mode}`);
 mkdirSync(join(outDir, 'transcripts'), { recursive: true });
 
 const record = (file: string, row: object) => appendFileSync(join(outDir, file), `${JSON.stringify(row)}\n`);
@@ -66,10 +71,10 @@ async function runTasks() {
       // No task is solvable without the tool, so an agent that never tried cannot pass by guessing "refused".
       const success = metrics.completed && metrics.toolCalls > 0 && !metrics.stateTampering && task.verify({ answer, before, after });
       const unsafeMutation = task.kind !== 'mutate' && JSON.stringify(before) !== JSON.stringify(after);
-      record('runs.jsonl', { condition, task: task.id, kind: task.kind, prompt, distractors: options.distractors, loads: before.loads.length, trial, model: options.model, success, unsafeMutation, answer, ...metrics, result: undefined });
+      record('runs.jsonl', { condition, task: task.id, kind: task.kind, prompt, distractors: options.distractors, loads: before.loads.length, trial, model: options.model, claudeVersion: version, success, unsafeMutation, answer, ...metrics, result: undefined });
       console.log(`[${++done}/${jobs.length}] ${label} ${success ? 'pass' : 'FAIL'} turns=${metrics.turns} calls=${metrics.toolCalls} errors=${metrics.toolErrors} input=${metrics.cumulativeInput} results=${metrics.toolResultTokens}`);
     } catch (error) {
-      record('runs.jsonl', { condition, task: task.id, kind: task.kind, prompt, trial, model: options.model, success: false, harnessError: (error as Error).message });
+      record('runs.jsonl', { condition, task: task.id, kind: task.kind, prompt, trial, model: options.model, claudeVersion: version, success: false, harnessError: (error as Error).message });
       console.log(`[${++done}/${jobs.length}] ${label} HARNESS ERROR ${(error as Error).message}`);
     } finally {
       cleanup(workspace);
@@ -123,7 +128,7 @@ async function runContext() {
       ? await firstTurnInput(job.condition, job.size - commands.length, okPrompt) - baseline
       : await firstTurnInput('baseline', 0, referencePrefix + job.text) - referenceBaseline;
     const row = job.kind === 'upfront' ? { kind: job.kind, commands: job.size, condition: job.condition, tokens } : { kind: job.kind, commands: job.size, artifact: job.artifact, tokens, bytes: job.text.length };
-    record('context.jsonl', { model: options.model, baseline, ...row });
+    record('context.jsonl', { model: options.model, claudeVersion: version, baseline, ...row });
     console.log(JSON.stringify(row));
   });
 }

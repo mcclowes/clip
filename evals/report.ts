@@ -24,6 +24,16 @@ const quantile = (values: number[], fraction: number) => {
 const spread = (values: number[]) => Math.round((quantile(values, 0.75) - quantile(values, 0.25)) / 2);
 const withSpread = (values: number[]) => (values.length > 2 ? `${Math.round(median(values))} ±${spread(values)}` : String(Math.round(median(values))));
 
+/** Rows written before the version was recorded read as `unknown`, which is itself a version to refuse to mix. */
+const claudeVersions = (rows: Row[]) => unique(rows.map(row => String(row.claudeVersion ?? 'unknown'))).sort();
+
+function versionLine(rows: Row[]): string {
+  const versions = claudeVersions(rows);
+  return versions.length > 1
+    ? `**Mixed Claude Code versions: ${versions.join(', ')}.** The harness prompt changes between patch releases, so these rows are not comparable.`
+    : `Claude Code ${versions[0] ?? 'unknown'}.`;
+}
+
 /**
  * Wilson 95% interval on a pass rate, which stays sensible at 0/n and n/n where a normal interval does not.
  * Three trials give a wide interval on purpose: it is the honest width for three trials.
@@ -86,7 +96,7 @@ function taskReport(rows: Row[]): string {
     })), '',
   ] : [];
   return [
-    '## Ease of use', '',
+    '## Ease of use', '', versionLine(rows), '',
     'Tool calls, discovery calls, tokens, cost, and time cover passing runs only, so failures that give up early do not look cheap. Errors per run covers all runs.',
     'Pass rates carry a Wilson 95% interval, and `±` on a median is half the interquartile range. With few trials these are wide, which is the point.', '',
     table(['Condition', 'Pass', 'Tool calls', 'Discovery calls', 'Errors per run', 'Unsafe mutations', 'Cumulative input (median)', 'Peak context (median)', 'Tool-result tokens (median)', 'Output tokens (median)', 'Cost USD (median)', 'Seconds (median)'], summary), '',
@@ -108,17 +118,27 @@ function contextReport(rows: Row[]): string {
     })]));
   };
   return [
-    '## Context cost', '', `Baseline first-turn input with no brindle interface: ${rows[0]?.baseline} tokens (${rows[0]?.model}).`, '',
+    '## Context cost', '', versionLine(rows), '', `Baseline first-turn input with no brindle interface: ${rows[0]?.baseline} tokens (${rows[0]?.model}).`, '',
     '### Always loaded (tokens added to every turn)', '', section('upfront', 'condition'), '',
     '### Loaded on demand (tokens when the agent asks)', '', section('on-demand', 'artifact'), '',
   ].join('\n');
 }
 
-const directories = process.argv.slice(2);
-if (!directories.length) throw new Error('Usage: node evals/report.ts <results-dir>...');
-for (const directory of directories) {
-  const runs = readRows(join(directory, 'runs.jsonl'));
-  const context = readRows(join(directory, 'context.jsonl'));
+const allowMixedVersions = '--allow-mixed-versions';
+const args = process.argv.slice(2);
+const usage = `Usage: node evals/report.ts [${allowMixedVersions}] <results-dir>...`;
+const unknownOptions = args.filter(arg => arg.startsWith('--') && arg !== allowMixedVersions);
+if (unknownOptions.length) throw new Error(`Unknown options: ${unknownOptions.join(', ')}. ${usage}`);
+const directories = args.filter(arg => !arg.startsWith('--'));
+if (!directories.length) throw new Error(usage);
+
+const loaded = directories.map(directory => ({ runs: readRows(join(directory, 'runs.jsonl')), context: readRows(join(directory, 'context.jsonl')) }));
+// A version change alone can move a result, so mixing them silently is the failure this gate exists to prevent.
+const versions = claudeVersions(loaded.flatMap(({ runs, context }) => [...runs, ...context]));
+if (versions.length > 1 && !args.includes(allowMixedVersions)) {
+  throw new Error(`Refusing to report across Claude Code ${versions.join(', ')}. The harness prompt changes between patch releases, so these rows are not comparable. Pass ${allowMixedVersions} to report anyway.`);
+}
+for (const { runs, context } of loaded) {
   if (runs.length) console.log(taskReport(runs));
   if (context.length) console.log(contextReport(context));
 }

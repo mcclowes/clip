@@ -8,18 +8,22 @@ import { test } from 'node:test';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-function reportFor(runs: object[]): string {
+function reportOn(files: { runs?: object[]; context?: object[] }, args: string[] = []): string {
   const directory = mkdtempSync(join(tmpdir(), 'clip-report-'));
   try {
-    writeFileSync(join(directory, 'runs.jsonl'), `${runs.map(row => JSON.stringify(row)).join('\n')}\n`);
-    return execFileSync(process.execPath, [join(here, 'report.ts'), directory], { encoding: 'utf8' });
+    for (const [name, rows] of Object.entries(files)) {
+      if (rows) writeFileSync(join(directory, `${name}.jsonl`), `${rows.map(row => JSON.stringify(row)).join('\n')}\n`);
+    }
+    return execFileSync(process.execPath, [join(here, 'report.ts'), ...args, directory], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 }
 
+const reportFor = (runs: object[], args: string[] = []) => reportOn({ runs }, args);
+
 const run = (over: object = {}) => ({
-  condition: 'cli-clip', task: 'count-filtered', kind: 'read', prompt: 'named', trial: 0, success: true, unsafeMutation: false,
+  condition: 'cli-clip', task: 'count-filtered', kind: 'read', prompt: 'named', trial: 0, claudeVersion: '2.1.278', success: true, unsafeMutation: false,
   toolCalls: 2, discoveryCalls: 1, toolErrors: 0, turns: 3, cumulativeInput: 30_000, peakInput: 19_000, toolResultTokens: 100, outputTokens: 200, costUsd: 0.05, durationMs: 9_000, ...over,
 });
 
@@ -55,7 +59,33 @@ test('sections appear only when their runs do', () => {
 });
 
 test('harness errors are counted out rather than scored as failures', () => {
-  const report = reportFor([run(), run({ trial: 1 }), { condition: 'cli-clip', task: 'count-filtered', trial: 2, success: false, harnessError: 'claude produced no output' }]);
+  const report = reportFor([run(), run({ trial: 1 }), { condition: 'cli-clip', task: 'count-filtered', trial: 2, claudeVersion: '2.1.278', success: false, harnessError: 'claude produced no output' }]);
   assert.match(report, /2\/2/);
   assert.match(report, /1 runs hit harness errors and are excluded/);
+});
+
+test('both reports name the Claude Code version that produced the rows', () => {
+  assert.match(reportFor([run()]), /Claude Code 2\.1\.278\./);
+  const context = reportOn({ context: [{ kind: 'upfront', commands: 9, condition: 'cli-clip', tokens: 1_200, baseline: 7_614, model: 'sonnet', claudeVersion: '2.1.278' }] });
+  assert.match(context, /Claude Code 2\.1\.278\./);
+});
+
+test('rows from before the version was recorded read as unknown', () => {
+  assert.match(reportFor([{ ...run(), claudeVersion: undefined }]), /Claude Code unknown\./);
+});
+
+test('mixing versions is refused, and an old row counts as its own version', () => {
+  assert.throws(() => reportFor([run(), run({ trial: 1, claudeVersion: '2.1.276' })]), /Refusing to report across Claude Code 2\.1\.276, 2\.1\.278/);
+  assert.throws(() => reportFor([run(), run({ trial: 1, claudeVersion: undefined })]), /Refusing to report across Claude Code 2\.1\.278, unknown/);
+});
+
+test('the explicit flag reports the mixture, loudly', () => {
+  const report = reportFor([run(), run({ trial: 1, claudeVersion: '2.1.276' })], ['--allow-mixed-versions']);
+  assert.match(report, /\*\*Mixed Claude Code versions: 2\.1\.276, 2\.1\.278\.\*\*/);
+  assert.match(report, /not comparable/);
+  assert.match(report, /2\/2/);
+});
+
+test('an unrecognised option fails rather than being read as a directory', () => {
+  assert.throws(() => reportFor([run()], ['--allow-mixed']), /Unknown options: --allow-mixed/);
 });
