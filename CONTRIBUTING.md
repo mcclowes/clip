@@ -6,9 +6,21 @@ Start with a GitHub issue for a new feature or a substantial change. Keep pull r
 
 1. Add a JSON file under `registry/schemas/`. Identify the tool with `name`; describe operations using `commands` or `capabilities`. Every operation needs a name and description.
 2. Add an entry to `registry/index.json` with an ID, executable, purpose, category, maintainer, schema version, upstream and documentation URLs, schema path, coverage description, and SHA-256 digest.
-3. Document only verified behavior. State partial coverage. Include useful arguments, output contracts, examples, and version constraints. Cite official documentation. Never label an operation non-mutating unless you have checked its actual behavior, including default hooks and side effects.
+3. Document only verified behavior. State partial coverage. Include useful arguments, output contracts, examples, and version constraints. Cite official documentation. Never label an operation non-mutating unless you have checked its actual behavior, including default hooks and side effects. Examples follow the [bounded example rule](#bounded-examples).
 4. Update the digest with `node scripts/update-registry.mjs`, then run `npm run registry:check`, `npm test`, and `node scripts/site-registry.mjs`.
 5. Open a pull request describing the commands covered and the upstream versions or documentation used to verify them. Bump the schema version for every schema change.
+
+### Bounded examples
+
+The first example of every read command — every command not marked `mutating: true` — must be bounded and machine-readable. Write `gh pr list --json number,title --limit 20`, not `gh pr list`. Agents copy the first example, and in real sessions the output a command returns usually costs more context than the schema describing it does; an unfiltered listing can also overflow the harness and derail the run into reading a spill file. [docs/evals.md](docs/evals.md) has the measurements.
+
+- Cap the results whenever the command has a flag for it, such as `--limit`, `-n`, `--tail`, `--last`, `--max-count`, or `--max-filesize`. `npm run registry:check` fails when a command declares a cap flag and its first example skips it.
+- Ask for a form another program can parse whenever the command has a flag for it, such as `--json`, `--format`, `--output`, `--output-format`, `--porcelain`, `--oneline`, or `--raw-output`. The check enforces this too.
+- Pick the narrowest value the flag accepts. `kubectl get pods --output name` beats `--output json` for a listing; keep the whole object for a single named resource.
+- A command with no cap flag whose default output is already one short record per line, such as `terraform state list`, can lead with the plain invocation.
+- Unbounded or human-formatted invocations are still worth documenting. Put them second; only the first example is constrained.
+
+The check is mechanical: it reads the flags a command declares and looks for them in the first example. It can't tell `--output name` from `--output json`, so reviewers judge the value.
 
 Schemas are data, not scripts or agent policy. Don't include secrets, instructions to bypass permissions, installation hooks, or claims of official endorsement. A CLI Spec version claim belongs to the upstream tool only when it conforms; a partial community schema should omit it.
 

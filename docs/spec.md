@@ -23,6 +23,8 @@ All commands accept `--output auto|json|text`. Non-TTY output defaults to JSON. 
 
 Documents identify a tool with `name` and describe invocable operations in `commands` (CLI Spec) or `capabilities` (minimal CLIP format). Each operation needs a name and description. Optional arguments, output fields, examples, version, and mutation markers retain their original meaning. Missing mutation markers mean unknown. A CLI Spec claim is preserved, never inferred or added to third-party descriptions.
 
+Bundled registry schemas carry one rule beyond the contract: the first example of every read command is bounded and machine-readable, such as `gh pr list --json number,title --limit 20` rather than `gh pr list`, so an agent copying it doesn't pull an unfiltered listing through context. `npm run registry:check` enforces the mechanical part, and [contributing](../CONTRIBUTING.md#bounded-examples) states the rule.
+
 Registry entries include a stable ID, purpose, executable, upstream URL, maintainer, schema version, schema file, and SHA-256 digest. Locally installed registrations record this provenance. The digest detects accidental changes; it doesn't establish that the maintainer or command is trustworthy.
 
 ## Boundaries

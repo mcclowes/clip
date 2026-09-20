@@ -13,6 +13,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 ### Changed
 
 - The docs site is at https://clip.marginalutility.dev.
+- Bundled registry schemas lead every read command with a bounded, machine-readable example, and `npm run registry:check` enforces it.
 
 ## [0.2.0] - 2026-09-09
 
