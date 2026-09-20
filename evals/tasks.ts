@@ -121,8 +121,15 @@ function expectBusiestQueue(state: State): [string, number] {
 const expectLargeConeTen = (state: State) => state.loads.filter(item => item.status === 'done' && item.cone === '10' && item.pieces > 20).length;
 const expectReductionShare = (state: State) => Math.round((state.loads.filter(item => item.atmosphere === 'reduction').length / state.loads.length) * 100);
 
-export const taskPrompt = (task: Task) =>
-  `${task.prompt}\n\nUse the studio's brindle tool. Finish with a final line in exactly this form: "ANSWER: <value>", where the value is ${task.answerFormat}.`;
+/**
+ * How the prompt refers to the tool. `named` is what the first run used. `unnamed` names nothing, so the agent
+ * has to select by purpose, and `cli-worded` tests whether the word "CLI" rescues runs that "tool" loses.
+ */
+export const promptVariants = { named: "Use the studio's brindle tool.", 'cli-worded': "Use the studio's brindle CLI.", unnamed: '' } as const;
+export type PromptVariant = keyof typeof promptVariants;
+
+export const taskPrompt = (task: Task, variant: PromptVariant = 'named') =>
+  [task.prompt, [promptVariants[variant], `Finish with a final line in exactly this form: "ANSWER: <value>", where the value is ${task.answerFormat}.`].filter(Boolean).join(' ')].join('\n\n');
 
 export function extractAnswer(result: string): string {
   const matches = [...result.matchAll(/^\**ANSWER:\**\s*(.+?)\**\s*$/gim)];

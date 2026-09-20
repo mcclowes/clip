@@ -29,6 +29,12 @@ Each run is headless Claude Code (`claude -p`) in a fresh temp directory with `-
 
 Tasks in `tasks.ts` cover filtered reads, a report, a dry run that must not mutate, mutations that need an id lookup, a multi-step change, and a request the tool refuses. A deterministic verifier checks the final `ANSWER:` line and the resulting state.
 
+Composition tasks run against a scaled fixture (500 loads, appended to the 13 hand-written ones by a fixed-seed generator) and ask for aggregates the tool has no flag for, so a CLI can pipe a listing into `jq` while MCP has to pull it back through context. `runs.jsonl` records tool-result tokens, estimated from result text at four characters per token.
+
+## Prompt variants and distractors
+
+`--prompts` picks how a prompt refers to the tool: `named` ("the studio's brindle tool", what the first run used), `cli-worded` ("brindle CLI"), or `unnamed`, which names nothing so the agent has to select by purpose. `--distractors` adds 20 unrelated fictional tools in whichever namespace the condition uses — skills for the CLI conditions, a second MCP server for the MCP ones. Both default off, so the main matrix keeps its size.
+
 ## Run
 
 Requires the `claude` CLI, logged in. Runs use your Claude quota: the full task matrix is 120 Sonnet sessions.

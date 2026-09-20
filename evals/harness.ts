@@ -8,6 +8,7 @@ import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { distractors, distractorSkill } from './fixture/distractors.ts';
 import { clipSchema, paddedCommands, toolDescription } from './fixture/spec.ts';
 import { seed, writeState } from './fixture/state.ts';
 import { skillFormatByCondition, type ClipSchema } from './skill-formats.ts';
@@ -31,11 +32,11 @@ export function assertKnownConditions(chosen: Condition[]): void {
   if (unknown.length) throw new Error(`Unknown conditions: ${unknown.join(', ')}. Known: ${conditions.join(', ')}`);
 }
 
-export type PrepareOptions = { extraCommands?: number; loads?: number };
+export type PrepareOptions = { extraCommands?: number; loads?: number; distractors?: boolean };
 export type Workspace = { root: string; cwd: string; statePath: string; env: NodeJS.ProcessEnv; claudeArgs: string[] };
 
 export function prepare(condition: Condition, options: PrepareOptions | number = {}): Workspace {
-  const { extraCommands = 0, loads } = typeof options === 'number' ? { extraCommands: options, loads: undefined } : options;
+  const { extraCommands = 0, loads, distractors: withDistractors = false } = typeof options === 'number' ? { extraCommands: options } : options;
   const root = mkdtempSync(join(tmpdir(), 'clip-eval-'));
   const cwd = join(root, 'work');
   const bin = join(root, 'bin');
@@ -65,13 +66,21 @@ export function prepare(condition: Condition, options: PrepareOptions | number =
       clip: (...args: string[]) => void execFileSync(process.execPath, [clipMain, ...args], { cwd, env, stdio: 'pipe' }),
     });
   }
-  if (condition === 'mcp-eager' || condition === 'mcp-deferred') {
+  const isMcp = condition === 'mcp-eager' || condition === 'mcp-deferred';
+  if (isMcp) {
     const config = join(root, 'mcp.json');
-    writeFileSync(config, JSON.stringify({ mcpServers: { brindle: { command: process.execPath, args: [join(here, 'fixture/mcp.ts')], env: fixtureEnv } } }));
+    const server = (file: string) => ({ command: process.execPath, args: [join(here, `fixture/${file}`)], env: fixtureEnv });
+    writeFileSync(config, JSON.stringify({ mcpServers: { brindle: server('mcp.ts'), ...(withDistractors ? { backoffice: server('mcp-distractors.ts') } : {}) } }));
     claudeArgs.push('--mcp-config', config);
     if (condition === 'mcp-deferred') tools.push('ToolSearch');
   }
-  claudeArgs.push('--setting-sources', 'project', '--strict-mcp-config', '--tools', tools.join(','), '--allowedTools', [...tools, 'mcp__brindle'].join(','), '--no-session-persistence', '--output-format', 'stream-json', '--verbose');
+  // Distractors crowd the namespace the condition's own interface lives in, so selection by purpose is what is tested.
+  if (withDistractors && !isMcp) for (const tool of distractors) {
+    const dir = join(cwd, skillsDir, `clip-${tool.name}`);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'SKILL.md'), distractorSkill(tool));
+  }
+  claudeArgs.push('--setting-sources', 'project', '--strict-mcp-config', '--tools', tools.join(','), '--allowedTools', [...tools, 'mcp__brindle', 'mcp__backoffice'].join(','), '--no-session-persistence', '--output-format', 'stream-json', '--verbose');
   return { root, cwd, statePath, env, claudeArgs };
 }
 

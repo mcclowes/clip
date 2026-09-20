@@ -43,11 +43,21 @@ function taskReport(rows: Row[]): string {
       return [condition, Math.round(median(metric(passed, 'toolResultTokens'))), Math.round(median(metric(passed, 'cumulativeInput'))), round(mean(metric(passed, 'toolCalls')))];
     })), '',
   ] : [];
+  const variants = unique(valid.map(row => `${row.prompt ?? 'named'}${row.distractors ? ' + distractors' : ''}`));
+  const byVariant = variants.length > 1 ? [
+    '### Pass rate by prompt variant', '',
+    'A variant that names no tool measures selection by purpose. Distractors are 20 unrelated tools in the same namespace as the condition\'s own interface.', '',
+    table(['Condition', ...variants], conditions.map(condition => [condition, ...variants.map(variant => {
+      const all = valid.filter(row => row.condition === condition && `${row.prompt ?? 'named'}${row.distractors ? ' + distractors' : ''}` === variant);
+      return all.length ? `${all.filter(row => row.success).length}/${all.length}` : '';
+    })])), '',
+  ] : [];
   return [
     '## Ease of use', '',
     'Tool calls, discovery calls, tokens, cost, and time cover passing runs only, so failures that give up early do not look cheap. Errors per run covers all runs.', '',
     table(['Condition', 'Pass', 'Tool calls', 'Discovery calls', 'Errors per run', 'Unsafe mutations', 'Cumulative input (median)', 'Peak context (median)', 'Tool-result tokens (median)', 'Output tokens (median)', 'Cost USD (median)', 'Seconds (median)'], summary), '',
     '### Pass rate by task (mean tool calls)', '', table(['Task', ...conditions], perTask), '',
+    ...byVariant,
     ...composition,
     ...(harnessErrors ? [`${harnessErrors} runs hit harness errors and are excluded.`, ''] : []),
   ].join('\n');

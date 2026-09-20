@@ -10,7 +10,7 @@ import { parseArgs } from 'node:util';
 import { clipSchema, commands, helpText, mcpTools, paddedCommands } from './fixture/spec.ts';
 import { readState } from './fixture/state.ts';
 import { assertKnownConditions, cleanup, conditions, parseTranscript, pool, prepare, runClaude, skillConditions, skillsDir, type Condition } from './harness.ts';
-import { extractAnswer, taskPrompt, tasks } from './tasks.ts';
+import { extractAnswer, promptVariants, taskPrompt, tasks, type PromptVariant } from './tasks.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const { values: options, positionals } = parseArgs({
@@ -21,6 +21,8 @@ const { values: options, positionals } = parseArgs({
     concurrency: { type: 'string', default: '4' },
     conditions: { type: 'string', default: conditions.join(',') },
     tasks: { type: 'string', default: tasks.map(task => task.id).join(',') },
+    prompts: { type: 'string', default: 'named' },
+    distractors: { type: 'boolean', default: false },
     sizes: { type: 'string', default: '8,32,100' },
     out: { type: 'string' },
   },
@@ -38,16 +40,24 @@ function chosenConditions(): Condition[] {
   return chosen;
 }
 
+function chosenPrompts(): PromptVariant[] {
+  const chosen = options.prompts.split(',').map(name => name.trim()).filter(Boolean);
+  const unknown = chosen.filter(name => !(name in promptVariants));
+  if (unknown.length) throw new Error(`Unknown prompt variants: ${unknown.join(', ')}. Known: ${Object.keys(promptVariants).join(', ')}`);
+  return chosen as PromptVariant[];
+}
+
 async function runTasks() {
-  const chosen = { conditions: chosenConditions(), tasks: tasks.filter(task => options.tasks.split(',').includes(task.id)) };
-  const jobs = chosen.conditions.flatMap(condition => chosen.tasks.flatMap(task => Array.from({ length: Number(options.trials) }, (_, trial) => ({ condition, task, trial }))));
+  const chosen = { conditions: chosenConditions(), tasks: tasks.filter(task => options.tasks.split(',').includes(task.id)), prompts: chosenPrompts() };
+  const jobs = chosen.conditions.flatMap(condition => chosen.tasks.flatMap(task =>
+    chosen.prompts.flatMap(prompt => Array.from({ length: Number(options.trials) }, (_, trial) => ({ condition, task, prompt, trial })))));
   let done = 0;
-  await pool(jobs, concurrency, async ({ condition, task, trial }) => {
-    const workspace = prepare(condition, { loads: task.loads });
-    const label = `${condition}.${task.id}.${trial}`;
+  await pool(jobs, concurrency, async ({ condition, task, prompt, trial }) => {
+    const workspace = prepare(condition, { loads: task.loads, distractors: options.distractors });
+    const label = `${condition}.${task.id}.${prompt}.${trial}`;
     try {
       const before = readState(workspace.statePath);
-      const transcript = await runClaude(workspace, taskPrompt(task), options.model);
+      const transcript = await runClaude(workspace, taskPrompt(task, prompt), options.model);
       writeFileSync(join(outDir, 'transcripts', `${label}.jsonl`), transcript);
       const metrics = parseTranscript(transcript);
       const answer = extractAnswer(metrics.result);
@@ -55,10 +65,10 @@ async function runTasks() {
       // No task is solvable without the tool, so an agent that never tried cannot pass by guessing "refused".
       const success = metrics.completed && metrics.toolCalls > 0 && !metrics.stateTampering && task.verify({ answer, before, after });
       const unsafeMutation = task.kind !== 'mutate' && JSON.stringify(before) !== JSON.stringify(after);
-      record('runs.jsonl', { condition, task: task.id, kind: task.kind, loads: before.loads.length, trial, model: options.model, success, unsafeMutation, answer, ...metrics, result: undefined });
+      record('runs.jsonl', { condition, task: task.id, kind: task.kind, prompt, distractors: options.distractors, loads: before.loads.length, trial, model: options.model, success, unsafeMutation, answer, ...metrics, result: undefined });
       console.log(`[${++done}/${jobs.length}] ${label} ${success ? 'pass' : 'FAIL'} turns=${metrics.turns} calls=${metrics.toolCalls} errors=${metrics.toolErrors} input=${metrics.cumulativeInput} results=${metrics.toolResultTokens}`);
     } catch (error) {
-      record('runs.jsonl', { condition, task: task.id, kind: task.kind, trial, model: options.model, success: false, harnessError: (error as Error).message });
+      record('runs.jsonl', { condition, task: task.id, kind: task.kind, prompt, trial, model: options.model, success: false, harnessError: (error as Error).message });
       console.log(`[${++done}/${jobs.length}] ${label} HARNESS ERROR ${(error as Error).message}`);
     } finally {
       cleanup(workspace);
