@@ -16,6 +16,27 @@ const median = (values: number[]) => {
   return sorted.length ? (sorted[(sorted.length - 1) >> 1]! + sorted[sorted.length >> 1]!) / 2 : 0;
 };
 const round = (value: number, digits = 1) => Number(value.toFixed(digits));
+const quantile = (values: number[], fraction: number) => {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(fraction * sorted.length))]! : 0;
+};
+/** Half the interquartile range, so a median reads with the spread that produced it. */
+const spread = (values: number[]) => Math.round((quantile(values, 0.75) - quantile(values, 0.25)) / 2);
+const withSpread = (values: number[]) => (values.length > 2 ? `${Math.round(median(values))} ±${spread(values)}` : String(Math.round(median(values))));
+
+/**
+ * Wilson 95% interval on a pass rate, which stays sensible at 0/n and n/n where a normal interval does not.
+ * Three trials give a wide interval on purpose: it is the honest width for three trials.
+ */
+function passRate(passed: number, total: number): string {
+  if (!total) return '';
+  const z = 1.96;
+  const rate = passed / total;
+  const denominator = 1 + (z * z) / total;
+  const centre = (rate + (z * z) / (2 * total)) / denominator;
+  const margin = (z * Math.sqrt((rate * (1 - rate)) / total + (z * z) / (4 * total * total))) / denominator;
+  return `${passed}/${total} (${Math.round(Math.max(0, centre - margin) * 100)}–${Math.round(Math.min(1, centre + margin) * 100)}%)`;
+}
 
 function taskReport(rows: Row[]): string {
   const valid = rows.filter(row => !row.harnessError);
@@ -24,14 +45,14 @@ function taskReport(rows: Row[]): string {
   const summary = conditions.map(condition => {
     const all = valid.filter(row => row.condition === condition);
     const passed = all.filter(row => row.success);
-    return [condition, `${passed.length}/${all.length}`, round(mean(metric(passed, 'toolCalls'))), round(mean(metric(passed, 'discoveryCalls'))), round(mean(metric(all, 'toolErrors')), 2),
-      all.filter(row => row.unsafeMutation).length, Math.round(median(metric(passed, 'cumulativeInput'))), Math.round(median(metric(passed, 'peakInput'))), Math.round(median(metric(passed, 'toolResultTokens'))), Math.round(median(metric(passed, 'outputTokens'))),
+    return [condition, passRate(passed.length, all.length), round(mean(metric(passed, 'toolCalls'))), round(mean(metric(passed, 'discoveryCalls'))), round(mean(metric(all, 'toolErrors')), 2),
+      all.filter(row => row.unsafeMutation).length, withSpread(metric(passed, 'cumulativeInput')), Math.round(median(metric(passed, 'peakInput'))), Math.round(median(metric(passed, 'toolResultTokens'))), Math.round(median(metric(passed, 'outputTokens'))),
       round(median(metric(passed, 'costUsd')), 3), round(median(metric(passed, 'durationMs')) / 1000)];
   });
   const tasks = unique(rows.map(row => String(row.task)));
   const perTask = tasks.map(task => [task, ...conditions.map(condition => {
     const all = valid.filter(row => row.condition === condition && row.task === task);
-    return `${all.filter(row => row.success).length}/${all.length} (${round(mean(metric(all, 'toolCalls')))})`;
+    return all.length ? `${all.filter(row => row.success).length}/${all.length} (${round(mean(metric(all, 'toolCalls')))})` : '';
   })]);
   const harnessErrors = rows.length - valid.length;
   const scaled = tasks.filter(task => valid.some(row => row.task === task && Number(row.loads) > 20));
@@ -40,7 +61,7 @@ function taskReport(rows: Row[]): string {
     `Estimated from result text at four characters per token, over passing runs on ${scaled.join(', ')}.`, '',
     table(['Condition', 'Tool-result tokens (median)', 'Cumulative input (median)', 'Tool calls'], conditions.map(condition => {
       const passed = valid.filter(row => row.condition === condition && row.success && scaled.includes(String(row.task)));
-      return [condition, Math.round(median(metric(passed, 'toolResultTokens'))), Math.round(median(metric(passed, 'cumulativeInput'))), round(mean(metric(passed, 'toolCalls')))];
+      return [condition, withSpread(metric(passed, 'toolResultTokens')), withSpread(metric(passed, 'cumulativeInput')), round(mean(metric(passed, 'toolCalls')))];
     })), '',
   ] : [];
   const variants = unique(valid.map(row => `${row.prompt ?? 'named'}${row.distractors ? ' + distractors' : ''}`));
@@ -61,12 +82,13 @@ function taskReport(rows: Row[]): string {
       const passed = all.filter(row => row.success);
       const turns = median(metric(passed, 'turns'));
       const input = median(metric(passed, 'cumulativeInput'));
-      return [condition, `${passed.length}/${all.length}`, round(turns), Math.round(input), turns ? Math.round(input / turns) : ''];
+      return [condition, passRate(passed.length, all.length), round(turns), withSpread(metric(passed, 'cumulativeInput')), turns ? Math.round(input / turns) : ''];
     })), '',
   ] : [];
   return [
     '## Ease of use', '',
-    'Tool calls, discovery calls, tokens, cost, and time cover passing runs only, so failures that give up early do not look cheap. Errors per run covers all runs.', '',
+    'Tool calls, discovery calls, tokens, cost, and time cover passing runs only, so failures that give up early do not look cheap. Errors per run covers all runs.',
+    'Pass rates carry a Wilson 95% interval, and `±` on a median is half the interquartile range. With few trials these are wide, which is the point.', '',
     table(['Condition', 'Pass', 'Tool calls', 'Discovery calls', 'Errors per run', 'Unsafe mutations', 'Cumulative input (median)', 'Peak context (median)', 'Tool-result tokens (median)', 'Output tokens (median)', 'Cost USD (median)', 'Seconds (median)'], summary), '',
     '### Pass rate by task (mean tool calls)', '', table(['Task', ...conditions], perTask), '',
     ...byVariant,

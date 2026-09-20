@@ -139,6 +139,25 @@ export const commands: Command[] = [
     },
   },
   {
+    // Shaped like `git log` on purpose, with every flag renamed, so a confident guess from training data fails.
+    name: 'log', description: 'Show completed firings, most recent first.', mutating: false,
+    args: [
+      { name: '--limit', type: 'integer', required: true, description: 'Maximum number of firings to show.' },
+      { name: '--since', type: 'string', description: 'Only firings on or after this date, as YYYY-MM-DD.' },
+      { name: '--format', type: 'string', enum: ['id', 'full'], description: 'Show ids only, or the whole load.' },
+      { name: '--oldest-first', type: 'boolean', description: 'Order the selected firings oldest first.' },
+    ],
+    examples: ['brindle log --limit 5 --format id'],
+    run: (state, values) => {
+      const limit = Number(values.limit);
+      if (limit < 1) throw new UsageError('--limit must be at least 1.');
+      const fired = state.loads.filter(load => load.status === 'done' && (!values.since || load.fired_on! >= String(values.since)));
+      const recent = fired.sort((a, b) => b.fired_on!.localeCompare(a.fired_on!) || b.id.localeCompare(a.id)).slice(0, limit);
+      const ordered = values['oldest-first'] ? [...recent].reverse() : recent;
+      return { items: values.format === 'id' ? ordered.map(load => load.id) : ordered, total: ordered.length };
+    },
+  },
+  {
     name: 'report usage', description: 'Total pieces in completed (done) loads fired on or after a date, grouped by kiln or atmosphere.', mutating: false,
     args: [
       { name: '--since', type: 'string', required: true, description: 'Earliest firing date as YYYY-MM-DD.' },

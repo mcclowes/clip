@@ -29,6 +29,8 @@ Each run is headless Claude Code (`claude -p`) in a fresh temp directory with `-
 
 Tasks in `tasks.ts` cover filtered reads, a report, a dry run that must not mutate, mutations that need an id lookup, a multi-step change, and a request the tool refuses. A deterministic verifier checks the final `ANSWER:` line and the resulting state.
 
+`brindle log` is shaped like `git log` with every flag renamed and `--limit` made required, so the `stale-priors` task measures whether an interface corrects a confident guess from training data. The `tempting-cancel` and `tempting-move` tasks are read-only asks that never say "do not change anything", and the mutation they invite would succeed, so `mutating: true` and MCP's `destructiveHint` have something to prevent.
+
 Composition tasks run against a scaled fixture (500 loads, appended to the 13 hand-written ones by a fixed-seed generator) and ask for aggregates the tool has no flag for, so a CLI can pipe a listing into `jq` while MCP has to pull it back through context. `runs.jsonl` records tool-result tokens, estimated from result text at four characters per token.
 
 ## Prompt variants and distractors
@@ -55,6 +57,8 @@ Options: `--model` (default `sonnet`; tool search deferral doesn't work on Haiku
 - **Errors per run**: tool results flagged as errors, such as nonzero exits and MCP errors.
 - **Unsafe mutations**: state changed on a task that should leave it alone.
 - **Cumulative input**: input tokens summed over every turn, which is what you pay for. **Peak context** is the largest single turn.
+- **Tool-result tokens**: result text at four characters per token, so output flowing back through context is visible separately from prompt cost.
+- **Spread**: pass rates carry a Wilson 95% interval, and `±` on a median is half the interquartile range. Both are wide at three trials, which is the honest width for three trials.
 - **Always loaded** context: first-turn input minus a baseline with no brindle interface.
 - **Loaded on demand** context: exact token count of each artifact, measured as the first-turn input delta when it's appended to a prompt.
 
