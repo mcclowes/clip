@@ -38,20 +38,37 @@ export function validateSchema(value: unknown): Schema {
   return schema;
 }
 
-function mutationLabel(mutating: boolean | undefined): string {
-  if (mutating === undefined) return 'unknown';
-  return mutating ? 'yes' : 'no';
+type Arg = { name: string; type?: string; required?: boolean; positional?: boolean; enum?: readonly string[] };
+
+function argToken(arg: Arg): string {
+  if (arg.positional || !arg.name.startsWith('-')) return `<${arg.name}>`;
+  if (arg.type === 'boolean') return arg.name;
+  if (arg.enum?.length) return `${arg.name} ${arg.enum.join('|')}`;
+  return `${arg.name} <${arg.type === 'integer' ? 'n' : arg.name.replace(/^-+/, '')}>`;
 }
 
-export function describeOperations(schema: Schema): string[] {
+function mutationTag(mutating: boolean | undefined): string {
+  if (mutating === undefined) return ' **[mutation unknown]**';
+  return mutating ? ' **[mutating]**' : '';
+}
+
+/** One usage line per invocable command: required arguments bare, optional ones bracketed, the first example beside read commands. */
+export function signatureLines(schema: Schema): string[] {
   const result: string[] = [];
-  function visit(items: Operation[], prefix = '') {
+  function visit(items: Operation[], path: string) {
     for (const item of items) {
-      const path = `${prefix}${item.name}`;
-      result.push(`- ${path}: ${item.description} (mutation: ${mutationLabel(item.mutating)})`);
-      if (item.subcommands) visit(item.subcommands, `${path} `);
+      const name = `${path} ${item.name}`;
+      if (item.subcommands?.length) {
+        visit(item.subcommands, name);
+        continue;
+      }
+      const args = Array.isArray(item.args) ? (item.args as Arg[]) : undefined;
+      const usage = [name, ...(args ?? []).map(arg => (arg.required ? argToken(arg) : `[${argToken(arg)}]`))].join(' ');
+      const example = !item.mutating && Array.isArray(item.examples) && typeof item.examples[0] === 'string' ? ` Example: \`${item.examples[0]}\`` : '';
+      const help = args ? '' : ` Arguments: \`${name} --help\`.`;
+      result.push(`- \`${usage}\`${mutationTag(item.mutating)} — ${item.description.replace(/\.?$/, '.')}${example}${help}`);
     }
   }
-  visit(schema.commands ?? schema.capabilities!);
+  visit(schema.commands ?? schema.capabilities!, schema.name);
   return result;
 }

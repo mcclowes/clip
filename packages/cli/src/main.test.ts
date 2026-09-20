@@ -205,3 +205,25 @@ test('reject invalid documents, preserve user skills, and remove stale owned ski
   assert.equal(run('schema', 'init', 'sample', '--purpose', 'Test', '--file', 'draft.json').status, 1);
   assert.equal(run('register', process.execPath, '--purpose', 'Test', '--schema', 'draft.json').status, 1);
 });
+
+test('skills render a signature per command and point at the schema beside them', t => {
+  const { dir, run } = fixture(t);
+  const schema = join(dir, 'kiln.json');
+  writeFileSync(schema, JSON.stringify({ name: 'node', commands: [
+    { name: 'load queue', description: 'Queue a firing', mutating: true, args: [
+      { name: '--cone', type: 'string', required: true, enum: ['06', '6'] },
+      { name: '--pieces', type: 'integer', required: true },
+      { name: '--dry-run', type: 'boolean' },
+    ] },
+    { name: 'load show', description: 'Show a load', mutating: false, args: [{ name: 'id', type: 'string', required: true }], examples: ['node load show 7 --json'] },
+    { name: 'project', description: 'Projects', subcommands: [{ name: 'list', description: 'List projects' }] },
+  ] }));
+  assert.equal(run('register', process.execPath, '--purpose', 'Fire kilns', '--schema', schema).status, 0);
+  assert.equal(run('sync').status, 0);
+  const skill = readFileSync(join(dir, '.agents/skills/clip-node/SKILL.md'), 'utf8');
+  assert.match(skill, /`node load queue --cone 06\|6 --pieces <n> \[--dry-run\]` \*\*\[mutating\]\*\* — Queue a firing/);
+  assert.match(skill, /`node load show <id>` — Show a load\. Example: `node load show 7 --json`/);
+  assert.match(skill, /`node project list` \*\*\[mutation unknown\]\*\* — List projects/);
+  assert.match(skill, /`schema\.json` next to this file/);
+  assert.doesNotMatch(skill, /Source:/);
+});
