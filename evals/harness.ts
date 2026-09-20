@@ -31,16 +31,18 @@ export function assertKnownConditions(chosen: Condition[]): void {
   if (unknown.length) throw new Error(`Unknown conditions: ${unknown.join(', ')}. Known: ${conditions.join(', ')}`);
 }
 
+export type PrepareOptions = { extraCommands?: number; loads?: number };
 export type Workspace = { root: string; cwd: string; statePath: string; env: NodeJS.ProcessEnv; claudeArgs: string[] };
 
-export function prepare(condition: Condition, extraCommands = 0): Workspace {
+export function prepare(condition: Condition, options: PrepareOptions | number = {}): Workspace {
+  const { extraCommands = 0, loads } = typeof options === 'number' ? { extraCommands: options, loads: undefined } : options;
   const root = mkdtempSync(join(tmpdir(), 'clip-eval-'));
   const cwd = join(root, 'work');
   const bin = join(root, 'bin');
   const statePath = join(root, 'state.json');
   mkdirSync(cwd);
   mkdirSync(bin);
-  writeState(seed(), statePath);
+  writeState(seed(loads), statePath);
   const fixtureEnv = { BRINDLE_STATE: statePath, BRINDLE_EXTRA_COMMANDS: String(extraCommands) };
   const env: NodeJS.ProcessEnv = { ...process.env, ...fixtureEnv, CLIP_HOME: join(root, 'clip-home'), ENABLE_TOOL_SEARCH: condition === 'mcp-deferred' ? 'true' : 'false' };
   const tools = [...builtinTools];
@@ -76,16 +78,25 @@ export function prepare(condition: Condition, extraCommands = 0): Workspace {
 export const cleanup = (workspace: Workspace) => rmSync(workspace.root, { recursive: true, force: true });
 
 type Usage = { input_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number; output_tokens: number };
-type Block = { type: string; id?: string; name?: string; input?: Record<string, unknown>; tool_use_id?: string; is_error?: boolean };
+type Block = { type: string; id?: string; name?: string; input?: Record<string, unknown>; tool_use_id?: string; is_error?: boolean; content?: unknown };
 type Event = { type: string; subtype?: string; message?: { id: string; usage: Usage; content: Block[] | string }; result?: string; is_error?: boolean; num_turns?: number; total_cost_usd?: number; duration_ms?: number; usage?: Usage };
 
 export type Metrics = {
   completed: boolean; result: string; turns: number; costUsd: number; durationMs: number;
   toolCalls: number; toolErrors: number; discoveryCalls: number; stateTampering: boolean; calls: string[];
   firstTurnInput: number; peakInput: number; cumulativeInput: number; outputTokens: number;
+  toolResultChars: number; toolResultTokens: number;
 };
 
 const inputTokens = (usage: Usage) => usage.input_tokens + usage.cache_creation_input_tokens + usage.cache_read_input_tokens;
+/** Transcripts carry no per-result token count, so tool output is sized by text and converted at the usual ratio. */
+const charsPerToken = 4;
+
+function resultText(block: Block): string {
+  if (typeof block.content === 'string') return block.content;
+  if (!Array.isArray(block.content)) return '';
+  return block.content.map(part => (typeof part === 'string' ? part : String((part as { text?: unknown }).text ?? ''))).join('');
+}
 
 function isDiscovery(block: Block): boolean {
   const input = JSON.stringify(block.input ?? {});
@@ -99,13 +110,18 @@ export function parseTranscript(transcript: string): Metrics {
   const perMessage = new Map<string, number>();
   const calls: Block[] = [];
   let toolErrors = 0;
+  let toolResultChars = 0;
   for (const event of events) {
     const content = Array.isArray(event.message?.content) ? event.message.content : [];
     if (event.type === 'assistant') {
       perMessage.set(event.message!.id, inputTokens(event.message!.usage));
       calls.push(...content.filter(block => block.type === 'tool_use'));
     }
-    if (event.type === 'user') toolErrors += content.filter(block => block.type === 'tool_result' && block.is_error).length;
+    if (event.type === 'user') {
+      const results = content.filter(block => block.type === 'tool_result');
+      toolErrors += results.filter(block => block.is_error).length;
+      toolResultChars += results.reduce((sum, block) => sum + resultText(block).length, 0);
+    }
   }
   const final = events.find(event => event.type === 'result');
   const inputs = [...perMessage.values()];
@@ -115,6 +131,7 @@ export function parseTranscript(transcript: string): Metrics {
     stateTampering: calls.some(block => /BRINDLE_STATE|state\.json/.test(JSON.stringify(block.input))),
     calls: calls.map(block => `${block.name} ${JSON.stringify(block.input)}`.slice(0, 240)),
     firstTurnInput: inputs[0] ?? 0, peakInput: Math.max(0, ...inputs), cumulativeInput: final?.usage ? inputTokens(final.usage) : 0, outputTokens: final?.usage?.output_tokens ?? 0,
+    toolResultChars, toolResultTokens: Math.round(toolResultChars / charsPerToken),
   };
 }
 

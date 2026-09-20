@@ -25,7 +25,7 @@ function taskReport(rows: Row[]): string {
     const all = valid.filter(row => row.condition === condition);
     const passed = all.filter(row => row.success);
     return [condition, `${passed.length}/${all.length}`, round(mean(metric(passed, 'toolCalls'))), round(mean(metric(passed, 'discoveryCalls'))), round(mean(metric(all, 'toolErrors')), 2),
-      all.filter(row => row.unsafeMutation).length, Math.round(median(metric(passed, 'cumulativeInput'))), Math.round(median(metric(passed, 'peakInput'))), Math.round(median(metric(passed, 'outputTokens'))),
+      all.filter(row => row.unsafeMutation).length, Math.round(median(metric(passed, 'cumulativeInput'))), Math.round(median(metric(passed, 'peakInput'))), Math.round(median(metric(passed, 'toolResultTokens'))), Math.round(median(metric(passed, 'outputTokens'))),
       round(median(metric(passed, 'costUsd')), 3), round(median(metric(passed, 'durationMs')) / 1000)];
   });
   const tasks = unique(rows.map(row => String(row.task)));
@@ -34,11 +34,21 @@ function taskReport(rows: Row[]): string {
     return `${all.filter(row => row.success).length}/${all.length} (${round(mean(metric(all, 'toolCalls')))})`;
   })]);
   const harnessErrors = rows.length - valid.length;
+  const scaled = tasks.filter(task => valid.some(row => row.task === task && Number(row.loads) > 20));
+  const composition = scaled.length ? [
+    '### Tool-result tokens on scaled tasks', '',
+    `Estimated from result text at four characters per token, over passing runs on ${scaled.join(', ')}.`, '',
+    table(['Condition', 'Tool-result tokens (median)', 'Cumulative input (median)', 'Tool calls'], conditions.map(condition => {
+      const passed = valid.filter(row => row.condition === condition && row.success && scaled.includes(String(row.task)));
+      return [condition, Math.round(median(metric(passed, 'toolResultTokens'))), Math.round(median(metric(passed, 'cumulativeInput'))), round(mean(metric(passed, 'toolCalls')))];
+    })), '',
+  ] : [];
   return [
     '## Ease of use', '',
     'Tool calls, discovery calls, tokens, cost, and time cover passing runs only, so failures that give up early do not look cheap. Errors per run covers all runs.', '',
-    table(['Condition', 'Pass', 'Tool calls', 'Discovery calls', 'Errors per run', 'Unsafe mutations', 'Cumulative input (median)', 'Peak context (median)', 'Output tokens (median)', 'Cost USD (median)', 'Seconds (median)'], summary), '',
+    table(['Condition', 'Pass', 'Tool calls', 'Discovery calls', 'Errors per run', 'Unsafe mutations', 'Cumulative input (median)', 'Peak context (median)', 'Tool-result tokens (median)', 'Output tokens (median)', 'Cost USD (median)', 'Seconds (median)'], summary), '',
     '### Pass rate by task (mean tool calls)', '', table(['Task', ...conditions], perTask), '',
+    ...composition,
     ...(harnessErrors ? [`${harnessErrors} runs hit harness errors and are excluded.`, ''] : []),
   ].join('\n');
 }

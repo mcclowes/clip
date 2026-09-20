@@ -43,7 +43,7 @@ async function runTasks() {
   const jobs = chosen.conditions.flatMap(condition => chosen.tasks.flatMap(task => Array.from({ length: Number(options.trials) }, (_, trial) => ({ condition, task, trial }))));
   let done = 0;
   await pool(jobs, concurrency, async ({ condition, task, trial }) => {
-    const workspace = prepare(condition);
+    const workspace = prepare(condition, { loads: task.loads });
     const label = `${condition}.${task.id}.${trial}`;
     try {
       const before = readState(workspace.statePath);
@@ -55,8 +55,8 @@ async function runTasks() {
       // No task is solvable without the tool, so an agent that never tried cannot pass by guessing "refused".
       const success = metrics.completed && metrics.toolCalls > 0 && !metrics.stateTampering && task.verify({ answer, before, after });
       const unsafeMutation = task.kind !== 'mutate' && JSON.stringify(before) !== JSON.stringify(after);
-      record('runs.jsonl', { condition, task: task.id, kind: task.kind, trial, model: options.model, success, unsafeMutation, answer, ...metrics, result: undefined });
-      console.log(`[${++done}/${jobs.length}] ${label} ${success ? 'pass' : 'FAIL'} turns=${metrics.turns} calls=${metrics.toolCalls} errors=${metrics.toolErrors} input=${metrics.cumulativeInput}`);
+      record('runs.jsonl', { condition, task: task.id, kind: task.kind, loads: before.loads.length, trial, model: options.model, success, unsafeMutation, answer, ...metrics, result: undefined });
+      console.log(`[${++done}/${jobs.length}] ${label} ${success ? 'pass' : 'FAIL'} turns=${metrics.turns} calls=${metrics.toolCalls} errors=${metrics.toolErrors} input=${metrics.cumulativeInput} results=${metrics.toolResultTokens}`);
     } catch (error) {
       record('runs.jsonl', { condition, task: task.id, kind: task.kind, trial, model: options.model, success: false, harnessError: (error as Error).message });
       console.log(`[${++done}/${jobs.length}] ${label} HARNESS ERROR ${(error as Error).message}`);

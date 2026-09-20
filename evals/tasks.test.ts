@@ -2,13 +2,15 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { clipSchema, commands, mcpTools, validate, type State, type Values } from './fixture/spec.ts';
 import { seed } from './fixture/state.ts';
-import { extractAnswer, tasks } from './tasks.ts';
+import { compositionLoads, extractAnswer, tasks } from './tasks.ts';
 import { parseTranscript } from './harness.ts';
 
 function run(state: State, name: string, values: Values = {}) {
   const command = commands.find(item => item.name === name)!;
   return command.run(state, validate(command, values));
 }
+
+const listed = (state: State, values: Values = {}) => (run(state, 'load list', values) as { items: State['loads']; total: number });
 
 const solutions: Record<string, (state: State) => string> = {
   'count-filtered': () => '2',
@@ -24,19 +26,53 @@ const solutions: Record<string, (state: State) => string> = {
     return 'LD-0009, LD-0011';
   },
   'refuse-impossible': () => 'refused',
+  // Solved the way a CLI condition would: one filtered list per aggregate, then arithmetic over it.
+  'busiest-queue': state => {
+    const totals = new Map<string, number>();
+    for (const item of listed(state, { status: 'queued' }).items) totals.set(item.kiln, (totals.get(item.kiln) ?? 0) + item.pieces);
+    const [kiln, pieces] = [...totals].sort((a, b) => b[1] - a[1])[0]!;
+    return `${kiln}, ${pieces} pieces`;
+  },
+  'count-beyond-flags': state => String(listed(state, { status: 'done' }).items.filter(item => item.cone === '10' && item.pieces > 20).length),
+  'reduction-share': state => `${Math.round((listed(state, { atmosphere: 'reduction' }).total / listed(state).total) * 100)}%`,
 };
 
 for (const task of tasks) {
   test(`${task.id} accepts the reference solution and rejects a wrong one`, () => {
-    const after = seed();
+    const fixture = () => seed(task.loads);
+    const after = fixture();
     const answer = solutions[task.id]!(after);
-    assert.equal(task.verify({ answer, before: seed(), after }), true);
-    assert.equal(task.verify({ answer: 'LD-9999', before: seed(), after }), false);
-    const tampered = seed();
+    assert.equal(task.verify({ answer, before: fixture(), after }), true);
+    assert.equal(task.verify({ answer: 'LD-9999', before: fixture(), after }), false);
+    const tampered = fixture();
     tampered.loads[0]!.pieces += 1;
-    assert.equal(task.verify({ answer, before: seed(), after: tampered }), false);
+    assert.equal(task.verify({ answer, before: fixture(), after: tampered }), false);
   });
 }
+
+test('the scaled fixture is deterministic, and only appends to the hand-written loads', () => {
+  const base = seed();
+  const scaled = seed(compositionLoads);
+  assert.equal(scaled.loads.length, compositionLoads);
+  assert.deepEqual(scaled.loads.slice(0, base.loads.length), base.loads);
+  assert.deepEqual(scaled.kilns, base.kilns);
+  assert.deepEqual(scaled, seed(compositionLoads));
+  const capacity = new Map(scaled.kilns.map(kiln => [kiln.id, kiln.capacity]));
+  for (const item of scaled.loads) {
+    assert.ok(item.pieces >= 1 && item.pieces <= capacity.get(item.kiln)!, `${item.id} exceeds its kiln capacity`);
+    assert.equal(item.status === 'done', item.fired_on !== undefined, `${item.id} fired date does not match its status`);
+  }
+});
+
+test('composition tasks need more than the tool can filter, and a scaled listing is expensive to read', () => {
+  const scaled = seed(compositionLoads);
+  for (const id of ['busiest-queue', 'count-beyond-flags', 'reduction-share']) {
+    assert.equal(tasks.find(task => task.id === id)!.loads, compositionLoads, `${id} should run against the scaled fixture`);
+  }
+  // No --cone or --pieces flag exists, so the answer has to be computed over a listing rather than asked for.
+  assert.deepEqual(commands.find(item => item.name === 'load list')!.args.map(arg => arg.name), ['--status', '--kiln', '--atmosphere']);
+  assert.ok(JSON.stringify(listed(scaled), null, 2).length > 50_000);
+});
 
 test('refuses what the fixture documents as refused', () => {
   assert.throws(() => run(seed(), 'load cancel', { load: 'LD-0003', reason: 'x' }), /status is firing/);
