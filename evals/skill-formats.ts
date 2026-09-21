@@ -4,7 +4,8 @@
  * ---
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { renderSkillFiles } from '../packages/cli/src/skill-render.ts';
 
 type Arg = { name: string; type: string; description: string; required?: boolean; positional?: boolean; enum?: readonly string[] };
 type SchemaCommand = { name: string; description: string; mutating?: boolean; args?: Arg[]; examples?: string[] };
@@ -80,6 +81,17 @@ export const skillFormats: SkillFormat[] = [
       mkdirSync(dir, { recursive: true });
       writeFileSync(join(dir, 'SKILL.md'), renderSignatureSkill(schema, purpose, executable));
       writeFileSync(join(dir, 'schema.json'), `${JSON.stringify(schema, null, 2)}\n`);
+    },
+  },
+  {
+    id: 'groups',
+    summary: 'Usage lines in SKILL.md up to 15 commands, an index above that, and per-group reference files instead of schema.json (#11, #12).',
+    render: ({ schema, purpose, executable, skillsDir }) => {
+      const dir = join(skillsDir, skillDirName(schema));
+      for (const [path, content] of renderSkillFiles({ skillName: skillDirName(schema), name: schema.name, purpose, executable, schema })) {
+        mkdirSync(dirname(join(dir, path)), { recursive: true });
+        writeFileSync(join(dir, path), content);
+      }
     },
   },
 ];

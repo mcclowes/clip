@@ -107,11 +107,14 @@ function resultText(block: Block): string {
   return block.content.map(part => (typeof part === 'string' ? part : String((part as { text?: unknown }).text ?? ''))).join('');
 }
 
+/** Any file a CLIP skill ships for the agent to read, including per-group reference files. */
+const skillReference = /SKILL\.md|schema\.json|clip-[\w.-]+\/commands\//;
+
 function isDiscovery(block: Block): boolean {
   const input = JSON.stringify(block.input ?? {});
   if (block.name === 'Skill' || block.name === 'ToolSearch') return true;
-  if (block.name === 'Read') return /SKILL\.md|schema\.json/.test(input);
-  return block.name === 'Bash' && /(--help|\s-h\b|\bhelp\b|\bman\s|SKILL\.md|schema\.json)/.test(input);
+  if (block.name === 'Read') return skillReference.test(input);
+  return block.name === 'Bash' && (/(--help|\s-h\b|\bhelp\b|\bman\s)/.test(input) || skillReference.test(input));
 }
 
 export function parseTranscript(transcript: string): Metrics {
