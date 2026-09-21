@@ -17,7 +17,7 @@ clip schema
 clip capabilities
 clip schema show <id>
 clip schema init <name> --purpose <text> --file <path>
-clip sync [--skills-dir <path>]
+clip sync [--skills-dir <path>] [--target all|skills|agents-md] [--agents-file <path>]
 clip registry search [query]
 clip registry add <id> --purpose <text>
 ```

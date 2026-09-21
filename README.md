@@ -29,7 +29,7 @@ clip registry add git --purpose "Review repository changes"
 clip sync
 ```
 
-This writes `.agents/skills/clip-git/SKILL.md`, with a usage line per command and reference files in `commands/`, to your project. Adding a registry schema requires the executable to be installed already. It doesn't install or execute the tool.
+This writes `.agents/skills/clip-git/SKILL.md`, with a usage line per command and reference files in `commands/`, to your project, and adds a one-line pointer to it in `AGENTS.md`. Adding a registry schema requires the executable to be installed already. It doesn't install or execute the tool.
 
 If you need to install a CLI first, [getcli](https://getcli.dev/) provides a separate registry for discovering, installing, and verifying command-line tools. CLIP can then describe the installed tool and generate its agent skill.
 
@@ -66,6 +66,8 @@ CLIP accepts `capabilities` instead of `commands`, and preserves richer native C
 Use `clip list` and `clip remove mytool` to maintain registrations. Inside a Git project, changes default to the uncommitted `.clip/tools.local.json`. Use `--scope shared` for the repository's `.clip/tools.json`, or `--scope global` for `~/.config/clip/tools.json`. Local registrations override shared registrations, which override global ones. Removing an inherited tool disables it in the selected project scope.
 
 Run `clip sync` after changes. Set `--skills-dir` to your agent's skills directory. CLIP refuses to replace unowned skill directories; generated files should be edited through their source schemas.
+
+Sync also keeps a block in `AGENTS.md` listing each tool with its purpose and skill path, so harnesses without skill support still find it. CLIP edits only between its `<!-- clip:begin -->` and `<!-- clip:end -->` markers and refuses a damaged block. Use `--agents-file CLAUDE.md` for another file, or `--target skills` or `--target agents-md` to sync just one.
 
 After updating registered tools or CLIP's bundled registry, run `clip doctor` to check for missing executables and schema drift. Run `clip refresh` to reload file, native-probe, and registry schemas, update registrations, and synchronize skills. Manual registrations have no schema source to refresh. Native diagnosis and refresh rerun the explicitly registered, bounded probe command.
 

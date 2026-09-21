@@ -8,6 +8,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 - Community schemas for ripgrep, fd, curl, Docker, npm, uv, kubectl, Terraform, and yq.
 - An eval harness comparing the bare CLI, a CLIP skill, and MCP for agent tasks.
+- `clip sync` and `clip refresh` maintain a marker-delimited pointer block in `AGENTS.md`, one line per tool with its purpose and skill path. `--target skills|agents-md` syncs one target and `--agents-file` picks the file.
 - npm distribution as `@mcclowes/clip`, with provenance, and build attestations for release archives.
 
 ### Changed
