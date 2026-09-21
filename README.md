@@ -8,6 +8,8 @@ Command Line Interface Protocol. Register CLI tools, describe their capabilities
 
 CLIP keeps execution on the command line. It doesn't proxy commands or manage credentials. Agents call the original executable with its existing authentication and permissions.
 
+![Searching the registry, adding git, and syncing its agent skill](docs/demo.svg)
+
 [Documentation and tool directory](https://clip.marginalutility.dev) · [CLI Spec v0.2](https://clispec.dev/spec/v0.2/)
 
 ## Install

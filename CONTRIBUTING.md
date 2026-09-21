@@ -39,6 +39,8 @@ The catalog is bundled into CLIP releases. Maintainers review contributions in G
 
 Run `npm run lint`, `npm run check`, `npm test`, `npm run build`, and `npm run registry:check` at the repository root. CI also enforces 85% line coverage through `npm run test:coverage`. For site changes, regenerate the catalog and run `npm ci`, `npm run build`, and `npm run typecheck` in `site/`.
 
+The README demo, `docs/demo.svg`, is recorded from a real session in a throwaway project. Run `npm run demo` to regenerate it after changing the output of `registry search`, `sync`, or generated skills.
+
 ## Release
 
 Releases are driven by tags. Bump `version` in `packages/cli/package.json`, move the `Unreleased` entries in `CHANGELOG.md` under the new version, then push a matching `v<version>` tag. The release workflow builds, checks that the tag matches the manifest, attaches the archive to a GitHub release, and publishes to npm with provenance through trusted publishing.
