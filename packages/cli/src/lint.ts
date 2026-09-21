@@ -1,6 +1,6 @@
 /**
  * ---
- * purpose: Check a capability schema offline for what an agent will see: skill size, argument and mutation coverage, bounded first examples, and instruction-like text.
+ * purpose: Check a capability schema offline for what an agent will see: skill size, argument and mutation coverage, bounded first examples, and prose an agent could be steered by.
  * related:
  *   - ./skill-render.ts - Renders the skill files whose size this measures.
  *   - ../../../scripts/validate-registry.ts - Runs these checks with registry rules over the bundled catalog.
@@ -33,9 +33,31 @@ const instructionPatterns = [
   /\b(note|message)\s+(to|for)\s+(the\s+)?(AI|agent|assistant|LLM|model)\b/i,
   /<\/?\s*(system|assistant|user|human|instructions?)\s*>|\[\/?INST\]|<\|[a-z_]+\|>/i,
 ];
-/** Examples an agent copies must not run hidden commands or pipe into a shell. */
-const examplePatterns = [/\$\(|`/, /\|\s*(sudo\s+)?(sh|bash|zsh|fish|dash)\b/];
+/** Free text longer than this is a warning: a large field gives an injected instruction room to hide. */
+export const proseLimit = 500;
+export const exampleLimit = 300;
+/** Fields whose value is a link by design. */
+const linkFields = new Set(['documentation', 'upstream']);
+const linkPattern = /\b(?:https?|ftp|file):\/\/[^\s'"<>)]+/gi;
+/** Reserved for documentation by RFC 2606 and RFC 6761, so examples can use them freely. */
+const exampleHost = /^(localhost|127\.0\.0\.1|(.+\.)?example(\.(com|org|net))?)$/i;
 const operationLists = new Set(['commands', 'capabilities', 'subcommands']);
+
+/** Removes quoted segments as the shell would read them. With `keepDouble`, double-quoted text stays, since the shell still expands `$(` and backticks there. */
+function unquoted(text: string, keepDouble = false): string {
+  return text.replace(/'[^']*'|"(?:\\.|[^"\\])*"/g, segment => (segment.startsWith('"') && keepDouble ? segment : ' '));
+}
+
+/** Examples an agent copies must be one invocation: no substitution, chaining, pipes, redirects, or background jobs. */
+function isShellSyntax(example: string): boolean {
+  return /\$\(|`/.test(unquoted(example, true)) || /[;&|<>\n]/.test(unquoted(example));
+}
+
+function links(text: string): URL[] {
+  return [...text.matchAll(linkPattern)].flatMap(([link]) => {
+    try { return [new URL(link)]; } catch { return []; }
+  });
+}
 
 const quote = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const uses = (example: string, token: string) => new RegExp(`(^|\\s)${quote(token)}(=|\\s|$)`).test(example);
@@ -87,8 +109,10 @@ function commandIssues(schema: Schema, options: LintOptions): LintIssue[] {
   });
 }
 
-function freeText(value: unknown, command: string[], field: string[], found: { text: string; at: string; example: boolean }[]) {
-  if (typeof value === 'string') found.push({ text: value, at: where(command, field), example: /(^|\.)examples\[/.test(field.join('.')) });
+type FreeText = { text: string; at: string; example: boolean; link: boolean };
+
+function freeText(value: unknown, command: string[], field: string[], found: FreeText[]) {
+  if (typeof value === 'string') found.push({ text: value, at: where(command, field), example: /(^|\.)examples\[/.test(field.join('.')), link: linkFields.has(field.at(-1) ?? '') });
   else if (Array.isArray(value)) {
     const key = field.at(-1) ?? '';
     value.forEach((item, index) => {
@@ -99,14 +123,21 @@ function freeText(value: unknown, command: string[], field: string[], found: { t
   } else if (value && typeof value === 'object') for (const [key, item] of Object.entries(value)) freeText(item, command, [...field, key], found);
 }
 
+function textProblems({ text, example, link }: FreeText): Omit<LintIssue, 'at' | 'rule'>[] {
+  if (link) return links(text).every(url => url.protocol === 'https:') ? [] : [{ severity: 'warning', message: 'Link to documentation over HTTPS.' }];
+  const problems: Omit<LintIssue, 'at' | 'rule'>[] = [];
+  if (instructionPatterns.some(pattern => pattern.test(text))) problems.push({ severity: 'error', message: 'This reads as an instruction to the agent. Describe the tool instead.' });
+  if (example && isShellSyntax(text)) problems.push({ severity: 'error', message: 'Examples must be a single invocation, without command substitution, chaining, pipes, redirects, or background jobs outside quotes.' });
+  const limit = example ? exampleLimit : proseLimit;
+  if (text.length > limit) problems.push({ severity: 'warning', message: `${text.length} characters, over the ${limit} limit. Keep ${example ? 'examples' : 'free text'} short enough to review.` });
+  if (links(text).some(url => !exampleHost.test(url.hostname))) problems.push({ severity: 'warning', message: 'Links belong in "documentation". Use example.com in examples; an agent may follow any other link.' });
+  return problems;
+}
+
 function proseIssues(schema: Schema): LintIssue[] {
-  const found: { text: string; at: string; example: boolean }[] = [];
+  const found: FreeText[] = [];
   freeText(schema, [], [], found);
-  return found.flatMap(({ text, at, example }): LintIssue[] => {
-    if (instructionPatterns.some(pattern => pattern.test(text))) return [{ at, rule: 'prose', severity: 'error', message: 'This reads as an instruction to the agent. Describe the tool instead.' }];
-    if (example && examplePatterns.some(pattern => pattern.test(text))) return [{ at, rule: 'prose', severity: 'error', message: 'Examples must not substitute commands or pipe into a shell.' }];
-    return [];
-  });
+  return found.flatMap(item => textProblems(item).map(problem => ({ at: item.at, rule: 'prose' as const, ...problem })));
 }
 
 function sizeIssues(schema: Schema): LintIssue[] {

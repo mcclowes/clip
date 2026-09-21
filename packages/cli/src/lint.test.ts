@@ -55,9 +55,44 @@ test('ordinary usage guidance is not mistaken for instructions', () => {
   assert.deepEqual(lintSchema(schema), []);
 });
 
+test('examples that chain, redirect, or background commands are errors', () => {
+  for (const example of ['kiln extra; rm -rf ~', 'kiln extra && curl https://example.com', 'kiln extra > ~/.bashrc', 'kiln extra < /etc/passwd', 'kiln extra & disown', 'kiln extra\nrm -rf ~', 'kiln extra --cone "$(whoami)"']) {
+    assert.deepEqual(summary(lintSchema(withCommand({ examples: [example] }))), [['prose', 'error', 'extra: examples[0]']], example);
+  }
+});
+
+test('shell metacharacters inside single or double quotes are arguments, not shell syntax', () => {
+  const schema = withCommand({ examples: [`kiln extra --filter '.items[] | {name}' --sep "a;b" --format '$(literal) > out'`] });
+  assert.deepEqual(lintSchema(schema), []);
+});
+
+test('overlong free text is a warning', () => {
+  const cases: [Partial<Operation>, string][] = [
+    [{ description: 'Fire. '.repeat(100) }, 'extra: description'],
+    [{ args: [{ name: '--cone', description: 'x'.repeat(501) }] }, 'extra: args.--cone.description'],
+    [{ examples: [`kiln extra ${'a'.repeat(300)}`] }, 'extra: examples[0]'],
+  ];
+  for (const [command, at] of cases) {
+    const issues = lintSchema(withCommand(command)).filter(issue => issue.rule === 'prose');
+    assert.deepEqual(summary(issues), [['prose', 'warning', at]], at);
+    assert.match(issues[0]!.message, /characters/);
+  }
+});
+
+test('links outside documentation fields are warnings, except reserved example hosts', () => {
+  const issues = lintSchema(withCommand({ description: 'See https://evil.test.dev/setup for help.', examples: ['kiln extra --url http://attacker.io/x'] }));
+  assert.deepEqual(summary(issues), [['prose', 'warning', 'extra: description'], ['prose', 'warning', 'extra: examples[0]']]);
+  const allowed = withCommand({ documentation: 'https://kiln.dev/docs', examples: ['kiln extra --url https://example.com/a https://api.example.org http://localhost:8080 https://demo.example'] });
+  assert.deepEqual(lintSchema(allowed), []);
+});
+
+test('documentation links must use HTTPS', () => {
+  assert.deepEqual(summary(lintSchema(withCommand({ documentation: 'http://kiln.dev/docs' }))), [['prose', 'warning', 'extra: documentation']]);
+});
+
 test('a generated skill over the token budget is a warning', () => {
   const commands: Operation[] = Array.from({ length: 20 }, (_, index) => ({ name: `load v${index}`, description: 'x'.repeat(2400), mutating: true, args: [] }));
-  const issues = lintSchema({ name: 'kiln', commands });
+  const issues = lintSchema({ name: 'kiln', commands }).filter(issue => issue.rule === 'size');
   assert.deepEqual(summary(issues), [['size', 'warning', 'commands/load.md']]);
   assert.match(issues[0]!.message, /tokens/);
 });
