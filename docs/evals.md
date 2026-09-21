@@ -1,5 +1,24 @@
 # Eval findings
 
+## Registry validation run (21 September 2026)
+
+Claude Code 2.1.278, `claude-sonnet-5`, two trials. The first run against real tools rather than `brindle` ([#22](https://github.com/mcclowes/clip/issues/22)): `git` 2.55.0, `jq` 1.7.1, and `rg` 15.2.0, two read-only tasks each, with and without the registry schema. 24 sessions, after a 12-session smoke run that found one harness bug: the skill names the resolved executable, and the tool-use check didn't recognise `/opt/homebrew/bin/rg`.
+
+**Every run passed in both conditions, so the schemas don't mislead, but on these tasks they don't help either.** The skill cost one extra call, its read, in every `cli-clip` run, and more input on two of three tools.
+
+| Tool | Condition | Pass | Tool calls | Discovery calls | Tool errors | Cumulative input (median) |
+| --- | --- | --- | --- | --- | --- | --- |
+| git | `cli-bare` | 4/4 | 1.0 | 0 | 0 | 15,880 |
+| git | `cli-clip` | 4/4 | 2.0 | 1.0 | 0 | 25,865 |
+| jq | `cli-bare` | 4/4 | 2.5 | 0 | 1 | 28,035 |
+| jq | `cli-clip` | 4/4 | 3.3 | 1.0 | 0 | 26,086 |
+| rg | `cli-bare` | 4/4 | 1.5 | 0 | 0 | 19,577 |
+| rg | `cli-clip` | 4/4 | 2.5 | 1.0 | 0 | 29,938 |
+
+That's the expected result for tools this well known. The first run's limits section predicted it: a fictional tool measures the upper bound of a schema's value. The fixtures include traps a careless call falls into: a file both staged and edited, `TODO(auth)` read as a regex, and matches in ignored and hidden files. The model avoided all of them unaided. So `validated` in the registry means the schema doesn't lead an agent astray on its covered commands. It doesn't mean the schema improves on no schema, and the record keeps the baseline beside it so nobody reads it that way.
+
+Two trials are few. Treat 4/4 as "no failures seen", not as a rate.
+
 ## Rendered example run (21 September 2026)
 
 Claude Code 2.1.278, Sonnet, three trials. Targeted at [#20](https://github.com/mcclowes/clip/issues/20): the three composition tasks against the 500-load fixture, comparing `cli-clip` (first example beside each read command) with `cli-clip-no-examples` (the same skill with examples stripped). 18 sessions.

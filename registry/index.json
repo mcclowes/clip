@@ -13,7 +13,20 @@
       "documentation": "https://git-scm.com/docs/git-status",
       "schema": "schemas/git.json",
       "sha256": "c180ea54c8848b312750d03f9e4f081885f1139ec357bbd553f4e761e098e550",
-      "coverage": "Selected inspection commands"
+      "coverage": "Selected inspection commands",
+      "validation": {
+        "validated": true,
+        "sha256": "c180ea54c8848b312750d03f9e4f081885f1139ec357bbd553f4e761e098e550",
+        "date": "2026-09-21",
+        "model": "claude-sonnet-5",
+        "claudeVersion": "2.1.278",
+        "clipVersion": "0.2.0",
+        "toolVersion": "git version 2.55.0",
+        "passed": 4,
+        "runs": 4,
+        "baselinePassed": 4,
+        "baselineRuns": 4
+      }
     },
     {
       "id": "gh",
@@ -41,7 +54,20 @@
       "documentation": "https://jqlang.org/manual/",
       "schema": "schemas/jq.json",
       "sha256": "b935dc498002ba5e0be1d84a5f61ef7775155a6cca348e484077b39cf1e2ef84",
-      "coverage": "Core JSON filtering"
+      "coverage": "Core JSON filtering",
+      "validation": {
+        "validated": true,
+        "sha256": "b935dc498002ba5e0be1d84a5f61ef7775155a6cca348e484077b39cf1e2ef84",
+        "date": "2026-09-21",
+        "model": "claude-sonnet-5",
+        "claudeVersion": "2.1.278",
+        "clipVersion": "0.2.0",
+        "toolVersion": "jq-1.7.1-apple",
+        "passed": 4,
+        "runs": 4,
+        "baselinePassed": 4,
+        "baselineRuns": 4
+      }
     },
     {
       "id": "rg",
@@ -55,7 +81,20 @@
       "documentation": "https://github.com/BurntSushi/ripgrep/blob/master/crates/core/flags/defs.rs",
       "schema": "schemas/rg.json",
       "sha256": "6d9091461388dbcd323859556658961572ac80085d5c8b410c63e77c6196a9b9",
-      "coverage": "Text search and file listing; excludes preprocessing and indexing"
+      "coverage": "Text search and file listing; excludes preprocessing and indexing",
+      "validation": {
+        "validated": true,
+        "sha256": "6d9091461388dbcd323859556658961572ac80085d5c8b410c63e77c6196a9b9",
+        "date": "2026-09-21",
+        "model": "claude-sonnet-5",
+        "claudeVersion": "2.1.278",
+        "clipVersion": "0.2.0",
+        "toolVersion": "ripgrep 15.2.0",
+        "passed": 4,
+        "runs": 4,
+        "baselinePassed": 4,
+        "baselineRuns": 4
+      }
     },
     {
       "id": "fd",
