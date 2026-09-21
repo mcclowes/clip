@@ -92,9 +92,11 @@ export const cleanup = (workspace: Workspace) => rmSync(workspace.root, { recurs
 
 type Usage = { input_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number; output_tokens: number };
 type Block = { type: string; id?: string; name?: string; input?: Record<string, unknown>; tool_use_id?: string; is_error?: boolean; content?: unknown };
-type Event = { type: string; subtype?: string; message?: { id: string; usage: Usage; content: Block[] | string }; result?: string; is_error?: boolean; num_turns?: number; total_cost_usd?: number; duration_ms?: number; usage?: Usage };
+type Event = { type: string; subtype?: string; model?: string; message?: { id: string; usage: Usage; content: Block[] | string }; result?: string; is_error?: boolean; num_turns?: number; total_cost_usd?: number; duration_ms?: number; usage?: Usage };
 
 export type Metrics = {
+  /** The model the session actually ran on, rather than the alias it was asked for. */
+  model: string;
   completed: boolean; result: string; turns: number; costUsd: number; durationMs: number;
   toolCalls: number; toolErrors: number; discoveryCalls: number; stateTampering: boolean; calls: string[];
   firstTurnInput: number; peakInput: number; cumulativeInput: number; outputTokens: number;
@@ -142,6 +144,7 @@ export function parseTranscript(transcript: string): Metrics {
   const final = events.find(event => event.type === 'result');
   const inputs = [...perMessage.values()];
   return {
+    model: events.find(event => event.type === 'system' && event.subtype === 'init')?.model ?? '',
     completed: !!final && !final.is_error, result: final?.result ?? '', turns: final?.num_turns ?? 0, costUsd: final?.total_cost_usd ?? 0, durationMs: final?.duration_ms ?? 0,
     toolCalls: calls.length, toolErrors, discoveryCalls: calls.filter(isDiscovery).length,
     stateTampering: calls.some(block => /BRINDLE_STATE|state\.json/.test(JSON.stringify(block.input))),

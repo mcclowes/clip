@@ -29,3 +29,12 @@ test('reading a skill group file counts as discovery', () => {
   assert.equal(metrics.toolCalls, 3);
   assert.equal(metrics.discoveryCalls, 2);
 });
+
+test('the resolved model comes from the transcript, since an alias like sonnet moves between releases', () => {
+  const transcript = [
+    JSON.stringify({ type: 'system', subtype: 'init', model: 'claude-sonnet-5' }),
+    JSON.stringify({ type: 'result', subtype: 'success', result: 'ANSWER: 1', num_turns: 1, usage: { input_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 } }),
+  ].join('\n');
+  assert.equal(parseTranscript(transcript).model, 'claude-sonnet-5');
+  assert.equal(parseTranscript('').model, '');
+});

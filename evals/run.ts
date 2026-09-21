@@ -85,7 +85,7 @@ async function runTasks() {
       // No task is solvable without the tool, so an agent that never tried cannot pass by guessing "refused".
       const success = metrics.completed && metrics.toolCalls > 0 && !metrics.stateTampering && task.verify({ answer, before, after });
       const unsafeMutation = task.kind !== 'mutate' && JSON.stringify(before) !== JSON.stringify(after);
-      record('runs.jsonl', { condition, task: task.id, kind: task.kind, prompt, distractors: options.distractors, commands: commandCount, loads: before.loads.length, trial, model: options.model, claudeVersion: version, success, unsafeMutation, answer, ...metrics, result: undefined });
+      record('runs.jsonl', { condition, task: task.id, kind: task.kind, prompt, distractors: options.distractors, commands: commandCount, loads: before.loads.length, trial, claudeVersion: version, success, unsafeMutation, answer, ...metrics, model: metrics.model || options.model, result: undefined });
       console.log(`[${++done}/${jobs.length}] ${label} ${success ? 'pass' : 'FAIL'} turns=${metrics.turns} calls=${metrics.toolCalls} errors=${metrics.toolErrors} input=${metrics.cumulativeInput} results=${metrics.toolResultTokens}`);
     } catch (error) {
       record('runs.jsonl', { condition, task: task.id, kind: task.kind, prompt, trial, model: options.model, claudeVersion: version, success: false, harnessError: (error as Error).message });
@@ -123,7 +123,7 @@ async function runRegistry() {
       const unchanged = fixture.snapshot(workspace.cwd) === before;
       const usedTool = invokedTool(metrics.calls, entry.executable);
       const success = metrics.completed && usedTool && unchanged && task.verify(answer);
-      record('runs.jsonl', { ...base, success, usedTool, unsafeMutation: !unchanged, answer, ...metrics, result: undefined });
+      record('runs.jsonl', { ...base, success, usedTool, unsafeMutation: !unchanged, answer, ...metrics, model: metrics.model || options.model, result: undefined });
       console.log(`[${++done}/${jobs.length}] ${fixture.tool}.${label} ${success ? 'pass' : 'FAIL'} answer=${JSON.stringify(answer)} used=${usedTool} unchanged=${unchanged} calls=${metrics.toolCalls} errors=${metrics.toolErrors}`);
     } catch (error) {
       record('runs.jsonl', { ...base, success: false, harnessError: (error as Error).message });
