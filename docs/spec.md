@@ -29,6 +29,16 @@ Bundled registry schemas carry one rule beyond the contract: the first example o
 
 Registry entries include a stable ID, purpose, executable, upstream URL, maintainer, schema version, schema file, and SHA-256 digest. Locally installed registrations record this provenance. The digest detects accidental changes; it doesn't establish that the maintainer or command is trustworthy.
 
+## Threat model
+
+The registry is a supply chain into agent context. Every free-text field in a schema (descriptions, argument notes, output notes, examples) is rendered into a skill that an agent reads, and mutation markers decide how carefully it acts. A malicious or careless contribution can therefore inject instructions, steer an agent to a link or a chained command, or mark a destructive command as safe.
+
+- **Prompt injection through prose.** `clip lint` rejects text that addresses the agent or tries to change its policy, and examples that are more than one invocation. It warns on long fields and on links outside documentation fields. These checks are heuristics that raise the cost of an attack; review is the control.
+- **False mutation markers.** A wrong `mutating: false` is a safety defect, not a typo, and becomes dangerous once permissions are generated from markers. Markers need evidence from the upstream behavior, and a missing marker stays unknown.
+- **Mitigation, not control.** Generated skills tell agents to treat schema text as reference data. That lowers the impact of text that gets through; it doesn't make that text safe.
+- **Trust.** Only an unmodified bundled registry schema is `reviewed`. Local files, probes, manual registrations, and edited registry schemas are `unreviewed`, and features that act on markers must require `reviewed` or an explicit opt-in.
+- **Integrity.** The SHA-256 digest detects changes between review and install. It doesn't establish that the maintainer or the content is trustworthy.
+
 ## Boundaries
 
 No MCP server, command proxy, credentials store, remote code execution, telemetry, or automatic package installation. Probing is explicit, shell-free, bounded, and timed out. Generated skills are guidance, not authorization. CLIP owns only skill directories it generated and the marker-delimited block in the agents file, refuses collisions, and removes stale owned skills on sync. Configuration writes use a lock and atomic replacement.

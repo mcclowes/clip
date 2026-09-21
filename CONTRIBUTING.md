@@ -24,6 +24,15 @@ The check is mechanical: it reads the flags a command declares and looks for the
 
 Schemas are data, not scripts or agent policy. Don't include secrets, instructions to bypass permissions, installation hooks, or claims of official endorsement. A CLI Spec version claim belongs to the upstream tool only when it conforms; a partial community schema should omit it.
 
+### Review requirements
+
+Registry schemas reach agents as trusted context, so reviewers treat a schema change like a code change. See the [threat model](docs/spec.md#threat-model).
+
+- **Mutation markers.** Every `mutating: false` needs evidence: the upstream documentation, or a note on how you checked the behavior, including hooks, caches, and network side effects. Say so in the pull request. Leave a marker out when you aren't sure; unknown is safer than wrong. Reviewers check each changed marker individually.
+- **Prose.** Descriptions say what the tool does. They don't address the agent, set policy, or tell it what to do next. `clip lint` catches the obvious cases; reviewers read every changed field for the rest.
+- **Examples.** One invocation of the tool, using example.com for hosts, with no chaining, pipes, redirects, or command substitution outside quotes.
+- **Links.** Official documentation only, over HTTPS, in `documentation` or `upstream`.
+
 The catalog is bundled into CLIP releases. Maintainers review contributions in GitHub; there is no automatic remote schema execution or unreviewed publishing path.
 
 ## Checks
