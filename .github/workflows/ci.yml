@@ -23,6 +23,7 @@ jobs:
       - run: npm run build
       - run: npm run registry:check
       - run: node packages/cli/dist/main.js schema
+      - run: node packages/cli/dist/main.js commands check
       - run: node scripts/package-release.mjs
   site:
     runs-on: ubuntu-latest
