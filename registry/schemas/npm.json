@@ -1,7 +1,7 @@
 {
   "name": "npm",
   "version": "11.x",
-  "description": "Inspect installed dependencies and registry metadata. Partial community schema; installation, scripts, and publishing are excluded. npm can write logs and caches, so mutation status is unknown.",
+  "description": "Inspect installed dependencies and registry metadata. Mutation status is unknown because npm's configured cache and logs can be written. Installation, scripts, and publishing are excluded.",
   "command_layout": "flat",
   "commands": [
     {

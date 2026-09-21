@@ -1,6 +1,6 @@
 {
   "name": "curl",
-  "description": "Transfer data over HTTP or HTTPS. Partial community schema; remote side effects depend on the endpoint, method, and configuration, so mutation status is unknown. Examples disable default configuration and bound request time and response size. Other protocols, uploads, and authentication options are excluded.",
+  "description": "Transfer data over HTTP or HTTPS. Mutation status is unknown: --config can supply additional options, --request accepts arbitrary HTTP methods, and output options can write local files. Examples disable default configuration and bound request time and response size. Other protocols, uploads, and authentication options are excluded.",
   "documentation": "https://curl.se/docs/manpage.html",
   "global_args": [
     { "name": "--disable", "type": "boolean", "description": "Skip the default curl configuration file. Must be the first argument." },

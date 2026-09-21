@@ -6,11 +6,11 @@
     "purpose": "Inspect repository changes and commit history",
     "category": "Development",
     "maintainer": "mcclowes",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "upstream": "https://git-scm.com/",
     "documentation": "https://git-scm.com/docs/git-status",
     "schema": "schemas/git.json",
-    "sha256": "c180ea54c8848b312750d03f9e4f081885f1139ec357bbd553f4e761e098e550",
+    "sha256": "3f6e0a8c4c6a3b59ba00d8701cfd2f2738eedd784620a0489c9c63766262eee5",
     "coverage": "Selected inspection commands",
     "validation": {
       "validated": true,
@@ -28,7 +28,7 @@
     "capabilities": {
       "name": "git",
       "version": "2.x",
-      "description": "Selected inspection commands for Git repositories. This is a partial community schema, not a CLI Spec conformance claim.",
+      "description": "Selected inspection commands for Git repositories. Mutation status is unknown: status refreshes and writes the index by default, while log accepts --output to write a file. This is a partial community schema, not a CLI Spec conformance claim.",
       "command_layout": "flat",
       "output": {
         "tty": "text",
@@ -75,6 +75,7 @@
         {
           "name": "log",
           "description": "Inspect commit history. Bound results with -n and disable pagers for unattended use.",
+          "documentation": "https://git-scm.com/docs/git-log",
           "args": [
             {
               "name": "-n",
@@ -264,11 +265,11 @@
     "purpose": "Search file contents and list project files",
     "category": "Development",
     "maintainer": "mcclowes",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "upstream": "https://github.com/BurntSushi/ripgrep",
     "documentation": "https://github.com/BurntSushi/ripgrep/blob/master/crates/core/flags/defs.rs",
     "schema": "schemas/rg.json",
-    "sha256": "6d9091461388dbcd323859556658961572ac80085d5c8b410c63e77c6196a9b9",
+    "sha256": "c7ccabffc3bfb67b2465203931c6a492e0af2afb7d7f5e1206a672d3c420aebd",
     "coverage": "Text search and file listing; excludes preprocessing and indexing",
     "validation": {
       "validated": true,
@@ -285,7 +286,7 @@
     },
     "capabilities": {
       "name": "rg",
-      "description": "Search file contents with ripgrep. Partial community schema covering text search and file listing; preprocessing, indexing, and replacement options are excluded. Configuration can add options with side effects, so mutation status is unknown. Examples disable configuration.",
+      "description": "Search file contents with ripgrep. Search mutation status is unknown because --pre runs a program for each searched file. File listing does not search files, so it is read-only. Partial community schema covering text search and file listing; preprocessing, indexing, and replacement options are excluded. Examples disable configuration.",
       "documentation": "https://github.com/BurntSushi/ripgrep/blob/master/crates/core/flags/defs.rs",
       "global_args": [
         {
@@ -361,6 +362,7 @@
         {
           "name": "--files [path...]",
           "description": "List searchable files without inspecting their contents.",
+          "mutating": false,
           "args": [
             {
               "name": "path",
@@ -496,15 +498,15 @@
     "purpose": "Fetch HTTP responses and inspect headers",
     "category": "Networking",
     "maintainer": "mcclowes",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "upstream": "https://curl.se/",
     "documentation": "https://curl.se/docs/manpage.html",
     "schema": "schemas/curl.json",
-    "sha256": "66970c1b0e42c5975c99318e3e8205197abbc30af065359055a7d7a8dce6454f",
+    "sha256": "a15107c779edcadaeaa3d4448a3740c073a522c3980b0de6c943cccaac3f2b1d",
     "coverage": "HTTP response bodies and HEAD requests; excludes uploads and authentication options",
     "capabilities": {
       "name": "curl",
-      "description": "Transfer data over HTTP or HTTPS. Partial community schema; remote side effects depend on the endpoint, method, and configuration, so mutation status is unknown. Examples disable default configuration and bound request time and response size. Other protocols, uploads, and authentication options are excluded.",
+      "description": "Transfer data over HTTP or HTTPS. Mutation status is unknown: --config can supply additional options, --request accepts arbitrary HTTP methods, and output options can write local files. Examples disable default configuration and bound request time and response size. Other protocols, uploads, and authentication options are excluded.",
       "documentation": "https://curl.se/docs/manpage.html",
       "global_args": [
         {
@@ -793,16 +795,16 @@
     "purpose": "Inspect JavaScript dependencies and package metadata",
     "category": "Development",
     "maintainer": "mcclowes",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "upstream": "https://www.npmjs.com/",
     "documentation": "https://docs.npmjs.com/cli/v11/",
     "schema": "schemas/npm.json",
-    "sha256": "e9f7e64a6d8a307cb691277b2238d5238ae69ec0b2bc0adfb72235d3e41f599e",
+    "sha256": "31b46d6e684e3beb86378400bf5d2d78c1c217534d18ae84a67b3e19f445953d",
     "coverage": "Installed dependency listing and registry metadata",
     "capabilities": {
       "name": "npm",
       "version": "11.x",
-      "description": "Inspect installed dependencies and registry metadata. Partial community schema; installation, scripts, and publishing are excluded. npm can write logs and caches, so mutation status is unknown.",
+      "description": "Inspect installed dependencies and registry metadata. Mutation status is unknown because npm's configured cache and logs can be written. Installation, scripts, and publishing are excluded.",
       "command_layout": "flat",
       "commands": [
         {
@@ -888,15 +890,15 @@
     "purpose": "Inspect packages in Python environments",
     "category": "Development",
     "maintainer": "mcclowes",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "upstream": "https://docs.astral.sh/uv/",
     "documentation": "https://docs.astral.sh/uv/reference/cli/",
     "schema": "schemas/uv.json",
-    "sha256": "1e3fb694e3c151b4a97e481ed5712af600b7728ca3038a76ce84ec4f943fe711",
+    "sha256": "2ef4fd743bc634506b3ff8a557787607b5f59382a285b25fc881eab9e744c3a6",
     "coverage": "Installed package listing, metadata, and requirements output",
     "capabilities": {
       "name": "uv",
-      "description": "Inspect packages in an existing Python environment. Partial community schema; project resolution, installation, and execution are excluded. Interpreter discovery and caching may have side effects, so mutation status is unknown.",
+      "description": "Inspect packages in an existing Python environment. Mutation status is unknown: interpreter discovery can download Python, and uv maintains a persistent cache. Project resolution, installation, and execution are excluded.",
       "command_layout": "flat",
       "commands": [
         {
@@ -1003,15 +1005,15 @@
     "purpose": "Inspect Kubernetes resources and container logs",
     "category": "Infrastructure",
     "maintainer": "mcclowes",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "upstream": "https://kubernetes.io/",
     "documentation": "https://kubernetes.io/docs/reference/kubectl/",
     "schema": "schemas/kubectl.json",
-    "sha256": "2fed96b24edb2874dbd6fe8f8c40cdf057f10515e4d6e0cc0a7a626536bb3370",
+    "sha256": "0838f0249659bdf13d3568ffebe0435b813bb975484bf25700d164a8348d6b43",
     "coverage": "Resource retrieval, descriptions, and logs",
     "capabilities": {
       "name": "kubectl",
-      "description": "Inspect Kubernetes resources using an existing kubeconfig. Partial community schema; apply, delete, exec, and rollout changes are excluded. Discovery caches and credential plugins may have side effects, so mutation status is unknown.",
+      "description": "Inspect Kubernetes resources using an existing kubeconfig. Mutation status is unknown: inherited --profile writes --profile-output, and kubeconfig credential plugins can execute programs. Apply, delete, exec, and rollout changes are excluded.",
       "command_layout": "flat",
       "global_args": [
         {
@@ -1164,16 +1166,16 @@
     "purpose": "Inspect infrastructure state, plans, and outputs",
     "category": "Infrastructure",
     "maintainer": "mcclowes",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "upstream": "https://developer.hashicorp.com/terraform",
     "documentation": "https://developer.hashicorp.com/terraform/cli/commands",
     "schema": "schemas/terraform.json",
-    "sha256": "c944b28eb2414aaabe10dec174e19aeeaa10d10906b4e9e72cc1c09363ddb1f1",
+    "sha256": "6d76c372bfa62cd51d3e505508fe01cdbd155140dafdf85d0023d065a010b981",
     "coverage": "Saved plan and state display, outputs, and resource addresses",
     "capabilities": {
       "name": "terraform",
       "version": "1.x",
-      "description": "Inspect Terraform state and saved plans in an initialized working directory. Partial community schema; init, plan, apply, and state edits are excluded. Backends and provider plugins may have side effects, so mutation status is unknown.",
+      "description": "Inspect Terraform state and saved plans in an initialized working directory. Mutation status is unknown because configured backends can make remote requests and the CLI checks HashiCorp Checkpoint. Init, plan, apply, and state edits are excluded.",
       "command_layout": "flat",
       "commands": [
         {

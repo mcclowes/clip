@@ -1,12 +1,12 @@
 {
   "name": "git",
   "version": "2.x",
-  "description": "Selected inspection commands for Git repositories. This is a partial community schema, not a CLI Spec conformance claim.",
+  "description": "Selected inspection commands for Git repositories. Mutation status is unknown: status refreshes and writes the index by default, while log accepts --output to write a file. This is a partial community schema, not a CLI Spec conformance claim.",
   "command_layout": "flat",
   "output": { "tty": "text", "piped": "text" },
   "global_args": [{ "name": "--no-optional-locks", "type": "boolean", "description": "Disable optional operations that require locks; use for status inspection." }, { "name": "--no-pager", "type": "boolean", "description": "Write straight to stdout instead of a pager; use for unattended reads." }],
   "commands": [
     { "name": "status", "description": "Inspect staged, unstaged, and untracked changes. Use --no-optional-locks to avoid the optional index refresh.", "args": [{ "name": "--porcelain", "type": "string", "enum": ["v1", "v2"], "description": "Stable machine-readable text output." }], "examples": ["git --no-optional-locks status --porcelain=v1"], "output_fields": [{ "name": "stdout", "type": "string", "description": "Porcelain status records, not JSON." }] },
-    { "name": "log", "description": "Inspect commit history. Bound results with -n and disable pagers for unattended use.", "args": [{ "name": "-n", "type": "integer", "description": "Maximum number of commits." }, { "name": "--oneline", "type": "boolean", "description": "One abbreviated hash and subject per commit." }], "examples": ["git --no-pager log -n 20 --oneline"], "output_fields": [{ "name": "stdout", "type": "string", "description": "One commit per line with --oneline; the default format is a multi-line human-readable record." }] }
+    { "name": "log", "description": "Inspect commit history. Bound results with -n and disable pagers for unattended use.", "documentation": "https://git-scm.com/docs/git-log", "args": [{ "name": "-n", "type": "integer", "description": "Maximum number of commits." }, { "name": "--oneline", "type": "boolean", "description": "One abbreviated hash and subject per commit." }], "examples": ["git --no-pager log -n 20 --oneline"], "output_fields": [{ "name": "stdout", "type": "string", "description": "One commit per line with --oneline; the default format is a multi-line human-readable record." }] }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "name": "uv",
-  "description": "Inspect packages in an existing Python environment. Partial community schema; project resolution, installation, and execution are excluded. Interpreter discovery and caching may have side effects, so mutation status is unknown.",
+  "description": "Inspect packages in an existing Python environment. Mutation status is unknown: interpreter discovery can download Python, and uv maintains a persistent cache. Project resolution, installation, and execution are excluded.",
   "command_layout": "flat",
   "commands": [
     {

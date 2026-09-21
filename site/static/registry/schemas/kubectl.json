@@ -1,6 +1,6 @@
 {
   "name": "kubectl",
-  "description": "Inspect Kubernetes resources using an existing kubeconfig. Partial community schema; apply, delete, exec, and rollout changes are excluded. Discovery caches and credential plugins may have side effects, so mutation status is unknown.",
+  "description": "Inspect Kubernetes resources using an existing kubeconfig. Mutation status is unknown: inherited --profile writes --profile-output, and kubeconfig credential plugins can execute programs. Apply, delete, exec, and rollout changes are excluded.",
   "command_layout": "flat",
   "global_args": [
     {

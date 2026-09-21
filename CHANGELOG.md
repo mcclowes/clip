@@ -21,6 +21,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 ### Changed
 
+- Bundled registry schemas now mark ripgrep file listing read-only and explain why the other audited inspection commands retain unknown mutation status.
 - The docs site is at https://clip.marginalutility.dev.
 - Bundled registry schemas lead every read command with a bounded, machine-readable example, and `npm run registry:check` enforces it.
 - Generated skills list a usage line per command, with the first example beside read commands.

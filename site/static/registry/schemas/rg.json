@@ -1,6 +1,6 @@
 {
   "name": "rg",
-  "description": "Search file contents with ripgrep. Partial community schema covering text search and file listing; preprocessing, indexing, and replacement options are excluded. Configuration can add options with side effects, so mutation status is unknown. Examples disable configuration.",
+  "description": "Search file contents with ripgrep. Search mutation status is unknown because --pre runs a program for each searched file. File listing does not search files, so it is read-only. Partial community schema covering text search and file listing; preprocessing, indexing, and replacement options are excluded. Examples disable configuration.",
   "documentation": "https://github.com/BurntSushi/ripgrep/blob/master/crates/core/flags/defs.rs",
   "global_args": [
     { "name": "--no-config", "type": "boolean", "description": "Ignore RIPGREP_CONFIG_PATH configuration." }
@@ -26,6 +26,7 @@
     {
       "name": "--files [path...]",
       "description": "List searchable files without inspecting their contents.",
+      "mutating": false,
       "args": [
         { "name": "path", "type": "string", "description": "One or more directories; defaults to the current directory." },
         { "name": "--glob", "type": "string", "description": "Filter paths with a glob. Repeatable." },

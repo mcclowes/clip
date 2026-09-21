@@ -1,7 +1,7 @@
 {
   "name": "terraform",
   "version": "1.x",
-  "description": "Inspect Terraform state and saved plans in an initialized working directory. Partial community schema; init, plan, apply, and state edits are excluded. Backends and provider plugins may have side effects, so mutation status is unknown.",
+  "description": "Inspect Terraform state and saved plans in an initialized working directory. Mutation status is unknown because configured backends can make remote requests and the CLI checks HashiCorp Checkpoint. Init, plan, apply, and state edits are excluded.",
   "command_layout": "flat",
   "commands": [
     {
