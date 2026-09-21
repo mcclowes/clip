@@ -13,7 +13,11 @@ export type Proposal = { allow: string[]; skipped: Skip[] };
 
 /** A word a prefix rule can match on exactly. Placeholders and flags would widen the rule to the whole tool. */
 const literalWord = /^[a-zA-Z0-9][a-zA-Z0-9._:-]*$/;
+/** A path with spaces or parentheses can't be written inside a rule, so it gets none. */
+const rulablePath = /^[a-zA-Z0-9._/-]+$/;
 const claudeRule = (tool: string, path: string) => `Bash(${tool} ${path}:*)`;
+/** Agents call the name, or copy the executable path a skill prints. */
+const invocations = (tool: Registration) => [tool.name, ...(tool.executable !== tool.name && rulablePath.test(tool.executable) ? [tool.executable] : [])];
 
 /** Only leaves are candidates: a parent's prefix also matches every child, including mutating ones. */
 function leaves(items: Operation[], parent = ''): { path: string; operation: Operation }[] {
@@ -40,7 +44,7 @@ export function proposeRules(tools: Registration[], eligible: (tool: Registratio
     for (const { path, operation } of leaves(operations)) {
       const reason = skipReason(path, operation.mutating);
       if (reason) skipped.push({ tool: tool.name, command: path, reason });
-      else allow.add(claudeRule(tool.name, path));
+      else for (const invocation of invocations(tool)) allow.add(claudeRule(invocation, path));
     }
   }
   return { allow: [...allow], skipped };

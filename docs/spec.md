@@ -43,7 +43,7 @@ The registry is a supply chain into agent context. Every free-text field in a sc
 
 `clip permissions` proposes agent allow rules from mutation markers, to cut permission prompts on read-only work. It is a friction feature, not a safety one: evals found agents didn't need markers to avoid unrequested writes (see [evals](evals.md#mutation-safety)).
 
-- Targets are adapters. The first, `claude`, emits `Bash(<tool> <command path>:*)` into `permissions.allow` of `.claude/settings.local.json`, or `--file`.
+- Targets are adapters. The first, `claude`, emits `Bash(<tool> <command path>:*)` into `permissions.allow` of `.claude/settings.local.json`, or `--file`. A registration whose executable is a path gets a second rule for that path, because skills print it and eval transcripts show agents invoking it rather than the name.
 - A command gets a rule only when it is a leaf, marked `mutating: false`, and every word of its path is literal. Parent commands, placeholders such as `<url>`, and flag-first paths would widen the prefix to commands the marker doesn't describe.
 - Only `reviewed` schemas are eligible, plus tools the user names with `--trust`. Unknown markers are never allowed, and nothing emits `ask` rules, since the agent already asks by default and an `ask` rule would override the user's own broader allows.
 - The default run prints the rules it would add and the reason each other command was skipped. `--write` merges the added rules, keeps every other setting, and never removes a rule.

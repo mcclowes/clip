@@ -53,6 +53,13 @@ test('skips untrusted tools and tools without a schema', () => {
   assert.deepEqual(skipped, [{ tool: 'docker', reason: 'unreviewed; pass --trust docker to include it' }, { tool: 'make', reason: 'no schema' }]);
 });
 
+test('also allows the registered executable path, which skills print and agents copy', () => {
+  const brindle = { ...tool('brindle', [{ name: 'load', description: 'Loads', subcommands: [{ name: 'list', description: 'List', mutating: false }] }]), executable: '/opt/bin/brindle' };
+  const spaced = { ...tool('spaced', [{ name: 'ls', description: 'List', mutating: false }]), executable: '/My Tools/spaced' };
+
+  assert.deepEqual(proposeRules([brindle, spaced], trusted).allow, ['Bash(brindle load list:*)', 'Bash(/opt/bin/brindle load list:*)', 'Bash(spaced ls:*)']);
+});
+
 test('deduplicates rules and reads the capabilities format', () => {
   const jq = tool('jq', []);
   jq.schema = { name: 'jq', capabilities: [{ name: 'version', description: 'Version', mutating: false }] };

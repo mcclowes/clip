@@ -542,20 +542,22 @@ test('permissions proposes allow rules for trusted read commands and writes them
   assert.deepEqual(untrusted.added, []);
   assert.deepEqual(untrusted.skipped, [{ tool: 'node', reason: 'unreviewed; pass --trust node to include it' }]);
 
+  const { executable } = JSON.parse(run('list').stdout).items[0];
+  const rules = ['Bash(node inspect:*)', `Bash(${executable} inspect:*)`];
   const proposed = run('permissions', '--trust', 'node');
   assert.equal(proposed.status, 0, proposed.stderr);
   assert.deepEqual(JSON.parse(proposed.stdout), {
-    target: 'claude', file: settings, written: false, added: ['Bash(node inspect:*)'], existing: [],
+    target: 'claude', file: settings, written: false, added: rules, existing: [],
     skipped: [{ tool: 'node', command: 'run', reason: 'mutating' }],
   });
   assert.equal(existsSync(settings), false);
 
   const written = JSON.parse(run('permissions', '--trust', 'node', '--write').stdout);
   assert.equal(written.written, true);
-  assert.deepEqual(JSON.parse(readFileSync(settings, 'utf8')), { permissions: { allow: ['Bash(node inspect:*)'] } });
+  assert.deepEqual(JSON.parse(readFileSync(settings, 'utf8')), { permissions: { allow: rules } });
 
   const again = JSON.parse(run('permissions', '--trust', 'node', '--write').stdout);
-  assert.deepEqual([again.added, again.existing, again.written], [[], ['Bash(node inspect:*)'], false]);
+  assert.deepEqual([again.added, again.existing, again.written], [[], rules, false]);
   assert.match(run('permissions', '--trust', 'node', '--output', 'text').stdout, /Bash\(node inspect:\*\)/);
   assert.match(JSON.parse(run('permissions', '--target', 'cursor').stderr).error.message, /--target must be claude/);
 });
