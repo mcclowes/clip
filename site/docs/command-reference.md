@@ -10,7 +10,7 @@ Run `clip schema` or `clip capabilities` for the machine-readable command contra
 
 ```text
 clip discover [query]
-clip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities]
+clip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities] [--profile <name>]
 clip list
 clip remove <name>
 clip schema
@@ -20,7 +20,7 @@ clip schema init <name> --purpose <text> --file <path>
 clip lint <schema-file|tool|registry-id>
 clip sync [--skills-dir <path>] [--target all|skills|agents-md] [--agents-file <path>]
 clip registry search [query]
-clip registry add <id> --purpose <text>
+clip registry add <id> --purpose <text> [--profile <name>]
 clip commands [--file <path>]
 clip commands check [--file <path>]
 clip commands init [--file <path>]
