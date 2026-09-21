@@ -46,6 +46,7 @@ For tools without it:
 ```sh
 clip schema init mytool --purpose "Manage deployments" --file mytool.json
 # Add real operations to the draft's commands list.
+clip lint mytool.json
 clip register mytool --purpose "Manage deployments" --schema mytool.json
 clip sync
 ```

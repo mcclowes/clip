@@ -7,7 +7,7 @@ Start with a GitHub issue for a new feature or a substantial change. Keep pull r
 1. Add a JSON file under `registry/schemas/`. Identify the tool with `name`; describe operations using `commands` or `capabilities`. Every operation needs a name and description.
 2. Add an entry to `registry/index.json` with an ID, executable, purpose, category, maintainer, schema version, upstream and documentation URLs, schema path, coverage description, and SHA-256 digest.
 3. Document only verified behavior. State partial coverage. Include useful arguments, output contracts, examples, and version constraints. Cite official documentation. Never label an operation non-mutating unless you have checked its actual behavior, including default hooks and side effects. Examples follow the [bounded example rule](#bounded-examples).
-4. Update the digest with `node scripts/update-registry.mjs`, then run `npm run registry:check`, `npm test`, and `node scripts/site-registry.mjs`.
+4. Update the digest with `node scripts/update-registry.mjs`, then run `npm run registry:check` (it runs `clip lint` over every entry and fails on errors), `npm test`, and `node scripts/site-registry.mjs`.
 5. Open a pull request describing the commands covered and the upstream versions or documentation used to verify them. Bump the schema version for every schema change.
 
 ### Bounded examples

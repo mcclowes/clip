@@ -17,6 +17,7 @@ import { discover, executablePath, probeSchema } from './discovery.ts';
 import { catalog, findEntry, registryRegistration, registrySchema } from './registry.ts';
 import { contract } from './contract.ts';
 import { page } from './output.ts';
+import { lintSchema } from './lint.ts';
 import { runUi } from './ui.ts';
 import { diagnoseRegistration, healthyStatuses, refreshRegistration, refreshable } from './refresh.ts';
 
@@ -54,6 +55,14 @@ const commands: Record<string, Command> = {
     const schema = { name: toolName(name), description: options.purpose, commands: [] };
     writeFileSync(options.file, `${JSON.stringify(schema, null, 2)}\n`, { flag: 'wx' });
     return { file: resolve(options.file), next: 'Add command names, descriptions, arguments, and mutation markers before registering this draft.' };
+  } },
+  lint: { positionals: 1, run: ({ args: [target], limit }) => {
+    if (!target) throw new Error('lint requires a schema file, registered tool name, or registry entry ID.');
+    const { source, schema, registry } = lintTarget(target);
+    const issues = lintSchema(schema, { registry });
+    const errors = issues.filter(issue => issue.severity === 'error').length;
+    if (errors) process.exitCode = 1;
+    return { target, source, healthy: !errors, errors, warnings: issues.length - errors, ...page(issues, limit) };
   } },
   'registry search': { positionals: 1, run: ({ args: [query = ''], limit }) => {
     const needle = query.toLowerCase();
@@ -125,6 +134,17 @@ function loadSchema(executable: string, options: Options): { schema: Schema; sou
   if (options.schema) return { schema: validateSchema(JSON.parse(readFileSync(options.schema, 'utf8'))), source: { kind: 'file', path: resolve(options.schema) } };
   if (options.probe) return { schema: probeSchema(executable, options.probe), source: { kind: 'native', command: options.probe } };
   return undefined;
+}
+
+/** A file path wins over a registered name, which wins over a registry ID; registry schemas get registry rules. */
+function lintTarget(target: string): { source: 'file' | 'registered' | 'registry'; schema: Schema; registry: boolean } {
+  if (existsSync(target)) return { source: 'file', schema: validateSchema(JSON.parse(readFileSync(target, 'utf8'))), registry: false };
+  const tool = readTools().find(item => item.name === target);
+  if (tool?.schema) return { source: 'registered', schema: tool.schema, registry: tool.source.kind === 'registry' };
+  if (tool) throw new Error(`${target} is registered without a schema to lint.`);
+  const entry = catalog().find(item => item.id === target);
+  if (entry) return { source: 'registry', schema: registrySchema(entry), registry: true };
+  throw new Error(`No schema file, registered tool, or registry entry named ${target}.`);
 }
 
 function refresh({ options }: Invocation) {

@@ -35,6 +35,7 @@ export const contract = {
     { name: 'commands', description: 'List the project commands in .clip/commands.md, or .saggar/commands.md until it moves, with what each one does.', mutating: false, args: [arg('--file', 'Commands file; defaults to the project\'s.')] },
     { name: 'commands check', description: 'Check the commands file for conflicting and unknown decorators. Exits 1 on errors, with the report on stdout.', mutating: false, args: [arg('--file', 'Commands file; defaults to the project\'s.')] },
     { name: 'commands init', description: 'Write a starter commands file without overwriting an existing one.', mutating: true, args: [arg('--file', 'New file path; defaults to .clip/commands.md.')] },
+    { name: 'lint', description: 'Check a schema file, registered tool, or registry entry offline for skill size, argument and mutation coverage, bounded examples, and instruction-like text. Exits 1 on errors, with the report on stdout.', mutating: false, args: [arg('target', 'Schema file path, registered tool name, or registry entry ID.', true)] },
     { name: 'registry search', description: 'Search the bundled, versioned community catalog.', mutating: false, args: [arg('query', 'Optional search text.')] },
     { name: 'registry add', description: 'Add an installed executable to CLIP with a verified community schema. Does not install or run the executable.', mutating: true, args: [arg('id', 'Registry entry ID.', true), arg('--purpose', 'When agents should use this tool.', true)] },
   ],

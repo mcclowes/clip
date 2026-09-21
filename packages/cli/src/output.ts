@@ -40,7 +40,7 @@ function renderItems(result: any): string {
 
 function itemLine(item: any): string {
   if (typeof item === 'string') return item;
-  if (item.severity) return `${item.line}: ${item.severity}: ${item.message}`;
+  if (item.severity) return `${item.line ?? item.at}: ${item.severity}: ${item.message}`;
   if (item.command !== undefined) {
     const tags = agentTags(item);
     return `${item.name}\t${item.command}${tags.length ? ` [${tags.join(', ')}]` : ''}`;

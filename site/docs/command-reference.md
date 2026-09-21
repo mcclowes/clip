@@ -17,6 +17,7 @@ clip schema
 clip capabilities
 clip schema show <id>
 clip schema init <name> --purpose <text> --file <path>
+clip lint <schema-file|tool|registry-id>
 clip sync [--skills-dir <path>] [--target all|skills|agents-md] [--agents-file <path>]
 clip registry search [query]
 clip registry add <id> --purpose <text>
@@ -25,4 +26,6 @@ clip commands check [--file <path>]
 clip commands init [--file <path>]
 ```
 
-All commands accept `--output auto|json|text`. Auto uses JSON when piped and readable text on a terminal. List commands accept `--limit` from 1 to 10000, defaulting to 100, and include truncation metadata. Failures exit 1 with a structured error on stderr. `clip commands check` also exits 1 when it finds errors, with its report on stdout. See [project commands](./commands.md).
+All commands accept `--output auto|json|text`. Auto uses JSON when piped and readable text on a terminal. List commands accept `--limit` from 1 to 10000, defaulting to 100, and include truncation metadata. Failures exit 1 with a structured error on stderr. `clip commands check` and `clip lint` also exit 1 when they find errors, with the report on stdout. See [project commands](./commands.md).
+
+`clip lint` checks a schema file, a registered tool, or a registry entry, offline. Errors are instruction-like text in any field (text addressing the agent, role markers, examples that substitute commands or pipe into a shell). Warnings are commands without documented `args` (set `[]` when there are none), missing mutation markers, read commands whose first example isn't bounded and machine-readable, and generated skill files over about 12,000 tokens. Registry entries treat the example rule as an error.

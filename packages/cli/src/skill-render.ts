@@ -11,6 +11,7 @@ import type { Operation, Schema } from './schema.ts';
  * tokens of usage lines, evals measured no token saving from it and 1.5 more calls per task.
  */
 export const inlineLimit = 24_000;
+export const charsPerToken = 2.4;
 /** A group file over this many commands splits on the next word. */
 export const groupLimit = 15;
 export const groupDir = 'commands';
