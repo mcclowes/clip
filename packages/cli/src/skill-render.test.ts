@@ -119,3 +119,9 @@ test('tools without a schema get a SKILL.md that says so', () => {
   assert.deepEqual([...files.keys()], ['SKILL.md']);
   assert.match(files.get('SKILL.md')!, /No capability schema registered/);
 });
+
+test('a profiled skill says which profile it covers and where the other commands are', () => {
+  const skill = renderSkillFiles({ skillName: 'clip-kiln', name: 'kiln', purpose: 'Fire kilns', executable: '/bin/kiln', schema: { name: 'kiln', commands: [kiln.commands![1]!] }, profile: { name: 'read-only', commands: 3 } }).get('SKILL.md')!;
+  assert.match(skill, /This skill covers the `read-only` profile: 1 of kiln's 3 commands\. Run `kiln --help` for the others\./);
+  assert.doesNotMatch(render(kiln).get('SKILL.md')!, /profile/);
+});

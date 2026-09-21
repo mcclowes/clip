@@ -6,7 +6,7 @@
  * ---
  */
 import type { Operation } from './schema.ts';
-import type { Registration } from './store.ts';
+import { activeSchema, type Registration } from './store.ts';
 
 export type Skip = { tool: string; command?: string; reason: string };
 export type Proposal = { allow: string[]; skipped: Skip[] };
@@ -38,7 +38,8 @@ export function proposeRules(tools: Registration[], eligible: (tool: Registratio
   const allow = new Set<string>();
   const skipped: Skip[] = [];
   for (const tool of tools) {
-    const operations = tool.schema?.commands ?? tool.schema?.capabilities;
+    const schema = activeSchema(tool);
+    const operations = schema?.commands ?? schema?.capabilities;
     if (!operations) { skipped.push({ tool: tool.name, reason: 'no schema' }); continue; }
     if (!eligible(tool)) { skipped.push({ tool: tool.name, reason: `unreviewed; pass --trust ${tool.name} to include it` }); continue; }
     for (const { path, operation } of leaves(operations)) {

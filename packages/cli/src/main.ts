@@ -31,7 +31,7 @@ try {
 
 function parseCli() {
   const { positionals, values: options } = parseArgs({ allowPositionals: true, options: {
-    purpose: { type: 'string' }, schema: { type: 'string' }, 'skills-dir': { type: 'string' },
+    purpose: { type: 'string' }, profile: { type: 'string' }, schema: { type: 'string' }, 'skills-dir': { type: 'string' },
     probe: { type: 'string' }, limit: { type: 'string', default: '100' },
     target: { type: 'string' }, 'agents-file': { type: 'string' },
     file: { type: 'string' }, trust: { type: 'string', multiple: true }, write: { type: 'boolean' }, scope: { type: 'string' }, version: { type: 'boolean' },

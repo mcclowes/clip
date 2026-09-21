@@ -6,12 +6,17 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync, unlinkSync, openSync, closeSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
-import { toolName, validateSchema, type Schema } from './schema.ts';
+import { applyProfile, toolName, validateSchema, type Schema } from './schema.ts';
 
 export type Scope = 'global' | 'shared' | 'local';
 /** Precedence order: later scopes override earlier ones. */
 export const scopes = ['global', 'shared', 'local'] as const satisfies readonly Scope[];
-export type Registration = { name: string; executable: string; purpose: string; schema?: Schema; source: Record<string, string>; scope?: Scope };
+export type Registration = { name: string; executable: string; purpose: string; schema?: Schema; profile?: string; source: Record<string, string>; scope?: Scope };
+/** The stored schema stays whole so trust and refresh compare it with its source; the profile narrows what agents see. */
+export function activeSchema(tool: Registration): Schema | undefined {
+  if (tool.profile !== undefined && !tool.schema) throw new Error(`${tool.name} has profile ${tool.profile} but no schema.`);
+  return tool.schema && applyProfile(tool.schema, tool.profile);
+}
 type ToolDocument = { version: 1; tools: Registration[]; disabled?: string[] };
 export const configDir = () => process.env.CLIP_HOME ?? join(homedir(), '.config', 'clip');
 export function projectRoot(cwd = process.cwd()): string | undefined {
@@ -42,6 +47,7 @@ function readDocument(path: string): ToolDocument {
     if (typeof tool.name !== 'string' || typeof tool.executable !== 'string' || typeof tool.purpose !== 'string') throw new Error('Invalid tool registration.');
     toolName(tool.name);
     if (tool.schema) validateSchema(tool.schema);
+    if (tool.profile !== undefined && typeof tool.profile !== 'string') throw new Error('Invalid tool registration.');
   }
   if (data.disabled !== undefined && (!Array.isArray(data.disabled) || data.disabled.some((name: unknown) => typeof name !== 'string'))) throw new Error('Invalid disabled tool list.');
   return data;

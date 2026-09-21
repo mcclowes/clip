@@ -567,3 +567,41 @@ test('permissions refuses to trust a tool that is not registered', t => {
   const { run } = fixture(t);
   assert.match(JSON.parse(run('permissions', '--trust', 'ghost').stderr).error.message, /--trust names no registered tool: ghost/);
 });
+
+test('register with a profile renders only that subset, keeps it across purpose updates, and rejects unknown profiles', t => {
+  const { dir, run, schema } = fixture(t);
+  writeFileSync(schema, JSON.stringify({ name: 'node', commands: [
+    { name: '--version', description: 'Show runtime version', mutating: false },
+    { name: '--eval', description: 'Evaluate a script', mutating: true },
+  ], profiles: { 'read-only': ['--version'] } }));
+
+  assert.match(run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema, '--profile', 'admin').stderr, /Unknown profile admin for node\. Available: read-only\./);
+  assert.match(run('register', process.execPath, '--purpose', 'Run JavaScript', '--profile', 'read-only').stderr, /--profile requires a schema/);
+  const registered = run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema, '--profile', 'read-only');
+  assert.equal(registered.status, 0, registered.stderr);
+  assert.equal(run('register', process.execPath, '--purpose', 'Run scripts').status, 0);
+  const [tool] = JSON.parse(run('list').stdout).items;
+  assert.equal(tool.profile, 'read-only');
+  assert.equal(tool.schema.commands.length, 2);
+
+  assert.equal(run('sync').status, 0);
+  const skill = readFileSync(join(dir, '.agents/skills/clip-node/SKILL.md'), 'utf8');
+  assert.match(skill, /--version/);
+  assert.doesNotMatch(skill, /--eval/);
+  assert.match(skill, /`read-only` profile: 1 of node's 2 commands/);
+});
+
+test('refresh and doctor report a profile the schema no longer defines', t => {
+  const { run, schema } = fixture(t);
+  writeFileSync(schema, JSON.stringify({ name: 'node', commands: [{ name: '--version', description: 'Show runtime version', mutating: false }], profiles: { 'read-only': ['--version'] } }));
+  assert.equal(run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema, '--profile', 'read-only').status, 0);
+  writeFileSync(schema, JSON.stringify({ name: 'node', commands: [{ name: '--version', description: 'Show runtime version', mutating: false }] }));
+
+  assert.match(JSON.parse(run('doctor').stdout).items[0].message, /Unknown profile read-only/);
+  assert.match(run('refresh').stderr, /Unknown profile read-only/);
+});
+
+test('registry add rejects a profile the registry schema does not define', t => {
+  const { run } = fixture(t);
+  assert.match(run('registry', 'add', 'git', '--purpose', 'Review changes', '--profile', 'read-only').stderr, /Unknown profile read-only for git/);
+});

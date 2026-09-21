@@ -7,13 +7,14 @@ import { readFileSync } from 'node:fs';
 import { validateSchema } from './schema.ts';
 import { executablePath, probeSchema } from './discovery.ts';
 import { findEntry, registrySchema, registrySource } from './registry.ts';
-import type { Registration } from './store.ts';
+import { activeSchema, type Registration } from './store.ts';
 
 export const refreshable = (tool: Registration) => tool.source.kind !== 'manual';
 
 export function refreshRegistration(tool: Registration): Registration {
   const refreshed = reloadSource(tool);
   if (refreshed.schema?.name !== tool.name) throw new Error(`Schema tool name changed: expected ${tool.name}, received ${refreshed.schema?.name}.`);
+  activeSchema(refreshed);
   return refreshed;
 }
 

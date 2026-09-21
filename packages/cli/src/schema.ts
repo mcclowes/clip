@@ -41,5 +41,46 @@ export function validateSchema(value: unknown): Schema {
     }
   }
   validate(operations, 0);
+  validateProfiles(schema.profiles, new Set(operationPaths(operations)));
   return schema;
+}
+
+const profileName = /^[a-z0-9][a-z0-9-]{0,39}$/;
+const profilesOf = (schema: Schema) => (schema.profiles ?? {}) as Record<string, string[]>;
+
+function operationPaths(items: Operation[], parent = ''): string[] {
+  return items.flatMap(item => {
+    const path = parent ? `${parent} ${item.name}` : item.name;
+    return [path, ...operationPaths(item.subcommands ?? [], path)];
+  });
+}
+
+function validateProfiles(profiles: unknown, paths: Set<string>) {
+  if (profiles === undefined) return;
+  if (!profiles || typeof profiles !== 'object' || Array.isArray(profiles)) throw new Error('Profiles must be an object of command lists.');
+  for (const [name, commands] of Object.entries(profiles)) {
+    if (!profileName.test(name)) throw new Error('Profile names must be lowercase letters, numbers, and hyphens.');
+    if (!Array.isArray(commands) || !commands.length || !commands.every(item => typeof item === 'string')) throw new Error(`Profile ${name} must list at least one command.`);
+    const unknown = commands.find(item => !paths.has(item));
+    if (unknown !== undefined) throw new Error(`Profile ${name} names an unknown command: ${unknown}`);
+  }
+}
+
+/** Keeps a listed command with its whole subtree, and a command with a listed descendant with only that branch. */
+export function applyProfile(schema: Schema, profile: string | undefined): Schema {
+  if (profile === undefined) return schema;
+  const profiles = profilesOf(schema);
+  if (!Object.hasOwn(profiles, profile)) throw new Error(`Unknown profile ${profile} for ${schema.name}. Available: ${Object.keys(profiles).join(', ') || 'none'}.`);
+  const listed = new Set(profiles[profile]);
+  function keep(items: Operation[], parent: string): Operation[] {
+    return items.flatMap(item => {
+      const path = parent ? `${parent} ${item.name}` : item.name;
+      if (listed.has(path)) return [item];
+      const subcommands = keep(item.subcommands ?? [], path);
+      return subcommands.length ? [{ ...item, subcommands }] : [];
+    });
+  }
+  const { profiles: _profiles, commands, capabilities, ...rest } = schema;
+  const key = commands ? 'commands' : 'capabilities';
+  return { ...rest, [key]: keep((commands ?? capabilities)!, '') } as Schema;
 }

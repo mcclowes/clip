@@ -21,7 +21,7 @@ export const contract = {
   ],
   commands: [
     { name: 'discover', description: 'List executables on PATH without running them.', mutating: false, args: [arg('query', 'Optional name filter.')] },
-    { name: 'register', description: 'Register or update an installed tool. Probes execute only when explicitly requested.', mutating: true, args: [arg('executable', 'Executable name or path.', true), arg('--purpose', 'When agents should use this tool.', true), arg('--schema', 'Local JSON capability file.'), { ...arg('--probe', 'Run a native introspection command.'), enum: ['schema', 'capabilities'] }] },
+    { name: 'register', description: 'Register or update an installed tool. Probes execute only when explicitly requested.', mutating: true, args: [arg('executable', 'Executable name or path.', true), arg('--purpose', 'When agents should use this tool.', true), arg('--schema', 'Local JSON capability file.'), arg('--profile', 'Show agents only this named command subset from the schema.'), { ...arg('--probe', 'Run a native introspection command.'), enum: ['schema', 'capabilities'] }] },
     { name: 'list', description: 'List registered tools.', mutating: false, args: [] },
     { name: 'ui', description: 'Manage registered tools and browse the registry in an interactive terminal.', mutating: true, args: [] },
     { name: 'remove', description: 'Remove a registration; run sync to clean generated skills.', mutating: true, args: [arg('name', 'Registered tool name.', true)] },
@@ -43,7 +43,7 @@ export const contract = {
       { name: '--write', type: 'boolean', description: 'Merge the proposed rules into the settings file.', required: false },
     ] },
     { name: 'registry search', description: 'Search the bundled, versioned community catalog.', mutating: false, args: [arg('query', 'Optional search text.')] },
-    { name: 'registry add', description: 'Add an installed executable to CLIP with a verified community schema. Does not install or run the executable.', mutating: true, args: [arg('id', 'Registry entry ID.', true), arg('--purpose', 'When agents should use this tool.', true)] },
+    { name: 'registry add', description: 'Add an installed executable to CLIP with a verified community schema. Does not install or run the executable.', mutating: true, args: [arg('id', 'Registry entry ID.', true), arg('--purpose', 'When agents should use this tool.', true), arg('--profile', 'Show agents only this named command subset from the schema.')] },
   ],
   errors: [{ kind: 'invalid_request', exit_code: 1, retryable: false, description: 'Invalid input, unavailable executable, invalid schema, or local I/O failure; read message for remediation.' }],
 };

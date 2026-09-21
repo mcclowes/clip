@@ -6,8 +6,8 @@
 import { mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync, lstatSync, unlinkSync, rmdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { toolName } from './schema.ts';
-import { groupDir, renderSkillFiles } from './skill-render.ts';
-import type { Registration } from './store.ts';
+import { commandCount, groupDir, renderSkillFiles } from './skill-render.ts';
+import { activeSchema, type Registration } from './store.ts';
 import { authoringSkill, authoringSkillName } from './authoring-skill.ts';
 
 export const defaultSkillsDir = '.agents/skills';
@@ -84,7 +84,11 @@ function assertSafeToReplace(dir: string, active: boolean): void {
   if (entries.some(file => isSymlink(join(dir, file)))) throw new Error(`Refusing skill file symlink: ${dir}`);
 }
 
-const toolSkill = (tool: Registration) => renderSkillFiles({ skillName: skillName(tool), name: tool.name, purpose: tool.purpose, executable: tool.executable, ...(tool.schema ? { schema: tool.schema } : {}) });
+function toolSkill(tool: Registration) {
+  const schema = activeSchema(tool);
+  const profile = tool.profile !== undefined && tool.schema ? { profile: { name: tool.profile, commands: commandCount(tool.schema) } } : {};
+  return renderSkillFiles({ skillName: skillName(tool), name: tool.name, purpose: tool.purpose, executable: tool.executable, ...(schema ? { schema } : {}), ...profile });
+}
 
 /** The marker lists old and new files while writing, so an interrupted sync still owns everything it left behind. */
 function writeSkill(dir: string, files: Map<string, string>): void {

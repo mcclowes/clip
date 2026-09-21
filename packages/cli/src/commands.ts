@@ -9,7 +9,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { validateSchema, toolName, type Schema } from './schema.ts';
-import { projectRoot, readTools, removeTool, scopes, storedExecutable, updateTools, upsertTool, type Registration, type Scope } from './store.ts';
+import { activeSchema, projectRoot, readTools, removeTool, scopes, storedExecutable, updateTools, upsertTool, type Registration, type Scope } from './store.ts';
 import { defaultSkillsDir, existingSkillFile, skillFile, syncSkills } from './skills.ts';
 import { defaultAgentsFile, planAgentsMd, type ProjectCommands } from './agents-md.ts';
 import { checkCommands, commandsPath, commandsTemplate, findCommandsFile, parseCommands } from './commands-md.ts';
@@ -22,7 +22,7 @@ import { runUi } from './ui.ts';
 import { mergeClaudeSettings, proposeRules } from './permissions.ts';
 import { diagnoseRegistration, healthyStatuses, refreshRegistration, refreshable } from './refresh.ts';
 
-export type Options = { purpose?: string; schema?: string; probe?: string; file?: string; 'skills-dir'?: string; target?: string; 'agents-file'?: string; trust?: string[]; write?: boolean };
+export type Options = { purpose?: string; profile?: string; schema?: string; probe?: string; file?: string; 'skills-dir'?: string; target?: string; 'agents-file'?: string; trust?: string[]; write?: boolean };
 export type Invocation = { args: string[]; options: Options; scope: Scope; limit: number };
 type Command = { positionals: number; interactive?: true; run: (invocation: Invocation) => unknown };
 
@@ -74,7 +74,7 @@ const commands: Record<string, Command> = {
   'registry add': { positionals: 1, run: ({ args: [id], options, scope }) => {
     const entry = findEntry(id);
     const purpose = requirePurpose(options, 'registry add requires --purpose.');
-    return upsertTool(registryRegistration(entry, purpose, scope), scope);
+    return upsertTool(withProfile(registryRegistration(entry, purpose, scope), options.profile), scope);
   } },
   sync: { positionals: 0, run: ({ options }) => sync(readTools(), options) },
   refresh: { positionals: 0, run: refresh },
@@ -129,7 +129,16 @@ function register({ args: [name], options, scope }: Invocation): Registration {
     schema: loaded?.schema ?? previous?.schema,
     source: loaded?.source ?? previous?.source ?? { kind: 'manual' },
   };
-  return upsertTool(registration, scope);
+  return upsertTool(withProfile(registration, options.profile ?? previous?.profile), scope);
+}
+
+/** Checked at registration, so a skill never renders from a profile the schema lacks. */
+function withProfile(registration: Registration, profile: string | undefined): Registration {
+  if (profile === undefined) return registration;
+  if (!registration.schema) throw new Error('--profile requires a schema.');
+  const profiled = { ...registration, profile };
+  activeSchema(profiled);
+  return profiled;
 }
 
 function loadSchema(executable: string, options: Options): { schema: Schema; source: Registration['source'] } | undefined {

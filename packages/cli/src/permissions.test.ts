@@ -82,3 +82,13 @@ test('starts settings from nothing and refuses malformed ones', () => {
   assert.throws(() => mergeClaudeSettings('[]', []), /settings must be a JSON object/);
   assert.throws(() => mergeClaudeSettings('{"permissions":{"allow":"x"}}', []), /permissions.allow must be a list/);
 });
+
+test('proposes rules only for commands in the registered profile', () => {
+  const git = { ...tool('git', [
+    { name: 'status', description: 'Status', mutating: false },
+    { name: 'log', description: 'Log', mutating: false },
+  ]), profile: 'status-only' };
+  git.schema!.profiles = { 'status-only': ['status'] };
+
+  assert.deepEqual(proposeRules([git], trusted).allow, ['Bash(git status:*)']);
+});
