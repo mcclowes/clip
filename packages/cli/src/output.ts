@@ -5,17 +5,44 @@
  */
 import { contract } from './contract.ts';
 import { agentTags } from './commands-md.ts';
+import type { MutationMarker, RegistryReview } from './refresh.ts';
 export function page<T>(items: T[], limit: number) {
   return { items: items.slice(0, limit), total: items.length, truncated: items.length > limit };
 }
 export const renderVersion = () => `clip ${contract.version}`;
 export function renderText(result: any): string {
   if (result === contract) return renderHelp();
+  if (isRefreshResult(result) && (result.pending.length || result.accepted?.length)) return renderRefresh(result);
   if (result.items || result.agents_md) return renderItems(result);
   const single = renderSingle(result);
   if (single) return single;
   return JSON.stringify(result, null, 2);
 }
+
+type RefreshResult = { accepted?: string[]; pending: RegistryReview[] };
+function isRefreshResult(result: unknown): result is RefreshResult {
+  return Boolean(result) && typeof result === 'object' && Array.isArray((result as { pending?: unknown }).pending);
+}
+
+function renderRefresh(result: RefreshResult): string {
+  const lines = result.accepted?.length ? [`Accepted registry updates: ${result.accepted.join(', ')}`, ''] : [];
+  for (const review of result.pending) {
+    lines.push(`Pending registry review: ${review.name}`);
+    if (review.mutations.length) {
+      lines.push('MUTATION MARKERS');
+      lines.push(...review.mutations.map(change => `  ${change.command}: ${mutationLabel(change.from)} -> ${mutationLabel(change.to)}`));
+    }
+    if (review.diff.length) {
+      lines.push('Agent-facing diff');
+      lines.push(...review.diff.flatMap(file => file.text.split('\n')));
+    }
+    lines.push(`Accept it with: clip refresh --accept ${review.name}`, '');
+  }
+  lines.push('For CI, use clip refresh --accept-all.');
+  return lines.join('\n').trimEnd();
+}
+
+const mutationLabel = (marker: MutationMarker) => marker === 'unknown' ? 'mutation unknown' : marker ? 'mutating' : 'read-only';
 
 function renderHelp(): string {
   return [

@@ -92,7 +92,7 @@ For the project's own scripts, describe them in `.clip/commands.md`, a Markdown 
 
 Run `clip commands init` to start one, `clip commands check` in CI to validate it, and `clip sync` to list the commands in `AGENTS.md`. See [project commands](https://clip.marginalutility.dev/docs/commands).
 
-After updating registered tools or CLIP's bundled registry, run `clip doctor` to check for missing executables and schema drift. Run `clip refresh` to reload file, native-probe, and registry schemas, update registrations, and synchronize skills. Manual registrations have no schema source to refresh. Native diagnosis and refresh rerun the explicitly registered, bounded probe command.
+After updating registered tools or CLIP's bundled registry, run `clip doctor` to check for missing executables and schema drift. `clip refresh` reloads file and native-probe schemas, then shows the rendered agent-facing diff for each registry update without adopting it. Mutation-marker changes are called out separately. Run `clip refresh --accept <tool>` to adopt a reviewed update, or `clip refresh --accept-all` in CI. Manual registrations have no schema source to refresh. Native diagnosis and refresh rerun the explicitly registered, bounded probe command.
 
 ## CLI behavior
 
@@ -102,7 +102,7 @@ After updating registered tools or CLIP's bundled registry, run `clip doctor` to
 - Failures exit 1 and write a structured error to stderr.
 - Discovery scans PATH without executing tools. Native probing is explicit, shell-free, and bounded to five seconds and 1 MiB.
 - Registrations merge from global, shared project, and local project configuration. `CLIP_HOME` changes the global directory.
-- The first release bundles the community registry. Upgrade CLIP, then run `clip refresh` to adopt catalog updates. Local schema files and native probes use the same refresh workflow.
+- The first release bundles the community registry. Upgrade CLIP, review the `clip refresh` output, then accept catalog updates explicitly. Local schema files and native probes use the same refresh workflow.
 
 ## Development
 

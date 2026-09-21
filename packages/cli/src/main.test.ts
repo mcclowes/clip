@@ -44,6 +44,50 @@ test('refresh reloads a local schema and synchronizes its skill', t => {
   assert.equal(JSON.parse(run('list').stdout).items[0].schema.commands[0].name, '--help');
 });
 
+test('refresh requires explicit acceptance for agent-facing registry updates', t => {
+  const { dir, run } = fixture(t);
+  assert.equal(run('registry', 'add', 'git', '--purpose', 'Review changes').status, 0);
+  const file = join(dir, 'config', 'tools.json');
+  const document = JSON.parse(readFileSync(file, 'utf8'));
+  document.tools[0].schema.commands[0].description = 'Changed text for agents';
+  document.tools[0].schema.commands[0].mutating = true;
+  writeFileSync(file, JSON.stringify(document));
+
+  const pendingText = run('refresh', '--output', 'text');
+  const pending = run('refresh');
+
+  assert.match(pendingText.stdout, /MUTATION MARKERS/);
+  assert.match(pendingText.stdout, /status: mutating -> mutation unknown/);
+  assert.match(pendingText.stdout, /clip refresh --accept git/);
+  assert.equal(pending.status, 0, pending.stderr);
+  const review = JSON.parse(pending.stdout).pending[0];
+  assert.equal(review.name, 'git');
+  assert.match(review.diff[0].text, /Changed text for agents/);
+  assert.deepEqual(review.mutations, [{ command: 'status', from: true, to: 'unknown' }]);
+  assert.match(JSON.parse(run('list').stdout).items[0].schema.commands[0].description, /Changed text for agents/);
+
+  const accepted = run('refresh', '--accept', 'git');
+
+  assert.equal(accepted.status, 0, accepted.stderr);
+  assert.deepEqual(JSON.parse(accepted.stdout).accepted, ['git']);
+  assert.notEqual(JSON.parse(run('list').stdout).items[0].schema.commands[0].description, 'Changed text for agents');
+});
+
+test('refresh accepts every pending registry update with --accept-all for CI', t => {
+  const { dir, run } = fixture(t);
+  assert.equal(run('registry', 'add', 'git', '--purpose', 'Review changes').status, 0);
+  const file = join(dir, 'config', 'tools.json');
+  const document = JSON.parse(readFileSync(file, 'utf8'));
+  document.tools[0].schema.commands[0].description = 'Pending CI update';
+  writeFileSync(file, JSON.stringify(document));
+
+  const refreshed = run('refresh', '--accept-all');
+
+  assert.equal(refreshed.status, 0, refreshed.stderr);
+  assert.deepEqual(JSON.parse(refreshed.stdout).accepted, ['git']);
+  assert.notEqual(JSON.parse(run('list').stdout).items[0].schema.commands[0].description, 'Pending CI update');
+});
+
 test('doctor reports schema drift without changing registrations or skills', t => {
   const { dir, run, schema } = fixture(t);
   assert.equal(run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema).status, 0);

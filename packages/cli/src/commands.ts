@@ -20,9 +20,9 @@ import { page } from './output.ts';
 import { lintSchema } from './lint.ts';
 import { runUi } from './ui.ts';
 import { mergeClaudeSettings, proposeRules } from './permissions.ts';
-import { diagnoseRegistration, healthyStatuses, refreshRegistration, refreshable } from './refresh.ts';
+import { diagnoseRegistration, healthyStatuses, refreshRegistration, refreshable, reviewRegistryUpdate } from './refresh.ts';
 
-export type Options = { purpose?: string; profile?: string; schema?: string; probe?: string; file?: string; 'skills-dir'?: string; target?: string; 'agents-file'?: string; trust?: string[]; write?: boolean };
+export type Options = { purpose?: string; profile?: string; schema?: string; probe?: string; file?: string; 'skills-dir'?: string; target?: string; 'agents-file'?: string; trust?: string[]; accept?: string[]; 'accept-all'?: boolean; write?: boolean };
 export type Invocation = { args: string[]; options: Options; scope: Scope; limit: number };
 type Command = { positionals: number; interactive?: true; run: (invocation: Invocation) => unknown };
 
@@ -160,13 +160,29 @@ function lintTarget(target: string): { source: 'file' | 'registered' | 'registry
 }
 
 function refresh({ options }: Invocation) {
-  const refreshed = readTools().map(refreshRegistration);
+  const requested = new Set(options.accept ?? []);
+  const accepted: string[] = [];
+  const pending: NonNullable<ReturnType<typeof reviewRegistryUpdate>['review']>[] = [];
+  const refreshed = readTools().map(tool => {
+    if (tool.source.kind !== 'registry') return refreshRegistration(tool);
+    const result = reviewRegistryUpdate(tool);
+    if (!result.review) return result.replacement;
+    if (options['accept-all'] || requested.has(tool.name)) {
+      accepted.push(tool.name);
+      return result.replacement;
+    }
+    pending.push(result.review);
+    return tool;
+  });
+  const unknown = [...requested].filter(name => !accepted.includes(name));
+  if (unknown.length) throw new Error(`No pending registry update for: ${unknown.join(', ')}.`);
   for (const scope of scopes) {
     const replacements = refreshed.filter(tool => tool.scope === scope);
     if (replacements.length) updateTools(tools => tools.map(tool => replacements.find(item => item.name === tool.name) ?? tool), scope);
   }
   const synced = sync(readTools(), options);
-  return { refreshed: names(refreshed.filter(refreshable)), skipped: names(refreshed.filter(tool => !refreshable(tool))), ...synced };
+  const pendingNames = new Set(pending.map(review => review.name));
+  return { refreshed: names(refreshed.filter(tool => refreshable(tool) && !pendingNames.has(tool.name))), accepted, pending, skipped: names(refreshed.filter(tool => !refreshable(tool))), ...synced };
 }
 
 /** The agents file is checked before skills are written, so a damaged block leaves every target untouched. */

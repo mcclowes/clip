@@ -59,7 +59,7 @@ export function syncSkills(tools: Registration[], directory: string) {
   const active = new Set([...tools.map(skillName), authoringSkillName]);
   if (active.size !== tools.length + 1) throw new Error(`Tool names collide when normalized to skill names, or with ${authoringSkillName}.`);
   for (const name of new Set([...active, ...clipDirs(root)])) assertSafeToReplace(join(root, name), active.has(name));
-  for (const tool of tools) writeSkill(join(root, skillName(tool)), toolSkill(tool));
+  for (const tool of tools) writeSkill(join(root, skillName(tool)), renderedSkillFiles(tool));
   writeSkill(join(root, authoringSkillName), authoringSkill());
   const removed = clipDirs(root).filter(name => !active.has(name) && removeOwnedSkill(join(root, name)));
   return { directory: root, items: [...active], removed };
@@ -84,7 +84,8 @@ function assertSafeToReplace(dir: string, active: boolean): void {
   if (entries.some(file => isSymlink(join(dir, file)))) throw new Error(`Refusing skill file symlink: ${dir}`);
 }
 
-function toolSkill(tool: Registration) {
+/** The exact files CLIP writes as agent-facing guidance for a registration. */
+export function renderedSkillFiles(tool: Registration) {
   const schema = activeSchema(tool);
   const profile = tool.profile !== undefined && tool.schema ? { profile: { name: tool.profile, commands: commandCount(tool.schema) } } : {};
   return renderSkillFiles({ skillName: skillName(tool), name: tool.name, purpose: tool.purpose, executable: tool.executable, ...(schema ? { schema } : {}), ...profile });

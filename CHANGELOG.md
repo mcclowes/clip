@@ -17,6 +17,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 - Optional `gotchas` on a schema and its commands: short statements of fact, rendered in the skill beside what they describe, that head off known wrong guesses. `clip lint` applies the prose checks with a 200-character limit.
 - Agent validation for registry entries. `npm run eval -- registry` runs a schema against its real tool on read-only scratch fixtures (git, jq, and rg so far), and `npm run eval:validate` records the result on the entry, pinned to the schema's digest. `clip registry search` reports `agent_validation` as `validated`, `failed`, `stale`, or `unvalidated`, and the site's tool pages show it.
 - npm distribution as `@mcclowes/clip`, with provenance, and build attestations for release archives.
+- Registry refreshes now show the exact agent-facing skill diff before adoption. Mutation-marker changes are highlighted, `--accept <tool>` adopts a reviewed update, and `--accept-all` is available for CI.
 
 ### Changed
 
