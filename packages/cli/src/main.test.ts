@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync, existsSync, readdirSync, unlinkSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -206,13 +206,13 @@ test('reject invalid documents, preserve user skills, and remove stale owned ski
   assert.equal(run('register', process.execPath, '--purpose', 'Test', '--schema', 'draft.json').status, 1);
 });
 
-test('skills render a signature per command and point at the schema beside them', t => {
+test('skills render a usage line per command and group files instead of schema.json', t => {
   const { dir, run } = fixture(t);
   const schema = join(dir, 'kiln.json');
   writeFileSync(schema, JSON.stringify({ name: 'node', commands: [
     { name: 'load queue', description: 'Queue a firing', mutating: true, args: [
       { name: '--cone', type: 'string', required: true, enum: ['06', '6'] },
-      { name: '--pieces', type: 'integer', required: true },
+      { name: '--pieces', type: 'integer', required: true, description: 'Piece count.' },
       { name: '--dry-run', type: 'boolean' },
     ] },
     { name: 'load show', description: 'Show a load', mutating: false, args: [{ name: 'id', type: 'string', required: true }], examples: ['node load show 7 --json'] },
@@ -220,10 +220,84 @@ test('skills render a signature per command and point at the schema beside them'
   ] }));
   assert.equal(run('register', process.execPath, '--purpose', 'Fire kilns', '--schema', schema).status, 0);
   assert.equal(run('sync').status, 0);
-  const skill = readFileSync(join(dir, '.agents/skills/clip-node/SKILL.md'), 'utf8');
+  const skillDir = join(dir, '.agents/skills/clip-node');
+  const skill = readFileSync(join(skillDir, 'SKILL.md'), 'utf8');
   assert.match(skill, /`node load queue --cone 06\|6 --pieces <n> \[--dry-run\]` \*\*\[mutating\]\*\* — Queue a firing/);
   assert.match(skill, /`node load show <id>` — Show a load\. Example: `node load show 7 --json`/);
   assert.match(skill, /`node project list` \*\*\[mutation unknown\]\*\* — List projects/);
-  assert.match(skill, /`schema\.json` next to this file/);
-  assert.doesNotMatch(skill, /Source:/);
+  assert.doesNotMatch(skill, /Source:|schema\.json/);
+  assert.equal(existsSync(join(skillDir, 'schema.json')), false);
+  assert.match(readFileSync(join(skillDir, 'commands/load.md'), 'utf8'), /`--pieces`: Piece count\./);
+});
+
+function manyCommands(count: number) {
+  return { name: 'node', commands: Array.from({ length: count }, (_, index) => ({ name: `group${index % 4} cmd${index}`, description: `Command ${index}`, mutating: false })) };
+}
+
+test('sync replaces a skill written before group files, and prunes group files a smaller schema no longer needs', t => {
+  const { dir, run } = fixture(t);
+  const schema = join(dir, 'many.json');
+  writeFileSync(schema, JSON.stringify(manyCommands(40)));
+  assert.equal(run('register', process.execPath, '--purpose', 'Test', '--schema', schema).status, 0);
+  const skillDir = join(dir, '.agents/skills/clip-node');
+  mkdirSync(skillDir, { recursive: true });
+  writeFileSync(join(skillDir, '.clip-owned'), 'clip-skill-v1\n');
+  writeFileSync(join(skillDir, 'SKILL.md'), 'old');
+  writeFileSync(join(skillDir, 'schema.json'), '{}');
+
+  const upgraded = run('sync');
+
+  assert.equal(upgraded.status, 0, upgraded.stderr);
+  assert.equal(existsSync(join(skillDir, 'schema.json')), false);
+  assert.deepEqual(readdirSync(join(skillDir, 'commands')).sort(), ['group0.md', 'group1.md', 'group2.md', 'group3.md']);
+  assert.match(readFileSync(join(skillDir, 'SKILL.md'), 'utf8'), /`commands\/group0\.md`/);
+
+  writeFileSync(schema, JSON.stringify(manyCommands(2)));
+  assert.equal(run('refresh').status, 0);
+  assert.deepEqual(readdirSync(join(skillDir, 'commands')).sort(), ['group0.md', 'group1.md']);
+
+  assert.equal(run('remove', 'node').status, 0);
+  assert.equal(run('sync').status, 0);
+  assert.equal(existsSync(skillDir), false);
+});
+
+test('sync refuses user files, symlinks, and untrusted manifests inside a skill', t => {
+  const { dir, run, schema } = fixture(t);
+  assert.equal(run('register', process.execPath, '--purpose', 'Test', '--schema', schema).status, 0);
+  assert.equal(run('sync').status, 0);
+  const skillDir = join(dir, '.agents/skills/clip-node');
+  const commandsDir = join(skillDir, 'commands');
+  const marker = join(skillDir, '.clip-owned');
+  const original = readFileSync(marker, 'utf8');
+
+  writeFileSync(join(commandsDir, 'notes.md'), 'mine');
+  assert.equal(run('sync').status, 1);
+  assert.equal(readFileSync(join(commandsDir, 'notes.md'), 'utf8'), 'mine');
+  unlinkSync(join(commandsDir, 'notes.md'));
+
+  const outside = join(dir, 'outside.md');
+  writeFileSync(outside, 'outside');
+  const [group] = readdirSync(commandsDir);
+  unlinkSync(join(commandsDir, group!));
+  symlinkSync(outside, join(commandsDir, group!));
+  assert.equal(run('sync').status, 1);
+  assert.equal(readFileSync(outside, 'utf8'), 'outside');
+  unlinkSync(join(commandsDir, group!));
+
+  const dangling = join(dir, 'dangling.md');
+  symlinkSync(dangling, join(commandsDir, group!));
+  assert.equal(run('sync').status, 1);
+  assert.equal(existsSync(dangling), false);
+  unlinkSync(join(commandsDir, group!));
+
+  writeFileSync(marker, `${original}../../outside.md\n`);
+  assert.equal(run('sync').status, 1);
+  assert.equal(readFileSync(outside, 'utf8'), 'outside');
+  writeFileSync(marker, original);
+
+  rmSync(commandsDir, { recursive: true });
+  mkdirSync(join(dir, 'elsewhere'));
+  symlinkSync(join(dir, 'elsewhere'), commandsDir);
+  assert.equal(run('sync').status, 1);
+  assert.deepEqual(readdirSync(join(dir, 'elsewhere')), []);
 });
