@@ -41,7 +41,7 @@ function listFiles(dir: string, root = dir): string[] {
   }).sort();
 }
 
-/** Working tree content, outside `.git` (which reads like `git status` touch) and the skill the condition installs. */
+/** Working tree content, skipping `.git`, which a plain `git status` may rewrite, and the skill the condition installs. */
 const treeDigest = (cwd: string) => {
   const hash = createHash('sha256');
   for (const path of listFiles(cwd)) hash.update(`${path}\0`).update(readFileSync(join(cwd, path))).update('\0');
@@ -72,7 +72,7 @@ const gitFixture: RegistryFixture = {
       const date = `2026-08-0${index + 1}T10:00:00Z`;
       git(cwd, ['commit', '-q', '-m', subject], { GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date });
     });
-    // Staged only, staged then edited again, unstaged only, and untracked: only the last three categories but one count.
+    // Staged only, staged then edited again, unstaged only, and untracked. Only the middle two count as unstaged.
     write(cwd, { 'README.md': '# Studio\n\nStaged\n', 'cones.txt': 'cone staged\n' });
     git(cwd, ['add', 'README.md', 'cones.txt']);
     write(cwd, { 'cones.txt': 'cone staged, then edited\n', 'schedule.txt': 'week edited\n', 'notes/glaze.txt': 'ratio edited\n', 'scratch.txt': 'untracked\n' });
@@ -169,7 +169,7 @@ export const registryPrompt = (task: RegistryTask) =>
 
 /** A skill read or a grep is not a use of the tool; validation needs the agent to have actually run it. */
 export const invokedTool = (calls: string[], tool: string) =>
-  calls.some(call => call.startsWith('Bash ') && new RegExp(`(^|[\\s;&|("'])${tool}(\\s|"|$)`).test(call.slice(5).replace(/^\{"command":"/, ' ')));
+  calls.some(call => call.startsWith('Bash ') && new RegExp(`(^|[\\s;&|("'/])${tool}(\\s|"|$)`).test(call.slice(5).replace(/^\{"command":"/, ' ')));
 
 /** Recorded with each run, since a validation says nothing about a tool version it never ran against. */
 export function toolVersion(tool: string): string {

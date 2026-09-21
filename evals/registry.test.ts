@@ -63,6 +63,9 @@ test('a run only counts as using the tool when a shell call invokes it', () => {
   assert.ok(invokedTool(['Bash {"command":"git --no-pager log -n 3"}'], 'git'));
   assert.ok(invokedTool(['Bash {"command":"cd /w && rg --files"}'], 'rg'));
   assert.ok(invokedTool(['Bash {"command":"cat a.json | jq .items"}'], 'jq'));
+  // The skill names the resolved executable, so agents that follow it call the absolute path.
+  assert.ok(invokedTool(['Bash {"command":"cd /w && /opt/homebrew/bin/rg --no-config -F x | wc -l"}'], 'rg'));
+  assert.ok(!invokedTool(['Bash {"command":"cat /opt/homebrew/bin/rgx"}'], 'rg'));
   assert.ok(!invokedTool(['Read {"file_path":"/w/.claude/skills/clip-git/SKILL.md"}'], 'git'));
   assert.ok(!invokedTool(['Bash {"command":"grep -r legacyAuth src"}'], 'rg'));
   assert.ok(!invokedTool(['Bash {"command":"cat .gitignore"}'], 'git'));
