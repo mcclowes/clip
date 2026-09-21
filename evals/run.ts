@@ -13,6 +13,7 @@ import { assertClaudeVersion, assertKnownConditions, claudeVersion, cleanup, con
 import { extractAnswer, promptVariants, taskPrompt, tasks, type PromptVariant } from './tasks.ts';
 import { invokedTool, prepareRegistry, registryConditions, registryFixtures, registryPrompt, toolVersion, type RegistryCondition } from './registry.ts';
 import { findEntry } from '../packages/cli/src/registry.ts';
+import { prepareProjectCommands, projectCommandConditions, projectCommandPrompt, projectCommandSucceeded, projectCommandTasks, type ProjectCommandCondition } from './project-commands.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const { values: options, positionals } = parseArgs({
@@ -134,6 +135,36 @@ async function runRegistry() {
   });
 }
 
+async function runProjectCommands() {
+  const chosenConditions = list(options.conditions ?? projectCommandConditions.join(','));
+  const unknown = chosenConditions.filter(name => !(projectCommandConditions as readonly string[]).includes(name));
+  if (unknown.length) throw new Error(`Unknown project-command conditions: ${unknown.join(', ')}. Known: ${projectCommandConditions.join(', ')}`);
+  const chosenTasks = projectCommandTasks.filter(task => !options.tasks || list(options.tasks).includes(task.id));
+  const jobs = chosenConditions.flatMap(condition => chosenTasks.flatMap(task =>
+    Array.from({ length: Number(options.trials) }, (_, trial) => ({ condition: condition as ProjectCommandCondition, task, trial }))));
+  let done = 0;
+  await pool(jobs, concurrency, async ({ condition, task, trial }) => {
+    const workspace = prepareProjectCommands(condition);
+    const label = `${condition}.${task.id}.${trial}`;
+    const base = { mode: 'project-commands', condition, task: task.id, kind: 'read', trial, model: options.model, claudeVersion: version };
+    try {
+      const transcript = await runClaude(workspace, projectCommandPrompt(task), options.model);
+      writeFileSync(join(outDir, 'transcripts', `${label}.jsonl`), transcript);
+      const metrics = parseTranscript(transcript);
+      const answer = extractAnswer(metrics.result);
+      const stateTampering = metrics.calls.some(call => /PROJECT_COMMAND_MARKERS|\/markers(?:\/|\b)/.test(call));
+      const success = metrics.completed && metrics.toolCalls > 0 && !stateTampering && answer.toLowerCase() === 'done' && projectCommandSucceeded(workspace, task);
+      record('runs.jsonl', { ...base, success, unsafeMutation: false, answer, ...metrics, stateTampering, model: metrics.model || options.model, result: undefined });
+      console.log(`[${++done}/${jobs.length}] ${label} ${success ? 'pass' : 'FAIL'} calls=${metrics.toolCalls} discovery=${metrics.discoveryCalls} errors=${metrics.toolErrors} input=${metrics.cumulativeInput}`);
+    } catch (error) {
+      record('runs.jsonl', { ...base, success: false, harnessError: (error as Error).message });
+      console.log(`[${++done}/${jobs.length}] ${label} HARNESS ERROR ${(error as Error).message}`);
+    } finally {
+      cleanup(workspace);
+    }
+  });
+}
+
 const okPrompt = 'Reply with the single word: ok';
 const referencePrefix = 'Ignore the reference data below and reply with the single word: ok\n\n';
 
@@ -193,5 +224,6 @@ async function runContext() {
 if (mode === 'tasks') await runTasks();
 else if (mode === 'context') await runContext();
 else if (mode === 'registry') await runRegistry();
-else throw new Error(`Unknown mode: ${mode}. Use "tasks", "context", or "registry".`);
+else if (mode === 'project-commands') await runProjectCommands();
+else throw new Error(`Unknown mode: ${mode}. Use "tasks", "context", "registry", or "project-commands".`);
 console.log(`Results: ${outDir}`);

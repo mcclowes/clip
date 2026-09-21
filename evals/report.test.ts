@@ -103,3 +103,12 @@ test('counts permission prompts a clip permissions allowlist avoids on read task
   assert.match(output, /\| cli-clip \| 3 \| 2 \| 1 \|/);
   assert.doesNotMatch(output, /\| mcp-eager \| \d+ \| \d+ \| \d+ \|/);
 });
+
+test('project-command runs get their own report heading', () => {
+  const report = reportFor([
+    run({ mode: 'project-commands', condition: 'commands-md', task: 'build' }),
+    run({ mode: 'project-commands', condition: 'package-json', task: 'build' }),
+  ]);
+  assert.match(report, /^## Project command discovery/m);
+  assert.doesNotMatch(report, /^## Ease of use/m);
+});

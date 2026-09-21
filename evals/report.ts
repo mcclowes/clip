@@ -51,6 +51,7 @@ function passRate(passed: number, total: number): string {
 
 function taskReport(rows: Row[]): string {
   const valid = rows.filter(row => !row.harnessError);
+  const heading = rows.every(row => row.mode === 'project-commands') ? 'Project command discovery' : 'Ease of use';
   const conditions = unique(rows.map(row => String(row.condition)));
   const metric = (subset: Row[], key: string) => subset.map(row => Number(row[key]));
   const summary = conditions.map(condition => {
@@ -98,7 +99,7 @@ function taskReport(rows: Row[]): string {
     })), '',
   ] : [];
   return [
-    '## Ease of use', '', versionLine(rows), '',
+    `## ${heading}`, '', versionLine(rows), '',
     'Tool calls, discovery calls, tokens, cost, and time cover passing runs only, so failures that give up early do not look cheap. Errors per run covers all runs.',
     'Pass rates carry a Wilson 95% interval, and `±` on a median is half the interquartile range. With few trials these are wide, which is the point.', '',
     table(['Condition', 'Pass', 'Tool calls', 'Discovery calls', 'Errors per run', 'Unsafe mutations', 'Cumulative input (median)', 'Peak context (median)', 'Tool-result tokens (median)', 'Output tokens (median)', 'Cost USD (median)', 'Seconds (median)'], summary), '',

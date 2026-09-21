@@ -92,7 +92,7 @@ export const cleanup = (workspace: Workspace) => rmSync(workspace.root, { recurs
 
 type Usage = { input_tokens: number; cache_creation_input_tokens: number; cache_read_input_tokens: number; output_tokens: number };
 type Block = { type: string; id?: string; name?: string; input?: Record<string, unknown>; tool_use_id?: string; is_error?: boolean; content?: unknown };
-type Event = { type: string; subtype?: string; model?: string; message?: { id: string; usage: Usage; content: Block[] | string }; result?: string; is_error?: boolean; num_turns?: number; total_cost_usd?: number; duration_ms?: number; usage?: Usage };
+type Event = { type: string; subtype?: string; model?: string; message?: { id: string; usage: Usage; content: Block[] | string }; result?: string; is_error?: boolean; terminal_reason?: string; num_turns?: number; total_cost_usd?: number; duration_ms?: number; usage?: Usage };
 
 export type Metrics = {
   /** The model the session actually ran on, rather than the alias it was asked for. */
@@ -115,12 +115,13 @@ function resultText(block: Block): string {
 
 /** Any file a CLIP skill ships for the agent to read, including per-group reference files. */
 const skillReference = /SKILL\.md|schema\.json|clip-[\w.-]+\/commands\//;
+const projectCommandManifest = /(?:^|[/\s"'])(?:AGENTS\.md|package\.json|Makefile|justfile|Taskfile\.ya?ml|mise\.toml|Package\.swift|\.clip\/commands\.md)\b/;
 
 function isDiscovery(block: Block): boolean {
   const input = JSON.stringify(block.input ?? {});
   if (block.name === 'Skill' || block.name === 'ToolSearch') return true;
-  if (block.name === 'Read') return skillReference.test(input);
-  return block.name === 'Bash' && (/(--help|\s-h\b|\bhelp\b|\bman\s)/.test(input) || skillReference.test(input));
+  if (block.name === 'Read') return skillReference.test(input) || projectCommandManifest.test(input);
+  return block.name === 'Bash' && (/(--help|\s-h\b|\bhelp\b|\bman\s)/.test(input) || skillReference.test(input) || projectCommandManifest.test(input));
 }
 
 export function parseTranscript(transcript: string): Metrics {
@@ -152,6 +153,12 @@ export function parseTranscript(transcript: string): Metrics {
     firstTurnInput: inputs[0] ?? 0, peakInput: Math.max(0, ...inputs), cumulativeInput: final?.usage ? inputTokens(final.usage) : 0, outputTokens: final?.usage?.output_tokens ?? 0,
     toolResultChars, toolResultTokens: Math.round(toolResultChars / charsPerToken),
   };
+}
+
+export function transcriptHarnessError(transcript: string): string | undefined {
+  const events = transcript.split('\n').filter(Boolean).flatMap(line => { try { return [JSON.parse(line) as Event]; } catch { return []; } });
+  const final = events.find(event => event.type === 'result');
+  return final?.is_error && final.terminal_reason === 'api_error' ? final.result || 'Claude Code API error' : undefined;
 }
 
 /**
@@ -194,7 +201,11 @@ export function runClaude(workspace: Workspace, prompt: string, model: string): 
     child.on('close', () => {
       clearTimeout(timer);
       if (!stdout.trim()) reject(new Error(`claude produced no output: ${stderr.slice(0, 400)}`));
-      else resolvePromise(stdout);
+      else {
+        const failure = transcriptHarnessError(stdout);
+        if (failure) reject(new Error(failure));
+        else resolvePromise(stdout);
+      }
     });
   });
 }
