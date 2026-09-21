@@ -100,7 +100,7 @@ test('project registrations override shared and global tools', t => {
   const listed = run('list');
 
   assert.equal(listed.status, 0, listed.stderr);
-  assert.deepEqual(JSON.parse(listed.stdout).items[0], { ...shared, scope: 'shared' });
+  assert.deepEqual(JSON.parse(listed.stdout).items[0], { ...shared, scope: 'shared', trust: 'unreviewed' });
 });
 
 test('register defaults to local project scope', t => {
@@ -468,6 +468,20 @@ test('sync refuses user files, symlinks, and untrusted manifests inside a skill'
   symlinkSync(join(dir, 'elsewhere'), commandsDir);
   assert.equal(run('sync').status, 1);
   assert.deepEqual(readdirSync(join(dir, 'elsewhere')), []);
+});
+
+test('list marks only unmodified bundled registry schemas as reviewed', t => {
+  const { dir, run, schema } = fixture(t);
+  assert.equal(run('registry', 'add', 'git', '--purpose', 'Inspect history').status, 0);
+  assert.equal(run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema).status, 0);
+  const trust = () => Object.fromEntries(JSON.parse(run('list').stdout).items.map((item: any) => [item.name, item.trust]));
+  assert.deepEqual(trust(), { git: 'reviewed', node: 'unreviewed' });
+
+  const config = join(dir, 'config', 'tools.json');
+  const document = JSON.parse(readFileSync(config, 'utf8'));
+  document.tools.find((tool: any) => tool.name === 'git').schema.description = 'Edited after install.';
+  writeFileSync(config, JSON.stringify(document));
+  assert.deepEqual(trust(), { git: 'unreviewed', node: 'unreviewed' });
 });
 
 test('lint checks a schema file, a registered tool, or a registry entry, and exits 1 only on errors', t => {

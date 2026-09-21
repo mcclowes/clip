@@ -44,6 +44,14 @@ export function registrySchema(entry: Entry) {
 export function registrySource(entry: Entry): Registration['source'] {
   return { kind: 'registry', id: entry.id, version: entry.version, maintainer: entry.maintainer, sha256: entry.sha256 };
 }
+export type Trust = 'reviewed' | 'unreviewed';
+/** Reviewed means the stored schema is the bundled one, unmodified. A source claiming the registry proves nothing alone, since tools.json is editable. */
+export function trustOf(tool: Registration): Trust {
+  if (tool.source.kind !== 'registry' || !tool.schema) return 'unreviewed';
+  const entry = catalog().find(item => item.id === tool.source.id);
+  if (!entry || entry.sha256 !== tool.source.sha256) return 'unreviewed';
+  return JSON.stringify(registrySchema(entry)) === JSON.stringify(tool.schema) ? 'reviewed' : 'unreviewed';
+}
 /** Verifies the executable is installed without running it. */
 export function registryRegistration(entry: Entry, purpose: string, scope: Scope): Registration {
   const schema = registrySchema(entry);

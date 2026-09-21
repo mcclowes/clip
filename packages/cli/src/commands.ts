@@ -14,7 +14,7 @@ import { defaultSkillsDir, existingSkillFile, skillFile, syncSkills } from './sk
 import { defaultAgentsFile, planAgentsMd, type ProjectCommands } from './agents-md.ts';
 import { checkCommands, commandsPath, commandsTemplate, findCommandsFile, parseCommands } from './commands-md.ts';
 import { discover, executablePath, probeSchema } from './discovery.ts';
-import { catalog, findEntry, registryRegistration, registrySchema } from './registry.ts';
+import { catalog, findEntry, registryRegistration, registrySchema, trustOf } from './registry.ts';
 import { contract } from './contract.ts';
 import { page } from './output.ts';
 import { lintSchema } from './lint.ts';
@@ -39,7 +39,7 @@ const commands: Record<string, Command> = {
   schema: { positionals: 2, run: ({ args }) => { if (args.length) throw new Error('Use schema show or init.'); return contract; } },
   registry: { positionals: 2, run: () => { throw new Error('Use registry search or add.'); } },
   discover: { positionals: 1, run: ({ args: [query], limit }) => discover(query, limit) },
-  list: { positionals: 0, run: ({ limit }) => page(readTools(), limit) },
+  list: { positionals: 0, run: ({ limit }) => page(readTools().map(tool => ({ ...tool, trust: trustOf(tool) })), limit) },
   register: { positionals: 1, run: register },
   remove: { positionals: 1, run: ({ args: [name], scope }) => {
     if (!name) throw new Error('remove requires a registered tool name.');
