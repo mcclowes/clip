@@ -2,6 +2,7 @@ import {useMemo, useState} from 'react';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
 import entries from '../../data/registry.json';
+import {validationOf} from '../components/ToolDetail';
 
 export default function Tools(): React.JSX.Element {
   const [query, setQuery] = useState('');
@@ -17,7 +18,7 @@ export default function Tools(): React.JSX.Element {
             <Link className="tool-row" to={`/tools/${item.id}`} key={item.id}>
               <span className="tool-icon" aria-hidden="true">{item.id === 'git' ? '±' : item.id === 'gh' ? 'gh' : '{}'}</span>
               <div><h2>{item.name}</h2><p>{item.purpose}</p></div>
-              <div className="tool-meta">{item.category}<br />Schema v{item.version}</div><span aria-hidden="true">↗</span>
+              <div className="tool-meta">{item.category}<br />Schema v{item.version}{validationOf(item).status === 'validated' && <><br />Agent-validated</>}</div><span aria-hidden="true">↗</span>
             </Link>
           )) : <p className="empty">No tools match “{query}”. Try another name or contribute a schema.</p>}
         </div>
