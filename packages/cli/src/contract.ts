@@ -36,6 +36,12 @@ export const contract = {
     { name: 'commands check', description: 'Check the commands file for conflicting and unknown decorators. Exits 1 on errors, with the report on stdout.', mutating: false, args: [arg('--file', 'Commands file; defaults to the project\'s.')] },
     { name: 'commands init', description: 'Write a starter commands file without overwriting an existing one.', mutating: true, args: [arg('--file', 'New file path; defaults to .clip/commands.md.')] },
     { name: 'lint', description: 'Check a schema file, registered tool, or registry entry offline for skill size, argument and mutation coverage, bounded examples, and instruction-like text. Exits 1 on errors, with the report on stdout.', mutating: false, args: [arg('target', 'Schema file path, registered tool name, or registry entry ID.', true)] },
+    { name: 'permissions', description: 'Propose agent allow rules for registered commands marked mutating: false, from reviewed bundled schemas or tools you trust. Prints the rules it would add; writes only with --write. Everything else keeps prompting.', mutating: true, args: [
+      { ...arg('--target', 'Agent settings format; defaults to claude.'), enum: ['claude'], default: 'claude' },
+      arg('--trust', 'Also include this unreviewed registered tool; repeatable.'),
+      arg('--file', 'Settings file; defaults to .claude/settings.local.json in the project.'),
+      { name: '--write', type: 'boolean', description: 'Merge the proposed rules into the settings file.', required: false },
+    ] },
     { name: 'registry search', description: 'Search the bundled, versioned community catalog.', mutating: false, args: [arg('query', 'Optional search text.')] },
     { name: 'registry add', description: 'Add an installed executable to CLIP with a verified community schema. Does not install or run the executable.', mutating: true, args: [arg('id', 'Registry entry ID.', true), arg('--purpose', 'When agents should use this tool.', true)] },
   ],

@@ -34,10 +34,19 @@ Registry entries include a stable ID, purpose, executable, upstream URL, maintai
 The registry is a supply chain into agent context. Every free-text field in a schema (descriptions, argument notes, output notes, examples) is rendered into a skill that an agent reads, and mutation markers decide how carefully it acts. A malicious or careless contribution can therefore inject instructions, steer an agent to a link or a chained command, or mark a destructive command as safe.
 
 - **Prompt injection through prose.** `clip lint` rejects text that addresses the agent or tries to change its policy, and examples that are more than one invocation. It warns on long fields and on links outside documentation fields. These checks are heuristics that raise the cost of an attack; review is the control.
-- **False mutation markers.** A wrong `mutating: false` is a safety defect, not a typo, and becomes dangerous once permissions are generated from markers. Markers need evidence from the upstream behavior, and a missing marker stays unknown.
+- **False mutation markers.** A wrong `mutating: false` is a safety defect, not a typo, and is dangerous because `clip permissions` turns it into an allow rule. Markers need evidence from the upstream behavior, and a missing marker stays unknown.
 - **Mitigation, not control.** Generated skills tell agents to treat schema text as reference data. That lowers the impact of text that gets through; it doesn't make that text safe.
 - **Trust.** Only an unmodified bundled registry schema is `reviewed`. Local files, probes, manual registrations, and edited registry schemas are `unreviewed`, and features that act on markers must require `reviewed` or an explicit opt-in.
 - **Integrity.** The SHA-256 digest detects changes between review and install. It doesn't establish that the maintainer or the content is trustworthy.
+
+## Permission rules
+
+`clip permissions` proposes agent allow rules from mutation markers, to cut permission prompts on read-only work. It is a friction feature, not a safety one: evals found agents didn't need markers to avoid unrequested writes (see [evals](evals.md#mutation-safety)).
+
+- Targets are adapters. The first, `claude`, emits `Bash(<tool> <command path>:*)` into `permissions.allow` of `.claude/settings.local.json`, or `--file`.
+- A command gets a rule only when it is a leaf, marked `mutating: false`, and every word of its path is literal. Parent commands, placeholders such as `<url>`, and flag-first paths would widen the prefix to commands the marker doesn't describe.
+- Only `reviewed` schemas are eligible, plus tools the user names with `--trust`. Unknown markers are never allowed, and nothing emits `ask` rules, since the agent already asks by default and an `ask` rule would override the user's own broader allows.
+- The default run prints the rules it would add and the reason each other command was skipped. `--write` merges the added rules, keeps every other setting, and never removes a rule.
 
 ## Boundaries
 

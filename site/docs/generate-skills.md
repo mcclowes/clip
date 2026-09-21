@@ -62,4 +62,4 @@ CLIP appends the block when the file has none and edits only between its markers
 
 Run sync after changing or removing registrations. CLIP refreshes its own skills and removes stale ones, including group files a smaller schema no longer needs. It refuses collisions with unowned directories, extra user files anywhere in a skill, and symlinks. Generated files are managed output; edit the source schema or registration instead.
 
-Registrations live in `~/.config/clip/tools.json`. Set `CLIP_HOME` to use another directory. Skills provide guidance; they don't grant permissions, store credentials, or bypass your agent's approval rules.
+Registrations live in `~/.config/clip/tools.json`. Set `CLIP_HOME` to use another directory. Skills provide guidance; they don't grant permissions, store credentials, or bypass your agent's approval rules. To skip prompts for read-only commands, `clip permissions` proposes allow rules you can review and apply with `--write`.

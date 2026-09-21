@@ -6,7 +6,7 @@
  *   - ./main.ts - Parses arguments, dispatches here, and prints results.
  * ---
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { validateSchema, toolName, type Schema } from './schema.ts';
 import { projectRoot, readTools, removeTool, scopes, storedExecutable, updateTools, upsertTool, type Registration, type Scope } from './store.ts';
@@ -19,9 +19,10 @@ import { contract } from './contract.ts';
 import { page } from './output.ts';
 import { lintSchema } from './lint.ts';
 import { runUi } from './ui.ts';
+import { mergeClaudeSettings, proposeRules } from './permissions.ts';
 import { diagnoseRegistration, healthyStatuses, refreshRegistration, refreshable } from './refresh.ts';
 
-export type Options = { purpose?: string; schema?: string; probe?: string; file?: string; 'skills-dir'?: string; target?: string; 'agents-file'?: string };
+export type Options = { purpose?: string; schema?: string; probe?: string; file?: string; 'skills-dir'?: string; target?: string; 'agents-file'?: string; trust?: string[]; write?: boolean };
 export type Invocation = { args: string[]; options: Options; scope: Scope; limit: number };
 type Command = { positionals: number; interactive?: true; run: (invocation: Invocation) => unknown };
 
@@ -64,6 +65,7 @@ const commands: Record<string, Command> = {
     if (errors) process.exitCode = 1;
     return { target, source, healthy: !errors, errors, warnings: issues.length - errors, ...page(issues, limit) };
   } },
+  permissions: { positionals: 0, run: permissions },
   'registry search': { positionals: 1, run: ({ args: [query = ''], limit }) => {
     const needle = query.toLowerCase();
     return page(catalog().filter(item => `${item.id} ${item.name} ${item.purpose} ${item.category}`.toLowerCase().includes(needle)), limit);
@@ -168,6 +170,27 @@ function sync(tools: Registration[], options: Options) {
   const skills = withSkills ? syncSkills(tools, directory) : {};
   const { write, ...agentsMd } = agents ?? {};
   return { ...skills, ...(write ? { agents_md: { ...agentsMd, changed: write() } } : {}) };
+}
+
+/** Proposes by default so a person sees every rule before it grants anything; schemas alone never authorize. */
+function permissions({ options }: Invocation) {
+  const target = options.target ?? 'claude';
+  if (target !== 'claude') throw new Error('--target must be claude.');
+  const trusted = new Set(options.trust ?? []);
+  const tools = readTools();
+  const unknown = [...trusted].filter(name => !tools.some(tool => tool.name === name));
+  if (unknown.length) throw new Error(`--trust names no registered tool: ${unknown.join(', ')}.`);
+  const { allow, skipped } = proposeRules(tools,tool => trusted.has(tool.name) || trustOf(tool) === 'reviewed');
+  const file = resolve(options.file ?? join(projectRootOrCwd(), '.claude', 'settings.local.json'));
+  const merged = mergeClaudeSettings(existsSync(file) ? readFileSync(file, 'utf8') : undefined, allow);
+  const written = Boolean(options.write && merged.added.length);
+  if (written) {
+    mkdirSync(dirname(file), { recursive: true });
+    const temp = `${file}.${process.pid}.tmp`;
+    writeFileSync(temp, merged.text);
+    renameSync(temp, file);
+  }
+  return { target, file, written, added: merged.added, existing: merged.existing, skipped };
 }
 
 const projectRootOrCwd = () => projectRoot() ?? process.cwd();

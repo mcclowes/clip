@@ -530,3 +530,37 @@ test('lint checks a schema file, a registered tool, or a registry entry, and exi
 
   assert.match(JSON.parse(run('lint', 'nope').stderr).error.message, /No schema file, registered tool, or registry entry/);
 });
+
+test('permissions proposes allow rules for trusted read commands and writes them only with --write', t => {
+  const { dir, run } = fixture(t);
+  const schema = join(dir, 'node-reads.json');
+  writeFileSync(schema, JSON.stringify({ name: 'node', commands: [{ name: 'inspect', description: 'Inspect', mutating: false }, { name: 'run', description: 'Run', mutating: true }] }));
+  assert.equal(run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema).status, 0);
+  const settings = join(realpathSync(dir), '.claude', 'settings.local.json');
+
+  const untrusted = JSON.parse(run('permissions').stdout);
+  assert.deepEqual(untrusted.added, []);
+  assert.deepEqual(untrusted.skipped, [{ tool: 'node', reason: 'unreviewed; pass --trust node to include it' }]);
+
+  const proposed = run('permissions', '--trust', 'node');
+  assert.equal(proposed.status, 0, proposed.stderr);
+  assert.deepEqual(JSON.parse(proposed.stdout), {
+    target: 'claude', file: settings, written: false, added: ['Bash(node inspect:*)'], existing: [],
+    skipped: [{ tool: 'node', command: 'run', reason: 'mutating' }],
+  });
+  assert.equal(existsSync(settings), false);
+
+  const written = JSON.parse(run('permissions', '--trust', 'node', '--write').stdout);
+  assert.equal(written.written, true);
+  assert.deepEqual(JSON.parse(readFileSync(settings, 'utf8')), { permissions: { allow: ['Bash(node inspect:*)'] } });
+
+  const again = JSON.parse(run('permissions', '--trust', 'node', '--write').stdout);
+  assert.deepEqual([again.added, again.existing, again.written], [[], ['Bash(node inspect:*)'], false]);
+  assert.match(run('permissions', '--trust', 'node', '--output', 'text').stdout, /Bash\(node inspect:\*\)/);
+  assert.match(JSON.parse(run('permissions', '--target', 'cursor').stderr).error.message, /--target must be claude/);
+});
+
+test('permissions refuses to trust a tool that is not registered', t => {
+  const { run } = fixture(t);
+  assert.match(JSON.parse(run('permissions', '--trust', 'ghost').stderr).error.message, /--trust names no registered tool: ghost/);
+});

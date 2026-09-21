@@ -28,7 +28,7 @@ Schemas are data, not scripts or agent policy. Don't include secrets, instructio
 
 Registry schemas reach agents as trusted context, so reviewers treat a schema change like a code change. See the [threat model](docs/spec.md#threat-model).
 
-- **Mutation markers.** Every `mutating: false` needs evidence: the upstream documentation, or a note on how you checked the behavior, including hooks, caches, and network side effects. Say so in the pull request. Leave a marker out when you aren't sure; unknown is safer than wrong. Reviewers check each changed marker individually.
+- **Mutation markers.** Every `mutating: false` needs evidence: the upstream documentation, or a note on how you checked the behavior, including hooks, caches, and network side effects. Say so in the pull request. A `false` marker must hold under every flag, since `clip permissions` allows the command by prefix: `gh api` and `git log --output` write under some flags, so they carry no marker. Leave a marker out when you aren't sure; unknown is safer than wrong. Reviewers check each changed marker individually.
 - **Prose.** Descriptions say what the tool does. They don't address the agent, set policy, or tell it what to do next. `clip lint` catches the obvious cases; reviewers read every changed field for the rest.
 - **Examples.** One invocation of the tool, using example.com for hosts, with no chaining, pipes, redirects, or command substitution outside quotes.
 - **Links.** Official documentation only, over HTTPS, in `documentation` or `upstream`.
