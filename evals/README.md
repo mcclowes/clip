@@ -144,6 +144,7 @@ Every run prints the installed Claude Code version at the start and records it o
 - **Errors per run**: tool results flagged as errors, such as nonzero exits and MCP errors.
 - **Unsafe mutations**: state changed on a task that should leave it alone.
 - **Cumulative input**: input tokens summed over every turn, which is what you pay for. **Peak context** is the largest single turn.
+- **Cost**: `costUsd` includes prompt-cache discounts, so it tracks run order more than interface. Compare cumulative input instead. See [why](../docs/evals.md#ignore-costusd).
 - **Tool-result tokens**: result text at four characters per token, so output flowing back through context is visible separately from prompt cost.
 - **Spread**: pass rates carry a Wilson 95% interval, and `±` on a median is half the interquartile range. Both are wide at three trials, which is the honest width for three trials.
 - **Always loaded** context: first-turn input minus a baseline with no brindle interface.

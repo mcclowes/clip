@@ -1,5 +1,86 @@
 # Eval findings
 
+## CLIP against MCP at 100 commands (21 September 2026)
+
+Claude Code 2.1.278, `claude-sonnet-5`, one trial per cell. `cli-clip`, `mcp-eager`, and `mcp-deferred` on all 15 tasks at 100 commands, named prompts, no distractors. 45 sessions, in `evals/results/v5-mcp-100`.
+
+**Every run passed in every condition, with no unsafe mutations. On tokens, deferred MCP and CLIP are close, and eager MCP costs the most.** This run can't separate the three on accuracy, so read it on cost and calls only.
+
+| Condition | Pass | Tool calls | Discovery calls | Errors per run | First-turn input (median) | Cumulative input (median) | Cumulative input (total) | Median time |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `cli-clip` | 15/15 | 3.3 | 1.1 | 0.13 | 7,780 | 45,307 | 885,505 | 6.3s |
+| `mcp-deferred` | 15/15 | 3.6 | 1.2 | 0.07 | 10,051 | 37,763 | 761,844 | 5.9s |
+| `mcp-eager` | 15/15 | 2.5 | 0 | 0.13 | 26,589 | 59,338 | 1,355,874 | 3.9s |
+
+Errors per run includes the refusal `refuse-impossible` expects: every condition tried `load cancel LD-0003`, got rejected, and refused.
+
+- **Eager MCP is the easiest to drive and the most expensive.** It makes the fewest calls and is fastest, but about 19,000 tokens of tool definitions ride on every turn. On `long-session` that's 331,969 input tokens against 171,759 for `cli-clip`.
+- **Deferred MCP roughly matches CLIP.** It used 14% fewer input tokens in total. A tool search returns only the tools a task needs, while a skill load returns every usage line (7,823 tokens at 100 commands). CLIP pays for a whole CLI's surface, and deferred MCP pays per tool.
+- **CLIP's edge is result size.** On `count-beyond-flags`, both MCP arms pulled 11,782 tokens of listing through context, and `cli-clip` piped it down to 568. Deferred MCP still finished lower overall on that task, because `cli-clip` took four calls to get there.
+- **Deferred discovery can miss.** On `reduction-share`, `mcp-deferred` searched `load_list`, then `kiln_list`, before finding the tool, and its result spilled to a file anyway. That was its most expensive run.
+
+### Ignore `costUsd`
+
+The dollar cost in `runs.jsonl` includes prompt-cache discounts. Cache reads cost about a tenth of base input and cache writes about 1.25 times, so a run's cost depends mostly on whether an earlier run left its prefix cached. The eval doesn't control run order, so the figure is noise. For example, `mcp-eager` made a single call on both `show-load` and `count-filtered`. One cost $0.030 and the other $0.114, because the second hit a cold cache.
+
+With cache discounts, eager MCP looked cheapest ($0.83 total, against $1.04 for `cli-clip`), because its identical 100-tool prefix stays warm across runs. At base Sonnet rates ($3 per million input tokens, $15 per million output), the order is the same as input tokens:
+
+| Condition | Total (15 runs) | Median per run |
+| --- | --- | --- |
+| `mcp-deferred` | $2.32 | $0.114 |
+| `cli-clip` | $2.69 | $0.136 |
+| `mcp-eager` | $4.10 | $0.178 |
+
+Use cumulative input tokens for comparisons. Caching helps every interface in real use, but it helps the condition with the most repeated prefix most, and that's a property of the eval's run order, not of the interface.
+
+### Caveats
+
+- One trial per cell and a 100% pass rate. The ordering is directional, and the run says nothing about robustness.
+- One tool behind each interface. That's deferred MCP's best case, and it's where the scaling argument below doesn't apply yet.
+- The MCP server is minimal. Real servers carry longer tool descriptions, which raises eager's cost and, less so, deferred's.
+
+## Scaling across many tools (theoretical, not yet measured)
+
+The case for CLIP over MCP isn't a single tool with 100 commands. It's an agent with many tools installed. That's where eager MCP breaks down, and deferred loading is the industry's fix. So the claim to test is whether CLIP scales better than deferred MCP, not just better than eager.
+
+What each interface keeps in context on every turn, fitted from the context cost measurements in the second run (9, 32, and 100 commands):
+
+| Interface | Always loaded | Grows with |
+| --- | --- | --- |
+| Eager MCP | about 189 tokens per tool | every tool on every server |
+| Deferred MCP | about 780 fixed, plus about 16 tokens per tool name | every tool on every server |
+| CLIP | about 35 tokens per skill | CLIs, not commands |
+
+Projected always-loaded cost:
+
+| Setup | Tools | Eager MCP | Deferred MCP | CLIP |
+| --- | --- | --- | --- | --- |
+| 1 tool, 100 commands | 100 | 18,900 | 2,400 | 35 |
+| 5 tools, 50 commands each | 250 | 47,000 | 4,800 | 175 |
+| 20 tools, 50 commands each | 1,000 | 189,000 | 16,800 | 700 |
+
+Eager MCP stops being viable within a handful of servers. Deferred MCP grows about 16 tokens per tool, so it's workable but not free. CLIP's always-loaded cost grows only with the number of CLIs. A CLI with 50 commands costs about 35 tokens, against about 800 for the same tools deferred.
+
+But the always-loaded cost is only half of it. What an agent loads on demand runs the other way:
+
+- A tool search returns the definitions of the few tools it matched.
+- A CLIP skill load returns every usage line for that CLI, 7,823 tokens at 100 commands, once per session per CLI.
+
+So CLIP pays more to use one CLI and less to have many installed. That's the trade the single-tool run shows as near parity. The crossover should come as the number of installed tools grows and the number used per task stays small, which is the normal shape of a well-equipped agent.
+
+Two effects could matter more than tokens:
+
+- **Discovery accuracy.** Deferred search matches over every tool name. With hundreds of near-miss names across servers, it may pick the wrong tool or search repeatedly, as `reduction-share` already did once with one server. CLIP selects a CLI by skill description first, then a command within it, so the search space at each step stays small.
+- **Result size.** A CLI can filter and pipe its output. MCP results come back whole, or spill to a file above Claude Code's threshold.
+
+Caveats on the projection:
+
+- The rates come from one minimal fictional server. Real tool descriptions are longer, so real MCP costs will be higher.
+- Claude Code may change how deferred tools are listed, for example searching without listing names, which would shrink deferred's per-tool cost. Harness changes have flipped results here before.
+- Where a CLI already exists, CLIP needs no server. Where MCP earns its keep (hosted tools, OAuth, clients without a shell), the comparison doesn't apply.
+
+To measure it: sweep 1, 5, and 20 installed tools at a fixed number of commands each, with the task's tool among the rest. Compare first-turn input, cumulative input, discovery calls, and pass rate for `cli-clip` and `mcp-deferred`. If CLIP stays flat on context and deferred MCP loses accuracy or tokens as tools are added, the claim holds.
+
 ## Gotchas run (21 September 2026)
 
 Claude Code 2.1.278, Sonnet, three trials per condition. Targeted at [#40](https://github.com/mcclowes/clip/issues/40): `cancel-with-reason`, the task that previously guessed `load cancel --id`, on `cli-clip` with and without the `load cancel` gotcha. Six sessions.
