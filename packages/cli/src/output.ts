@@ -10,7 +10,7 @@ export function page<T>(items: T[], limit: number) {
 export const renderVersion = () => `clip ${contract.version}`;
 export function renderText(result: any): string {
   if (result === contract) return renderHelp();
-  if (result.items) return renderItems(result);
+  if (result.items || result.agents_md) return renderItems(result);
   return JSON.stringify(result, null, 2);
 }
 
@@ -29,10 +29,11 @@ function usage(arg: { name: string; required: boolean }): string {
 }
 
 function renderItems(result: any): string {
-  const lines = result.items.map(itemLine);
-  if (!lines.length) lines.push('No results.');
+  const lines = (result.items ?? []).map(itemLine);
+  if (result.items && !lines.length) lines.push('No results.');
   if (result.truncated) lines.push(`Showing ${result.items.length} of ${result.total}; increase --limit for more.`);
   if (result.directory) lines.push(`Skills: ${result.directory}`);
+  if (result.agents_md) lines.push(`Agents file: ${result.agents_md.file} (${result.agents_md.changed ? 'updated' : 'unchanged'})`);
   return lines.join('\n');
 }
 

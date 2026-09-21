@@ -33,6 +33,7 @@ function parseCli() {
   const { positionals, values: options } = parseArgs({ allowPositionals: true, options: {
     purpose: { type: 'string' }, schema: { type: 'string' }, 'skills-dir': { type: 'string' },
     probe: { type: 'string' }, limit: { type: 'string', default: '100' },
+    target: { type: 'string' }, 'agents-file': { type: 'string' },
     file: { type: 'string' }, scope: { type: 'string' }, version: { type: 'boolean' },
     output: { type: 'string', short: 'o', default: 'auto' }, help: { type: 'boolean', short: 'h' },
   } });

@@ -42,6 +42,15 @@ function ownedPaths(dir: string): string[] | undefined {
   return header === manifestHeader && paths.every(item => ownablePath.test(item)) ? paths : undefined;
 }
 
+export const skillFile = (tool: Registration, directory: string) => join(resolve(directory), skillName(tool), 'SKILL.md');
+
+/** The tool's SKILL.md when CLIP generated one there, so a pointer never names a user's skill or a missing file. */
+export function existingSkillFile(tool: Registration, directory: string): string | undefined {
+  const file = skillFile(tool, directory);
+  const dir = join(file, '..');
+  return existsSync(dir) && !isSymlink(dir) && ownedPaths(dir)?.includes('SKILL.md') && existsSync(file) ? file : undefined;
+}
+
 export function syncSkills(tools: Registration[], directory: string) {
   const root = resolve(directory);
   mkdirSync(root, { recursive: true });

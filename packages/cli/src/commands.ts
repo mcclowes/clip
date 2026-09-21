@@ -10,7 +10,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { validateSchema, toolName, type Schema } from './schema.ts';
 import { readTools, removeTool, scopes, storedExecutable, updateTools, upsertTool, type Registration, type Scope } from './store.ts';
-import { defaultSkillsDir, syncSkills } from './skills.ts';
+import { defaultSkillsDir, existingSkillFile, skillFile, syncSkills } from './skills.ts';
+import { defaultAgentsFile, planAgentsMd } from './agents-md.ts';
 import { discover, executablePath, probeSchema } from './discovery.ts';
 import { catalog, findEntry, registryRegistration, registrySchema } from './registry.ts';
 import { contract } from './contract.ts';
@@ -18,11 +19,12 @@ import { page } from './output.ts';
 import { runUi } from './ui.ts';
 import { diagnoseRegistration, healthyStatuses, refreshRegistration, refreshable } from './refresh.ts';
 
-export type Options = { purpose?: string; schema?: string; probe?: string; file?: string; 'skills-dir'?: string };
+export type Options = { purpose?: string; schema?: string; probe?: string; file?: string; 'skills-dir'?: string; target?: string; 'agents-file'?: string };
 export type Invocation = { args: string[]; options: Options; scope: Scope; limit: number };
 type Command = { positionals: number; interactive?: true; run: (invocation: Invocation) => unknown };
 
 const skillsDir = (options: Options) => options['skills-dir'] ?? defaultSkillsDir;
+const syncTargets = ['all', 'skills', 'agents-md'] as const;
 const names = (tools: Registration[]) => tools.map(tool => tool.name);
 function requirePurpose(options: Options, message: string): string {
   if (!options.purpose?.trim()) throw new Error(message);
@@ -61,7 +63,7 @@ const commands: Record<string, Command> = {
     const purpose = requirePurpose(options, 'registry add requires --purpose.');
     return upsertTool(registryRegistration(entry, purpose, scope), scope);
   } },
-  sync: { positionals: 0, run: ({ options }) => syncSkills(readTools(), skillsDir(options)) },
+  sync: { positionals: 0, run: ({ options }) => sync(readTools(), options) },
   refresh: { positionals: 0, run: refresh },
   doctor: { positionals: 0, run: () => {
     const items = readTools().map(diagnoseRegistration);
@@ -110,6 +112,18 @@ function refresh({ options }: Invocation) {
     const replacements = refreshed.filter(tool => tool.scope === scope);
     if (replacements.length) updateTools(tools => tools.map(tool => replacements.find(item => item.name === tool.name) ?? tool), scope);
   }
-  const synced = syncSkills(readTools(), skillsDir(options));
+  const synced = sync(readTools(), options);
   return { refreshed: names(refreshed.filter(refreshable)), skipped: names(refreshed.filter(tool => !refreshable(tool))), ...synced };
+}
+
+/** The agents file is checked before skills are written, so a damaged block leaves every target untouched. */
+function sync(tools: Registration[], options: Options) {
+  const target = options.target ?? 'all';
+  if (!syncTargets.includes(target as (typeof syncTargets)[number])) throw new Error('--target must be all, skills, or agents-md.');
+  const directory = skillsDir(options);
+  const withSkills = target !== 'agents-md';
+  const usage = (tool: Registration) => (withSkills ? skillFile(tool, directory) : existingSkillFile(tool, directory));
+  const agents = target === 'skills' ? undefined : planAgentsMd(tools, options['agents-file'] ?? defaultAgentsFile, usage);
+  const skills = withSkills ? syncSkills(tools, directory) : {};
+  return { ...skills, ...(agents ? { agents_md: { file: agents.file, items: agents.items, changed: agents.write() } } : {}) };
 }

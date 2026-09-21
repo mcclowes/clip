@@ -4,6 +4,11 @@
  * ---
  */
 const arg = (name: string, description: string, required = false) => ({ name, type: 'string', description, required });
+const syncArgs = [
+  arg('--skills-dir', 'Destination directory; defaults to .agents/skills.'),
+  { ...arg('--target', 'What to synchronize; defaults to all.'), enum: ['all', 'skills', 'agents-md'], default: 'all' },
+  arg('--agents-file', 'File holding the pointer block; defaults to AGENTS.md.'),
+];
 export const contract = {
   name: 'clip', version: '0.2.0', description: 'Register CLI tools and share their capabilities with agents.',
   command_layout: 'flat', output: { tty: 'text', piped: 'json' },
@@ -24,8 +29,8 @@ export const contract = {
     { name: 'capabilities', description: 'Alias for CLIP schema introspection.', mutating: false, args: [] },
     { name: 'schema show', description: 'Inspect a community schema and its provenance.', mutating: false, args: [arg('id', 'Registry entry ID.', true)] },
     { name: 'schema init', description: 'Write an editable draft schema without overwriting an existing file.', mutating: true, args: [arg('name', 'Tool name.', true), arg('--purpose', 'Tool purpose.', true), arg('--file', 'New JSON file path.', true)] },
-    { name: 'sync', description: 'Create or refresh owned skills, and remove stale owned skills.', mutating: true, args: [arg('--skills-dir', 'Destination directory; defaults to .agents/skills.')] },
-    { name: 'refresh', description: 'Reload registered schemas from their sources, then synchronize skills.', mutating: true, args: [arg('--skills-dir', 'Destination directory; defaults to .agents/skills.')] },
+    { name: 'sync', description: 'Create or refresh owned skills and the AGENTS.md pointer block, and remove stale owned skills.', mutating: true, args: syncArgs },
+    { name: 'refresh', description: 'Reload registered schemas from their sources, then synchronize skills and the AGENTS.md pointer block.', mutating: true, args: syncArgs },
     { name: 'doctor', description: 'Check executables and registered schema sources for drift without changing files.', mutating: false, args: [] },
     { name: 'registry search', description: 'Search the bundled, versioned community catalog.', mutating: false, args: [arg('query', 'Optional search text.')] },
     { name: 'registry add', description: 'Add an installed executable to CLIP with a verified community schema. Does not install or run the executable.', mutating: true, args: [arg('id', 'Registry entry ID.', true), arg('--purpose', 'When agents should use this tool.', true)] },
