@@ -23,7 +23,7 @@ All commands accept `--output auto|json|text`. Non-TTY output defaults to JSON. 
 
 ## Capability contract
 
-Documents identify a tool with `name` and describe invocable operations in `commands` (CLI Spec) or `capabilities` (minimal CLIP format). Each operation needs a name and description. Optional arguments, output fields, examples, version, and mutation markers retain their original meaning. Missing mutation markers mean unknown. A CLI Spec claim is preserved, never inferred or added to third-party descriptions.
+Documents identify a tool with `name` and describe invocable operations in `commands` (CLI Spec) or `capabilities` (minimal CLIP format). Each operation needs a name and description. Optional arguments, output fields, examples, version, and mutation markers retain their original meaning. Missing mutation markers mean unknown. The tool and each operation can carry `gotchas`, a list of short statements of fact that head off known wrong guesses, such as "The load id is positional; there is no --id flag." Skills render tool gotchas above the commands and command gotchas beside their usage line. A CLI Spec claim is preserved, never inferred or added to third-party descriptions.
 
 Bundled registry schemas carry one rule beyond the contract: the first example of every read command is bounded and machine-readable, such as `gh pr list --json number,title --limit 20` rather than `gh pr list`, so an agent copying it doesn't pull an unfiltered listing through context. `npm run registry:check` enforces the mechanical part through `clip lint`'s checks, failing on any lint error, and [contributing](../CONTRIBUTING.md#bounded-examples) states the rule.
 
@@ -31,7 +31,7 @@ Registry entries include a stable ID, purpose, executable, upstream URL, maintai
 
 ## Threat model
 
-The registry is a supply chain into agent context. Every free-text field in a schema (descriptions, argument notes, output notes, examples) is rendered into a skill that an agent reads, and mutation markers decide how carefully it acts. A malicious or careless contribution can therefore inject instructions, steer an agent to a link or a chained command, or mark a destructive command as safe.
+The registry is a supply chain into agent context. Every free-text field in a schema (descriptions, argument notes, output notes, examples, gotchas) is rendered into a skill that an agent reads, and mutation markers decide how carefully it acts. A malicious or careless contribution can therefore inject instructions, steer an agent to a link or a chained command, or mark a destructive command as safe.
 
 - **Prompt injection through prose.** `clip lint` rejects text that addresses the agent or tries to change its policy, and examples that are more than one invocation. It warns on long fields and on links outside documentation fields. These checks are heuristics that raise the cost of an attack; review is the control.
 - **False mutation markers.** A wrong `mutating: false` is a safety defect, not a typo, and is dangerous because `clip permissions` turns it into an allow rule. Markers need evidence from the upstream behavior, and a missing marker stays unknown.

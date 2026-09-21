@@ -14,6 +14,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 - `clip lint <schema-file|tool|registry-id>` checks a schema offline: instruction-like text, and examples that chain, pipe, redirect, or substitute commands outside quotes, are errors; undocumented args, missing mutation markers, unbounded first read examples, oversized skill files, overlong free text, and links outside documentation fields are warnings. `npm run registry:check` runs it with registry rules.
 - `clip sync` installs a bundled `clip-schema-authoring` skill that guides an agent through drafting a schema from `--help` output, with conservative mutation markers and a loop on `clip lint` until clean.
 - `clip permissions` proposes Claude Code allow rules for commands marked `mutating: false` in reviewed schemas, or tools passed with `--trust`, and merges them into `.claude/settings.local.json` with `--write`. Mutating, unknown, parent, and non-literal commands never get a rule.
+- Optional `gotchas` on a schema and its commands: short statements of fact, rendered in the skill beside what they describe, that head off known wrong guesses. `clip lint` applies the prose checks with a 200-character limit.
 - npm distribution as `@mcclowes/clip`, with provenance, and build attestations for release archives.
 
 ### Changed

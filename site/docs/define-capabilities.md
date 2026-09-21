@@ -48,3 +48,19 @@ CLIP supplies the checks; the agent does the drafting.
 ## Document shape
 
 A minimal document can use `capabilities` instead of `commands`. Every entry needs a name and description. Mutation markers are optional; missing means unknown, never read-only.
+
+## Gotchas
+
+When agents guess wrong about a command in a repeatable way, record the fact they miss in `gotchas`, on the command or at the top level for the whole tool:
+
+```json
+{
+  "name": "load cancel",
+  "description": "Cancel a queued load",
+  "mutating": true,
+  "args": [{ "name": "id", "positional": true, "required": true }],
+  "gotchas": ["The load id is positional; there is no --id flag."]
+}
+```
+
+Each gotcha renders in the skill beside its command. Keep them to one statement of fact about the tool, under 200 characters. They reach an agent's context, so `clip lint` gives them the same prose checks as descriptions, and rejects gotchas phrased as instructions to the agent.
