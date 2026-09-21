@@ -29,7 +29,7 @@ export const contract = {
     { name: 'capabilities', description: 'Alias for CLIP schema introspection.', mutating: false, args: [] },
     { name: 'schema show', description: 'Inspect a community schema and its provenance.', mutating: false, args: [arg('id', 'Registry entry ID.', true)] },
     { name: 'schema init', description: 'Write an editable draft schema without overwriting an existing file.', mutating: true, args: [arg('name', 'Tool name.', true), arg('--purpose', 'Tool purpose.', true), arg('--file', 'New JSON file path.', true)] },
-    { name: 'sync', description: 'Create or refresh owned skills and the AGENTS.md pointer block, and remove stale owned skills.', mutating: true, args: syncArgs },
+    { name: 'sync', description: 'Create or refresh owned skills, including the bundled schema authoring skill, and the AGENTS.md pointer block, and remove stale owned skills.', mutating: true, args: syncArgs },
     { name: 'refresh', description: 'Reload registered schemas from their sources, then synchronize skills and the AGENTS.md pointer block.', mutating: true, args: syncArgs },
     { name: 'doctor', description: 'Check executables and registered schema sources for drift without changing files.', mutating: false, args: [] },
     { name: 'commands', description: 'List the project commands in .clip/commands.md, or .saggar/commands.md until it moves, with what each one does.', mutating: false, args: [arg('--file', 'Commands file; defaults to the project\'s.')] },

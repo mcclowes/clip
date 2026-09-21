@@ -33,8 +33,9 @@ test('distractor skills are installed beside the real one for CLI conditions', (
   const workspace = prepare('cli-clip', { distractors: true });
   try {
     const installed = readdirSync(join(workspace.cwd, skillsDir));
-    assert.equal(installed.length, distractors.length + 1);
+    assert.equal(installed.length, distractors.length + 2);
     assert.ok(installed.includes('clip-brindle'));
+    assert.ok(installed.includes('clip-schema-authoring'));
     for (const tool of distractors) assert.ok(installed.includes(`clip-${tool.name}`));
   } finally {
     cleanup(workspace);

@@ -8,6 +8,7 @@ import { join, resolve } from 'node:path';
 import { toolName } from './schema.ts';
 import { groupDir, renderSkillFiles } from './skill-render.ts';
 import type { Registration } from './store.ts';
+import { authoringSkill, authoringSkillName } from './authoring-skill.ts';
 
 export const defaultSkillsDir = '.agents/skills';
 const prefix = 'clip-';
@@ -51,13 +52,15 @@ export function existingSkillFile(tool: Registration, directory: string): string
   return existsSync(dir) && !isSymlink(dir) && ownedPaths(dir)?.includes('SKILL.md') && existsSync(file) ? file : undefined;
 }
 
+/** Tool skills plus the bundled authoring skill, which is written even when nothing is registered. */
 export function syncSkills(tools: Registration[], directory: string) {
   const root = resolve(directory);
   mkdirSync(root, { recursive: true });
-  const active = new Set(tools.map(skillName));
-  if (active.size !== tools.length) throw new Error('Tool names collide when normalized to skill names.');
+  const active = new Set([...tools.map(skillName), authoringSkillName]);
+  if (active.size !== tools.length + 1) throw new Error(`Tool names collide when normalized to skill names, or with ${authoringSkillName}.`);
   for (const name of new Set([...active, ...clipDirs(root)])) assertSafeToReplace(join(root, name), active.has(name));
-  for (const tool of tools) writeSkill(join(root, skillName(tool)), tool);
+  for (const tool of tools) writeSkill(join(root, skillName(tool)), toolSkill(tool));
+  writeSkill(join(root, authoringSkillName), authoringSkill());
   const removed = clipDirs(root).filter(name => !active.has(name) && removeOwnedSkill(join(root, name)));
   return { directory: root, items: [...active], removed };
 }
@@ -81,9 +84,10 @@ function assertSafeToReplace(dir: string, active: boolean): void {
   if (entries.some(file => isSymlink(join(dir, file)))) throw new Error(`Refusing skill file symlink: ${dir}`);
 }
 
+const toolSkill = (tool: Registration) => renderSkillFiles({ skillName: skillName(tool), name: tool.name, purpose: tool.purpose, executable: tool.executable, ...(tool.schema ? { schema: tool.schema } : {}) });
+
 /** The marker lists old and new files while writing, so an interrupted sync still owns everything it left behind. */
-function writeSkill(dir: string, tool: Registration): void {
-  const files = renderSkillFiles({ skillName: skillName(tool), name: tool.name, purpose: tool.purpose, executable: tool.executable, ...(tool.schema ? { schema: tool.schema } : {}) });
+function writeSkill(dir: string, files: Map<string, string>): void {
   const previous = existsSync(dir) ? (ownedPaths(dir) ?? []) : [];
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, marker), manifest(new Set([...previous, ...files.keys()])));

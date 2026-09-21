@@ -53,6 +53,8 @@ clip register mytool --purpose "Manage deployments" --schema mytool.json
 clip sync
 ```
 
+Or let your agent draft it. `clip sync` installs a `clip-schema-authoring` skill that walks the tool's `--help` output, sets mutation markers conservatively, and loops on `clip lint` until the draft is clean.
+
 A minimal capability document:
 
 ```json

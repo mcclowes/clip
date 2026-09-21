@@ -54,7 +54,7 @@ const commands: Record<string, Command> = {
     if (!name || !options.purpose?.trim() || !options.file) throw new Error('schema init requires a name, --purpose, and --file.');
     const schema = { name: toolName(name), description: options.purpose, commands: [] };
     writeFileSync(options.file, `${JSON.stringify(schema, null, 2)}\n`, { flag: 'wx' });
-    return { file: resolve(options.file), next: 'Add command names, descriptions, arguments, and mutation markers before registering this draft.' };
+    return { file: resolve(options.file), next: `Add command names, descriptions, arguments, and mutation markers, then run clip lint ${options.file} until it reports no errors. The clip-schema-authoring skill from clip sync walks through drafting from --help.` };
   } },
   lint: { positionals: 1, run: ({ args: [target], limit }) => {
     if (!target) throw new Error('lint requires a schema file, registered tool name, or registry entry ID.');

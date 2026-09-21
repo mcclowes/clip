@@ -290,6 +290,28 @@ test('sync writes no AGENTS.md when nothing is registered', t => {
   assert.equal(existsSync(join(dir, 'AGENTS.md')), false);
 });
 
+test('sync installs an owned schema authoring skill, even with nothing registered', t => {
+  const { dir, run, schema } = fixture(t);
+  const skillDir = join(dir, '.agents/skills/clip-schema-authoring');
+
+  assert.equal(run('sync', '--target', 'agents-md').status, 0);
+  assert.equal(existsSync(skillDir), false);
+
+  const synced = run('sync');
+  assert.equal(synced.status, 0, synced.stderr);
+  assert.deepEqual(JSON.parse(synced.stdout).items, ['clip-schema-authoring']);
+  assert.match(readFileSync(join(skillDir, 'SKILL.md'), 'utf8'), /clip lint/);
+  assert.equal(readFileSync(join(skillDir, '.clip-owned'), 'utf8'), 'clip-skill-v2\nSKILL.md\n');
+
+  assert.equal(run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema).status, 0);
+  assert.deepEqual(JSON.parse(run('sync').stdout).removed, []);
+  assert.doesNotMatch(readFileSync(join(dir, 'AGENTS.md'), 'utf8'), /schema-authoring/);
+
+  writeFileSync(schema, JSON.stringify({ name: 'schema-authoring', commands: [{ name: 'x', description: 'x' }] }));
+  assert.equal(run('register', process.execPath, '--purpose', 'Collide', '--schema', schema).status, 0);
+  assert.match(JSON.parse(run('sync').stderr).error.message, /collide/);
+});
+
 test('sync refuses a damaged AGENTS.md block or a symlinked file without writing anything', t => {
   const { dir, run, schema } = fixture(t);
   assert.equal(run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema).status, 0);

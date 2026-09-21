@@ -33,4 +33,18 @@ clip register mytool --purpose "Manage deployments" --schema mytool.json
 clip schema mytool
 ```
 
+## Draft with an agent
+
+`clip sync` installs a `clip-schema-authoring` skill beside your tool skills, even with nothing registered. Ask your agent to write a schema for a tool, and the skill has it:
+
+- check the registry and native probes first
+- read `<tool> --help` and each subcommand's help, and run nothing else, since reading help still executes the tool
+- leave `mutating` out when unsure, so agents see mutation unknown rather than a wrong read-only marker
+- lead read commands with a bounded, machine-readable example
+- run `clip lint` after each round of edits until it reports no errors, then hand you the mutating and unknown commands to review
+
+CLIP supplies the checks; the agent does the drafting.
+
+## Document shape
+
 A minimal document can use `capabilities` instead of `commands`. Every entry needs a name and description. Mutation markers are optional; missing means unknown, never read-only.

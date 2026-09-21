@@ -19,6 +19,8 @@ Each skill includes your purpose, the executable path, one usage line per comman
 
 Commands whose schema lists no arguments point at their own `--help`. The default destination is `.agents/skills` in the current project. Choose the skills directory your agent reads.
 
+Sync also writes `clip-schema-authoring`, a bundled skill for drafting schemas from `--help` output. See [define capabilities](./define-capabilities.md#draft-with-an-agent). It's owned like tool skills, so a registered tool whose skill name would be `clip-schema-authoring` is refused.
+
 ## Skill layout
 
 ```text
