@@ -26,6 +26,6 @@ clip registry add git --purpose "Review repository changes"
 clip sync
 ```
 
-Your project now contains `.agents/skills/clip-git/SKILL.md` and its capability document.
+Your project now contains `.agents/skills/clip-git/SKILL.md`, with a usage line per command and reference files beside it.
 
 Next, [register your own tools](./register-tools.md) or [browse community schemas](/tools).

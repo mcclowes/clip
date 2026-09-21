@@ -14,6 +14,13 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 - The docs site is at https://clip.marginalutility.dev.
 - Bundled registry schemas lead every read command with a bounded, machine-readable example, and `npm run registry:check` enforces it.
+- Generated skills list a usage line per command, with the first example beside read commands.
+- Generated skills put argument descriptions, output notes, and examples in `commands/<group>.md` and no longer include `schema.json`. Tools past 24,000 characters of usage lines get an index in `SKILL.md` instead.
+- The skill ownership marker lists every file CLIP wrote. `clip sync` upgrades older skills in place.
+
+### Fixed
+
+- `clip sync` refuses dangling symlinks inside a skill, which it previously wrote through.
 
 ## [0.2.0] - 2026-09-09
 

@@ -11,7 +11,8 @@ One fictional tool, `brindle`, is exposed through every interface from a single 
 | `cli-bare` | `brindle` on PATH, nothing else |
 | `cli-hint` | `brindle` on PATH plus one system prompt line saying so, standing in for a CLAUDE.md mention |
 | `cli-clip` | `brindle` on PATH plus the skill from the real `clip register` and `clip sync` |
-| `cli-clip-signatures` | The same, rendered with compact argument signatures and a relative schema path ([#11](https://github.com/mcclowes/clip/issues/11)) |
+| `cli-clip-signatures` | The same, rendered by the eval's own signature renderer with `schema.json` beside it, as proposed in [#11](https://github.com/mcclowes/clip/issues/11) before it shipped |
+| `cli-clip-index` | The shipped renderer with its index forced at any size: `SKILL.md` lists group files, and usage lines live in `commands/<group>.md` ([#12](https://github.com/mcclowes/clip/issues/12)) |
 | `mcp-eager` | An MCP server with tool schemas loaded upfront |
 | `mcp-deferred` | The same server with schemas deferred behind tool search |
 
@@ -23,7 +24,7 @@ One fictional tool, `brindle`, is exposed through every interface from a single 
 { id: 'signatures', summary: '…', render: ({ schema, purpose, executable, skillsDir }) => { /* write SKILL.md */ } }
 ```
 
-Adding an entry to `skillFormats` is enough; the conditions list, the task matrix, and the context report pick it up.
+Adding an entry to `skillFormats` is enough; the conditions list, the task matrix, and the context report pick it up. A renderer can import `packages/cli/src/skill-render.ts` and pass it options, which is how `cli-clip-index` measures the large-tool path on a small fixture.
 
 Each run is headless Claude Code (`claude -p`) in a fresh temp directory with `--setting-sources project --strict-mcp-config`, so your global skills, plugins, and MCP servers stay out. Built-in tools are fixed at Bash, Read, and Skill, plus ToolSearch for `mcp-deferred`. State lives outside the working directory; touching it directly fails the run.
 
@@ -39,7 +40,7 @@ Composition tasks run against a scaled fixture (500 loads, appended to the 13 ha
 
 ## Run
 
-Requires the `claude` CLI, logged in. Runs use your Claude quota, so every scenario is selectable and worth targeting. The full matrix at three trials is 270 sessions; the second run instead spent 234 across the four commands below.
+Requires the `claude` CLI, logged in. Runs use your Claude quota, so every scenario is selectable and worth targeting. The full matrix at three trials is 315 sessions; the second run instead spent 234 across the four commands below.
 
 ```sh
 npm run eval -- tasks --trials 1 --out evals/results/v2-smoke
@@ -49,7 +50,13 @@ npm run eval -- tasks --conditions cli-bare --tasks count-filtered,usage-report,
 npm run eval:report -- evals/results/<directory>
 ```
 
-Options: `--model` (default `sonnet`; tool search deferral doesn't work on Haiku), `--trials`, `--concurrency`, `--conditions`, `--tasks`, `--prompts`, `--distractors`, `--sizes` (command counts for `context`, defaulting to the fixture size then 32 and 100), `--require-version`, and `--out`. Unknown condition and prompt names fail fast rather than running nothing. Raw results and transcripts go to `evals/results/`, which isn't committed.
+A skill format that changes shape with tool size needs tasks at that size. `--commands 100` pads `brindle` with inert clones for every condition, as `context` does, while the tasks still target the original nine commands:
+
+```sh
+npm run eval -- tasks --conditions cli-hint,cli-clip,cli-clip-index --commands 100 --trials 1
+```
+
+Options: `--model` (default `sonnet`; tool search deferral doesn't work on Haiku), `--trials`, `--commands` (tool size for `tasks`, defaulting to the fixture's nine commands), `--concurrency`, `--conditions`, `--tasks`, `--prompts`, `--distractors`, `--sizes` (command counts for `context`, defaulting to the fixture size then 32 and 100), `--require-version`, and `--out`. Unknown condition and prompt names fail fast rather than running nothing, and `context` measures only the conditions you pass. Raw results and transcripts go to `evals/results/`, which isn't committed.
 
 ## Claude Code version
 
@@ -60,7 +67,7 @@ Every run prints the installed Claude Code version at the start and records it o
 ## Metrics
 
 - **Pass**: verifier result. A run that makes no tool call can't pass.
-- **Tool calls** and **discovery calls**: discovery is `--help`, a skill load, a read of `SKILL.md` or `schema.json`, or a tool search.
+- **Tool calls** and **discovery calls**: discovery is `--help`, a skill load, a read of `SKILL.md`, `schema.json`, or a skill's `commands/` file, or a tool search.
 - **Errors per run**: tool results flagged as errors, such as nonzero exits and MCP errors.
 - **Unsafe mutations**: state changed on a task that should leave it alone.
 - **Cumulative input**: input tokens summed over every turn, which is what you pay for. **Peak context** is the largest single turn.
