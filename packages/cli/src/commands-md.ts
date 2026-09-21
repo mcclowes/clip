@@ -6,7 +6,7 @@
  *   - ./agents-md.ts - Lists the parsed commands in the AGENTS.md block.
  * ---
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const commandsPath = '.clip/commands.md';
@@ -245,3 +245,151 @@ The commands a launcher opens together. Add \`#auto\` to this heading to open th
 - Format: \`npm run format\` #writes
 - Deploy: \`npm run deploy\` #destructive
 `;
+
+type Seed = { source: string; name: string; command: string; note?: string };
+
+/** Reads conventional task manifests without invoking their runners. */
+export function seededCommandsTemplate(root: string): string {
+  const seeds = [
+    ...packageScripts(root),
+    ...makeTargets(root),
+    ...justRecipes(root),
+    ...taskfileTasks(root),
+    ...miseTasks(root),
+  ];
+  if (!seeds.length) return commandsTemplate;
+  return `# Commands
+
+Named commands for this project, for people and agents. These commands came from task manifests when this file was created. They have no effect decorators, because a manifest says how to run a task, not what it changes. Review and decorate them before relying on them.
+
+<!-- Commands guide: https://clip.marginalutility.dev/docs/commands -->
+
+${seededSections(seeds)}`;
+}
+
+function packageScripts(root: string): Seed[] {
+  const text = readManifest(root, 'package.json');
+  if (!text) return [];
+  try {
+    const scripts = JSON.parse(text).scripts;
+    if (!scripts || typeof scripts !== 'object' || Array.isArray(scripts)) return [];
+    return Object.keys(scripts).filter(name => validTaskName(name) && typeof scripts[name] === 'string').map(name => ({ source: 'package.json scripts', name: `npm ${name}`, command: `npm run ${name}` }));
+  } catch {
+    return [];
+  }
+}
+
+/** Only documented, concrete targets are task-like; special, pattern, and variable targets are Make plumbing. */
+function makeTargets(root: string): Seed[] {
+  const text = readFirstManifest(root, ['Makefile', 'makefile', 'GNUmakefile']);
+  if (!text) return [];
+  return text.split(/\r\n?|\n/).flatMap(line => {
+    const match = line.match(/^([A-Za-z0-9][A-Za-z0-9_./-]*):[^#]*\s##\s*(.*?)\s*$/);
+    if (!match || match[1]!.includes('%')) return [];
+    return [{ source: 'Makefile', name: `make ${match[1]}`, command: `make ${match[1]}`, note: match[2] || undefined }];
+  });
+}
+
+function justRecipes(root: string): Seed[] {
+  const text = readFirstManifest(root, ['justfile', '.justfile']);
+  if (!text) return [];
+  const seeds: Seed[] = [];
+  let comment: string | undefined;
+  for (const line of text.split(/\r\n?|\n/)) {
+    const description = line.match(/^\s*#\s?(.*?)\s*$/);
+    if (description) {
+      comment = description[1] || undefined;
+      continue;
+    }
+    const recipe = line.match(/^([A-Za-z0-9][\w-]*)(?:\s+[\w-]+(?:=[^\s]+)?)*\s*:\s*(?:#.*)?$/);
+    if (recipe && !['alias', 'export', 'import', 'mod', 'set'].includes(recipe[1]!)) {
+      seeds.push({ source: 'justfile', name: `just ${recipe[1]}`, command: `just ${recipe[1]}`, note: comment });
+    }
+    comment = undefined;
+  }
+  return seeds;
+}
+
+function taskfileTasks(root: string): Seed[] {
+  const text = readFirstManifest(root, ['Taskfile.yml', 'Taskfile.yaml', 'taskfile.yml', 'taskfile.yaml']);
+  if (!text) return [];
+  const seeds: Seed[] = [];
+  let tasksIndent: number | undefined;
+  let taskIndent: number | undefined;
+  let task: { indent: number; seed: Seed } | undefined;
+  for (const line of text.split(/\r\n?|\n/)) {
+    const indent = line.match(/^\s*/)?.[0].length ?? 0;
+    if (tasksIndent === undefined) {
+      if (/^\s*tasks:\s*(?:#.*)?$/.test(line)) tasksIndent = indent;
+      continue;
+    }
+    if (line.trim() && indent <= tasksIndent) break;
+    const taskMatch = line.match(/^(\s+)([A-Za-z0-9][\w.-]*):\s*(?:#.*)?$/);
+    if (taskMatch && taskMatch[1]!.length > tasksIndent && (taskIndent === undefined || taskMatch[1]!.length === taskIndent)) {
+      const name = taskMatch[2]!;
+      const seed: Seed = { source: 'Taskfile', name: `task ${name}`, command: `task ${name}` };
+      seeds.push(seed);
+      taskIndent = taskMatch[1]!.length;
+      task = { indent: taskMatch[1]!.length, seed };
+      continue;
+    }
+    const description = line.match(/^\s+desc:\s*(.*?)\s*$/);
+    if (task && description && indent > task.indent) task.seed.note = quotedValue(description[1]!);
+  }
+  return seeds;
+}
+
+function miseTasks(root: string): Seed[] {
+  const text = readFirstManifest(root, ['mise.toml', '.mise.toml']);
+  if (!text) return [];
+  const seeds: Seed[] = [];
+  let task: Seed | undefined;
+  for (const line of text.split(/\r\n?|\n/)) {
+    const section = line.match(/^\s*\[tasks\.([^\]]+)]\s*$/);
+    if (section) {
+      const name = quotedValue(section[1]!);
+      task = validTaskName(name) ? { source: 'mise', name: `mise ${name}`, command: `mise run ${name}` } : undefined;
+      if (task) seeds.push(task);
+      continue;
+    }
+    if (/^\s*\[/.test(line)) task = undefined;
+    const description = line.match(/^\s*description\s*=\s*(.*?)\s*$/);
+    if (task && description) task.note = quotedValue(description[1]!);
+  }
+  return seeds;
+}
+
+function seededSections(seeds: Seed[]): string {
+  return [...new Map(seeds.map(seed => [seed.source, seed])).keys()].map(source => {
+    const entries = seeds.filter(seed => seed.source === source);
+    return `## ${source}\n\n${entries.map(seed => `- ${seed.name}: \`${seed.command}\`${seed.note ? ` — ${escapeNote(seed.note)}` : ''}`).join('\n')}`;
+  }).join('\n\n');
+}
+
+function readManifest(root: string, file: string): string | undefined {
+  const path = join(root, file);
+  return existsSync(path) ? readFileSync(path, 'utf8') : undefined;
+}
+
+function readFirstManifest(root: string, files: string[]): string | undefined {
+  for (const file of files) {
+    const text = readManifest(root, file);
+    if (text !== undefined) return text;
+  }
+  return undefined;
+}
+
+function validTaskName(name: string): boolean {
+  return Boolean(name) && !/[`\r\n]/.test(name);
+}
+
+function quotedValue(value: string): string {
+  const trimmed = value.trim();
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) return trimmed.slice(1, -1);
+  return trimmed.replace(/\s+#.*$/, '');
+}
+
+/** A manifest description may contain a decorator-looking word, but only an author may add CLIP decorators. */
+function escapeNote(note: string): string {
+  return note.replace(/#/g, '\\#');
+}

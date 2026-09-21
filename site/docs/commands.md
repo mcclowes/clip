@@ -17,6 +17,12 @@ clip commands check      # validate it; exits 1 on errors
 clip sync                # list the commands in AGENTS.md
 ```
 
+`clip commands init` reads task declarations from `package.json`, `Makefile`, `justfile`, `Taskfile.yml`, and `mise.toml` when they exist. It only reads those files. It never starts `npm`, `make`, `just`, `task`, or `mise`, and it doesn't inspect a task body to guess its effects.
+
+The generated commands are grouped by source. Package scripts and task names become their runner invocations. Documented Make targets keep their `##` note, just recipes keep a preceding comment, and Taskfile `desc` and mise `description` fields become notes. Make's special, pattern, and undocumented targets are skipped.
+
+Every seeded entry is undecorated, including one whose description happens to contain a decorator-looking word. Review the commands, then add decorators yourself. An undecorated command means its effect is unknown.
+
 ## Example
 
 ```markdown

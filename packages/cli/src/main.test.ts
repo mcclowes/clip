@@ -432,9 +432,10 @@ test('sync refuses a damaged AGENTS.md block or a symlinked file without writing
   assert.equal(readFileSync(outside, 'utf8'), 'outside');
 });
 
-test('commands init writes a starter file once, and commands lists what it describes', t => {
+test('commands init seeds package scripts without guessing their effects', t => {
   const { dir, run } = fixture(t);
   assert.match(JSON.parse(run('commands').stderr).error.message, /clip commands init/);
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { check: 'tsc --noEmit', test: 'node --test' } }));
 
   const created = run('commands', 'init');
   assert.equal(created.status, 0, created.stderr);
@@ -443,13 +444,34 @@ test('commands init writes a starter file once, and commands lists what it descr
 
   const listed = JSON.parse(run('commands').stdout);
   assert.equal(listed.file, join(realpathSync(dir), '.clip/commands.md'));
-  const deploy = listed.items.find((item: any) => item.name === 'Deploy');
-  assert.deepEqual([deploy.command, deploy.effect], ['npm run deploy', 'destructive']);
-  assert.match(run('commands', '--output', 'text').stdout, /Deploy\tnpm run deploy \[destructive\]/);
+  assert.deepEqual(listed.items.map((item: { name: string; command: string; effect?: string }) => [item.name, item.command, item.effect]), [
+    ['npm check', 'npm run check', undefined],
+    ['npm test', 'npm run test', undefined],
+  ]);
+  assert.doesNotMatch(readFileSync(join(dir, '.clip/commands.md'), 'utf8'), /#(?:safe|writes|destructive)/);
 
   const checked = run('commands', 'check');
   assert.equal(checked.status, 0, checked.stderr);
   assert.deepEqual(JSON.parse(checked.stdout), { file: listed.file, healthy: true, items: [], total: 0, truncated: false });
+});
+
+test('commands init seeds documented Make, just, Taskfile, and mise tasks without running them', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'Makefile'), '.PHONY: check\ncheck: ## Check safely #safe\n\t@exit 1\n%.o: %.c\n');
+  writeFileSync(join(dir, 'justfile'), '# Run the suite\ntest:\n    exit 1\n');
+  writeFileSync(join(dir, 'Taskfile.yml'), "version: '3'\ntasks:\n  build:\n    desc: Build the app\n    env:\n      CI: true\n    cmds: [exit 1]\n");
+  writeFileSync(join(dir, 'mise.toml'), '[tasks.deploy]\ndescription = "Deploy the app"\nrun = "exit 1"\n');
+
+  const created = run('commands', 'init');
+
+  assert.equal(created.status, 0, created.stderr);
+  const entries = JSON.parse(run('commands').stdout).items;
+  assert.deepEqual(entries.map((item: { name: string; command: string; note?: string; decorators: string[] }) => [item.name, item.command, item.note, item.decorators]), [
+    ['make check', 'make check', 'Check safely \\#safe', []],
+    ['just test', 'just test', 'Run the suite', []],
+    ['task build', 'task build', 'Build the app', []],
+    ['mise deploy', 'mise run deploy', 'Deploy the app', []],
+  ]);
 });
 
 test('commands init describes the file it wrote in text output', t => {
@@ -458,7 +480,7 @@ test('commands init describes the file it wrote in text output', t => {
   const created = run('commands', 'init', '--output', 'text');
 
   assert.equal(created.status, 0, created.stderr);
-  assert.equal(created.stdout, `Wrote ${join(realpathSync(dir), '.clip/commands.md')}\nReplace the example bullets with this project's commands and decorate each with its effect.\n`);
+  assert.equal(created.stdout, `Wrote ${join(realpathSync(dir), '.clip/commands.md')}\nReview the commands and decorate each with its effect before relying on them.\n`);
 });
 
 test('schema init describes the file it wrote in text output', t => {

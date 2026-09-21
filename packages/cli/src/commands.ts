@@ -12,7 +12,7 @@ import { validateSchema, toolName, type Schema } from './schema.ts';
 import { activeSchema, projectRoot, readTools, removeTool, scopes, storedExecutable, updateTools, upsertTool, type Registration, type Scope } from './store.ts';
 import { defaultSkillsDir, existingSkillFile, skillFile, syncSkills } from './skills.ts';
 import { defaultAgentsFile, planAgentsMd, type ProjectCommands } from './agents-md.ts';
-import { checkCommands, commandsPath, commandsTemplate, findCommandsFile, parseCommands } from './commands-md.ts';
+import { checkCommands, commandsPath, findCommandsFile, parseCommands, seededCommandsTemplate } from './commands-md.ts';
 import { discover, executablePath, probeSchema } from './discovery.ts';
 import { catalog, findEntry, registryRegistration, registrySchema, trustOf, validationStatus } from './registry.ts';
 import { contract } from './contract.ts';
@@ -99,8 +99,8 @@ const commands: Record<string, Command> = {
     if (!options.file && found.exists) throw new Error(`${relative(root, found.path)} already exists.${found.legacy ? ` Move it to ${commandsPath} with git mv.` : ''}`);
     const file = resolve(options.file ?? join(root, commandsPath));
     mkdirSync(dirname(file), { recursive: true });
-    writeFileSync(file, commandsTemplate, { flag: 'wx' });
-    return { file, next: 'Replace the example bullets with this project\'s commands and decorate each with its effect.' };
+    writeFileSync(file, seededCommandsTemplate(root), { flag: 'wx' });
+    return { file, next: 'Review the commands and decorate each with its effect before relying on them.' };
   } },
   ui: { positionals: 0, interactive: true, run: ({ options, scope }) => runUi({ input: process.stdin, output: process.stdout, skillsDir: options['skills-dir'], scope }) },
 };
