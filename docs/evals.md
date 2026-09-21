@@ -1,5 +1,20 @@
 # Eval findings
 
+## Rendered example run (21 September 2026)
+
+Claude Code 2.1.278, Sonnet, three trials. Targeted at [#20](https://github.com/mcclowes/clip/issues/20): the three composition tasks against the 500-load fixture, comparing `cli-clip` (first example beside each read command) with `cli-clip-no-examples` (the same skill with examples stripped). 18 sessions.
+
+**The rendered example changed nothing.** Every run passed, and in all 18 the first call was an unpiped `brindle load list` with a status or atmosphere filter. Examples or not, the agent pulled the listing whole, and on `count-beyond-flags` and `reduction-share` the output spilled to a file in every run (6 of 6 per condition) before `jq` ran against the spill.
+
+| Condition | Pass | Tool calls | Tool-result tokens (median) | Cumulative input (median) | Piped first call | Spilled (large tasks) |
+| --- | --- | --- | --- | --- | --- | --- |
+| `cli-clip` | 9/9 | 3.3 | 1,207 ±1,342 | 47,544 ±5,120 | 0/9 | 6/6 |
+| `cli-clip-no-examples` | 9/9 | 3.0 | 937 ±1,327 | 36,201 ±5,061 | 0/9 | 6/6 |
+
+The gap in tokens is within the spread and runs the wrong way for the hypothesis. Read it as noise.
+
+This doesn't test the rule as written. Brindle's `load list` has no cap or format flag and always emits JSON, so its first example is already bounded and machine-readable, and these tasks need every row anyway. What it does show is that an example beside the signature doesn't change how the agent composes. The spill is the recurring cost, and a bounded example can't prevent it when the task needs the whole set. Only piping on the first call can, and nothing in the skill currently shows piping.
+
 ## Skill format run (21 September 2026)
 
 Claude Code 2.1.278, Sonnet, one trial per cell. Targeted at [#11](https://github.com/mcclowes/clip/issues/11) and [#12](https://github.com/mcclowes/clip/issues/12): the eleven named-prompt tasks that aren't composition or long-session tasks, on `cli-hint` and the CLIP skill variants only, at 9 commands and at 100. 88 sessions.
