@@ -54,6 +54,19 @@ test('group files carry argument descriptions, defaults, aliases, output, and ev
   assert.match(load, /\n {2}- Examples: `kiln load show 7 --json`, `kiln load show 8`\n/);
 });
 
+test('gotchas render beside their command, and tool gotchas above the commands', () => {
+  const schema: Schema = { ...kiln, gotchas: ['Cone numbers are strings, so 06 and 6 differ.'], commands: [
+    { name: 'load cancel', description: 'Cancel a load', mutating: true, args: [{ name: 'id', required: true }], gotchas: ['The load id is positional; there is no --id flag.'] },
+    ...kiln.commands!,
+  ] };
+  const gotcha = /- `kiln load cancel <id>` \*\*\[mutating\]\*\* — Cancel a load\.\n {2}- Gotcha: The load id is positional; there is no --id flag\.\n/;
+  assert.match(render(schema).get('SKILL.md')!, gotcha);
+  assert.match(render(schema).get('SKILL.md')!, /## Gotchas\n\n- Cone numbers are strings, so 06 and 6 differ\.\n\n## Commands/);
+  assert.match(render(schema).get('commands/load.md')!, gotcha);
+  assert.match(render(schema, forceIndex).get('SKILL.md')!, /## Gotchas/);
+  assert.doesNotMatch(render(kiln).get('SKILL.md')!, /Gotcha/);
+});
+
 test('usage lines over the inline limit become an index in SKILL.md and move to group files', () => {
   const files = render(manyCommands(100), forceIndex);
   const skill = files.get('SKILL.md')!;

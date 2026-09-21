@@ -11,11 +11,16 @@ export function toolName(value: string): string {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$/.test(value)) throw new Error('Tool names must contain only letters, numbers, dots, underscores, and hyphens.');
   return value;
 }
+function validateGotchas(gotchas: unknown) {
+  if (gotchas === undefined) return;
+  if (!Array.isArray(gotchas) || !gotchas.every(item => typeof item === 'string' && item.trim())) throw new Error('Gotchas must be a list of nonempty strings.');
+}
 export function validateSchema(value: unknown): Schema {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Schema must be a JSON object.');
   const schema = value as Schema;
   if (typeof schema.name !== 'string') throw new Error('Schema requires a tool name.');
   toolName(schema.name);
+  validateGotchas(schema.gotchas);
   const operations = schema.commands ?? schema.capabilities;
   if (!Array.isArray(operations) || !operations.length) throw new Error('Schema requires a nonempty commands or capabilities list.');
   let count = 0;
@@ -28,6 +33,7 @@ export function validateSchema(value: unknown): Schema {
       if (names.has(item.name)) throw new Error(`Duplicate operation: ${item.name}`);
       names.add(item.name);
       if (item.mutating !== undefined && typeof item.mutating !== 'boolean') throw new Error('Mutation markers must be booleans.');
+      validateGotchas(item.gotchas);
       if (item.subcommands !== undefined) {
         if (!Array.isArray(item.subcommands)) throw new Error('Subcommands must be a list.');
         validate(item.subcommands, depth + 1);

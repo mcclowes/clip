@@ -36,6 +36,8 @@ const instructionPatterns = [
 /** Free text longer than this is a warning: a large field gives an injected instruction room to hide. */
 export const proseLimit = 500;
 export const exampleLimit = 300;
+/** A gotcha is one short statement of fact, such as a known wrong guess. */
+export const gotchaLimit = 200;
 /** Fields whose value is a link by design. */
 const linkFields = new Set(['documentation', 'upstream']);
 const linkPattern = /\b(?:https?|ftp|file):\/\/[^\s'"<>)]+/gi;
@@ -109,10 +111,11 @@ function commandIssues(schema: Schema, options: LintOptions): LintIssue[] {
   });
 }
 
-type FreeText = { text: string; at: string; example: boolean; link: boolean };
+type FreeText = { text: string; at: string; example: boolean; gotcha: boolean; link: boolean };
+const inList = (list: string, field: string[]) => new RegExp(`(^|\\.)${list}\\[`).test(field.join('.'));
 
 function freeText(value: unknown, command: string[], field: string[], found: FreeText[]) {
-  if (typeof value === 'string') found.push({ text: value, at: where(command, field), example: /(^|\.)examples\[/.test(field.join('.')), link: linkFields.has(field.at(-1) ?? '') });
+  if (typeof value === 'string') found.push({ text: value, at: where(command, field), example: inList('examples', field), gotcha: inList('gotchas', field), link: linkFields.has(field.at(-1) ?? '') });
   else if (Array.isArray(value)) {
     const key = field.at(-1) ?? '';
     value.forEach((item, index) => {
@@ -123,13 +126,13 @@ function freeText(value: unknown, command: string[], field: string[], found: Fre
   } else if (value && typeof value === 'object') for (const [key, item] of Object.entries(value)) freeText(item, command, [...field, key], found);
 }
 
-function textProblems({ text, example, link }: FreeText): Omit<LintIssue, 'at' | 'rule'>[] {
+function textProblems({ text, example, gotcha, link }: FreeText): Omit<LintIssue, 'at' | 'rule'>[] {
   if (link) return links(text).every(url => url.protocol === 'https:') ? [] : [{ severity: 'warning', message: 'Link to documentation over HTTPS.' }];
   const problems: Omit<LintIssue, 'at' | 'rule'>[] = [];
   if (instructionPatterns.some(pattern => pattern.test(text))) problems.push({ severity: 'error', message: 'This reads as an instruction to the agent. Describe the tool instead.' });
   if (example && isShellSyntax(text)) problems.push({ severity: 'error', message: 'Examples must be a single invocation, without command substitution, chaining, pipes, redirects, or background jobs outside quotes.' });
-  const limit = example ? exampleLimit : proseLimit;
-  if (text.length > limit) problems.push({ severity: 'warning', message: `${text.length} characters, over the ${limit} limit. Keep ${example ? 'examples' : 'free text'} short enough to review.` });
+  const [limit, kind] = example ? [exampleLimit, 'examples'] : gotcha ? [gotchaLimit, 'gotchas'] : [proseLimit, 'free text'];
+  if (text.length > limit) problems.push({ severity: 'warning', message: `${text.length} characters, over the ${limit} limit. Keep ${kind} short enough to review.` });
   if (links(text).some(url => !exampleHost.test(url.hostname))) problems.push({ severity: 'warning', message: 'Links belong in "documentation". Use example.com in examples; an agent may follow any other link.' });
   return problems;
 }

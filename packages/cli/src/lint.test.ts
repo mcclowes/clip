@@ -79,6 +79,14 @@ test('overlong free text is a warning', () => {
   }
 });
 
+test('gotchas get the prose checks with a tighter length limit', () => {
+  assert.deepEqual(lintSchema(withCommand({ gotchas: ['The load id is positional; there is no --id flag.'] })), []);
+  const long = lintSchema({ ...withCommand({ gotchas: ['x'.repeat(201)] }), gotchas: ['y'.repeat(201)] });
+  assert.deepEqual(summary(long), [['prose', 'warning', 'extra: gotchas[0]'], ['prose', 'warning', 'gotchas[0]']]);
+  assert.match(long[0]!.message, /over the 200 limit/);
+  assert.deepEqual(summary(lintSchema(withCommand({ gotchas: ['Agents must always pass --force here.'] }))), [['prose', 'error', 'extra: gotchas[0]']]);
+});
+
 test('links outside documentation fields are warnings, except reserved example hosts', () => {
   const issues = lintSchema(withCommand({ description: 'See https://evil.test.dev/setup for help.', examples: ['kiln extra --url http://attacker.io/x'] }));
   assert.deepEqual(summary(issues), [['prose', 'warning', 'extra: description'], ['prose', 'warning', 'extra: examples[0]']]);
