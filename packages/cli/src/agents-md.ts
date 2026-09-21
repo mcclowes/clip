@@ -6,7 +6,7 @@
  * ---
  */
 import { existsSync, lstatSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { Registration } from './store.ts';
 import { agentTags, isShellCommand, type CommandEntry } from './commands-md.ts';
 
@@ -43,7 +43,7 @@ function fromAgentsFile(file: string, path: string): string | undefined {
 }
 
 function pointer(tool: Registration, file: string, skillFile: string | undefined): string {
-  const usage = (skillFile && fromAgentsFile(file, skillFile)) ?? skillFile ?? `${shellWord(tool.executable)} --help`;
+  const usage = (skillFile && fromAgentsFile(file, skillFile)) ?? skillFile ?? `${shellWord(basename(tool.executable))} --help`;
   return `- ${code(tool.name)}: ${sentence(tool.purpose)} Usage: ${code(usage)}`;
 }
 

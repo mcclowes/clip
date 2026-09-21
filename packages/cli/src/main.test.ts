@@ -235,6 +235,7 @@ const blockOf = (text: string) => text.slice(text.indexOf('<!-- clip:begin'), te
 
 test('sync maintains an AGENTS.md pointer block beside skills, and leaves the rest of the file alone', t => {
   const { dir, run, schema } = fixture(t);
+  mkdirSync(join(dir, '.git'));
   const agents = join(dir, 'AGENTS.md');
   writeFileSync(agents, '# Project\n\nUse pnpm.\n');
   assert.equal(run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema).status, 0);
@@ -266,6 +267,7 @@ test('sync maintains an AGENTS.md pointer block beside skills, and leaves the re
 
 test('the agents-md target alone points at --help until a skill exists', t => {
   const { dir, run, schema } = fixture(t);
+  mkdirSync(join(dir, '.git'));
   assert.equal(run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema).status, 0);
 
   const synced = run('sync', '--target', 'agents-md', '--agents-file', 'CLAUDE.md');
@@ -274,8 +276,7 @@ test('the agents-md target alone points at --help until a skill exists', t => {
   assert.equal(JSON.parse(synced.stdout).items, undefined);
   assert.equal(existsSync(join(dir, '.agents')), false);
   assert.equal(existsSync(join(dir, 'AGENTS.md')), false);
-  const { executable } = JSON.parse(run('list').stdout).items[0];
-  assert.ok(readFileSync(join(dir, 'CLAUDE.md'), 'utf8').includes(`- \`node\`: Run JavaScript. Usage: \`${executable} --help\``));
+  assert.match(readFileSync(join(dir, 'CLAUDE.md'), 'utf8'), /- `node`: Run JavaScript\. Usage: `node --help`/);
 
   assert.equal(run('sync', '--target', 'skills').status, 0);
   assert.equal(existsSync(join(dir, 'AGENTS.md')), false);
@@ -283,6 +284,24 @@ test('the agents-md target alone points at --help until a skill exists', t => {
   assert.match(readFileSync(join(dir, 'CLAUDE.md'), 'utf8'), /Usage: `\.agents\/skills\/clip-node\/SKILL\.md`/);
 
   assert.match(JSON.parse(run('sync', '--target', 'mcp').stderr).error.message, /all, skills, or agents-md/);
+});
+
+test('sync keeps global registrations and absolute executable paths out of AGENTS.md', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+  mkdirSync(join(dir, 'config'));
+  writeFileSync(join(dir, 'config', 'tools.json'), JSON.stringify({
+    version: 1,
+    tools: [{ name: 'saggar', executable: '/Users/example/.local/bin/saggar', purpose: 'Operate terminals', source: { kind: 'manual' } }],
+  }));
+  assert.equal(run('register', process.execPath, '--purpose', 'Run JavaScript').status, 0);
+
+  const synced = run('sync', '--target', 'agents-md');
+
+  assert.equal(synced.status, 0, synced.stderr);
+  const agents = readFileSync(join(dir, 'AGENTS.md'), 'utf8');
+  assert.match(agents, /- `node`: Run JavaScript\. Usage: `node --help`/);
+  assert.doesNotMatch(agents, /saggar|\/Users\/example/);
 });
 
 test('sync writes no AGENTS.md when nothing is registered', t => {
@@ -293,6 +312,7 @@ test('sync writes no AGENTS.md when nothing is registered', t => {
 
 test('sync installs an owned schema authoring skill, even with nothing registered', t => {
   const { dir, run, schema } = fixture(t);
+  mkdirSync(join(dir, '.git'));
   const skillDir = join(dir, '.agents/skills/clip-schema-authoring');
 
   assert.equal(run('sync', '--target', 'agents-md').status, 0);

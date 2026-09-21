@@ -176,7 +176,7 @@ function sync(tools: Registration[], options: Options) {
   const directory = skillsDir(options);
   const withSkills = target !== 'agents-md';
   const usage = (tool: Registration) => (withSkills ? skillFile(tool, directory) : existingSkillFile(tool, directory));
-  const agents = target === 'skills' ? undefined : planAgentsMd(tools, options['agents-file'] ?? defaultAgentsFile, usage, projectCommands());
+  const agents = target === 'skills' ? undefined : planAgentsMd(tools.filter(tool => tool.scope !== 'global'), options['agents-file'] ?? defaultAgentsFile, usage, projectCommands());
   const skills = withSkills ? syncSkills(tools, directory) : {};
   const { write, ...agentsMd } = agents ?? {};
   return { ...skills, ...(write ? { agents_md: { ...agentsMd, changed: write() } } : {}) };

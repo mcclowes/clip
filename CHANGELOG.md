@@ -28,6 +28,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 ### Fixed
 
+- `clip sync` keeps global registrations and absolute executable paths out of the committed `AGENTS.md` block.
 - `clip sync` refuses dangling symlinks inside a skill, which it previously wrote through.
 
 ## [0.2.0] - 2026-09-09
