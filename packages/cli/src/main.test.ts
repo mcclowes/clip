@@ -317,6 +317,87 @@ test('sync refuses a damaged AGENTS.md block or a symlinked file without writing
   assert.equal(readFileSync(outside, 'utf8'), 'outside');
 });
 
+test('commands init writes a starter file once, and commands lists what it describes', t => {
+  const { dir, run } = fixture(t);
+  assert.match(JSON.parse(run('commands').stderr).error.message, /clip commands init/);
+
+  const created = run('commands', 'init');
+  assert.equal(created.status, 0, created.stderr);
+  assert.equal(JSON.parse(created.stdout).file, join(realpathSync(dir), '.clip/commands.md'));
+  assert.equal(run('commands', 'init').status, 1);
+
+  const listed = JSON.parse(run('commands').stdout);
+  assert.equal(listed.file, join(realpathSync(dir), '.clip/commands.md'));
+  const deploy = listed.items.find((item: any) => item.name === 'Deploy');
+  assert.deepEqual([deploy.command, deploy.effect], ['npm run deploy', 'destructive']);
+  assert.match(run('commands', '--output', 'text').stdout, /Deploy\tnpm run deploy \[destructive\]/);
+
+  const checked = run('commands', 'check');
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.deepEqual(JSON.parse(checked.stdout), { file: listed.file, healthy: true, items: [], total: 0, truncated: false });
+});
+
+test('commands check exits 1 on errors, with the report on stdout, and passes on warnings alone', t => {
+  const { dir, run } = fixture(t);
+  const file = join(dir, 'runbook.md');
+  writeFileSync(file, '- Tests: `npm test` #safe #destructive\n- Lint: `npm run lint` #flaky\n');
+
+  const failed = run('commands', 'check', '--file', file);
+  assert.equal(failed.status, 1);
+  const report = JSON.parse(failed.stdout);
+  assert.equal(report.healthy, false);
+  assert.deepEqual(report.items.map((item: any) => [item.line, item.severity]), [[1, 'error'], [2, 'warning']]);
+  assert.match(run('commands', 'check', '--file', file, '--output', 'text').stdout, /^1: error: Choose one effect/);
+
+  writeFileSync(file, '- Lint: `npm run lint` #flaky\n');
+  assert.equal(run('commands', 'check', '--file', file).status, 0);
+});
+
+test("commands reads Saggar's file until the project moves it, and init won't start a second one", t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.saggar'));
+  writeFileSync(join(dir, '.saggar/commands.md'), '- Dev: `npm run dev` #monitor\n');
+
+  const listed = JSON.parse(run('commands').stdout);
+  assert.equal(listed.file, join(realpathSync(dir), '.saggar/commands.md'));
+  assert.deepEqual(listed.items.map((item: any) => [item.name, item.role]), [['Dev', 'monitor']]);
+  assert.match(JSON.parse(run('commands', 'init').stderr).error.message, /\.saggar\/commands\.md/);
+});
+
+test('sync lists project commands in the AGENTS.md block, even with no tools registered', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.clip'));
+  const file = join(dir, '.clip/commands.md');
+  writeFileSync(file, [
+    '# Commands',
+    '- Tests: `npm test` — the full suite #safe #ci',
+    '- Deploy: `npm run deploy` #destructive',
+    '- `npm run lint`',
+    '- Review: `@claude review this` #primary',
+    '## Layout',
+    '- Tests: `npm test` #monitor',
+  ].join('\n'));
+  const agents = join(dir, 'AGENTS.md');
+
+  const synced = run('sync');
+
+  assert.equal(synced.status, 0, synced.stderr);
+  assert.deepEqual(JSON.parse(synced.stdout).agents_md.commands, ['Tests', 'Deploy', 'npm run lint']);
+  const block = blockOf(readFileSync(agents, 'utf8'));
+  assert.doesNotMatch(block, /Installed CLI tools/);
+  assert.match(block, /Project commands from `\.clip\/commands\.md`/);
+  assert.match(block, /`safe` runs without asking/);
+  assert.match(block, /`destructive`/);
+  assert.doesNotMatch(block, /`long-running`/);
+  assert.match(block, /\n- Tests: `npm test` \[safe, ci\] — the full suite\.\n- Deploy: `npm run deploy` \[destructive\]\n- `npm run lint`\n/);
+  assert.doesNotMatch(block, /@claude/);
+
+  assert.equal(run('sync', '--target', 'skills').status, 0);
+  unlinkSync(file);
+  assert.equal(run('sync').status, 0);
+  assert.equal(existsSync(agents), false);
+});
+
 function manyCommands(count: number) {
   return { name: 'node', commands: Array.from({ length: count }, (_, index) => ({ name: `group${index % 4} cmd${index}`, description: `Command ${index}`, mutating: false })) };
 }

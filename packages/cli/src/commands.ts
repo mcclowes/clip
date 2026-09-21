@@ -6,12 +6,13 @@
  *   - ./main.ts - Parses arguments, dispatches here, and prints results.
  * ---
  */
-import { readFileSync, writeFileSync } from 'node:fs';
-import { basename, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { validateSchema, toolName, type Schema } from './schema.ts';
-import { readTools, removeTool, scopes, storedExecutable, updateTools, upsertTool, type Registration, type Scope } from './store.ts';
+import { projectRoot, readTools, removeTool, scopes, storedExecutable, updateTools, upsertTool, type Registration, type Scope } from './store.ts';
 import { defaultSkillsDir, existingSkillFile, skillFile, syncSkills } from './skills.ts';
-import { defaultAgentsFile, planAgentsMd } from './agents-md.ts';
+import { defaultAgentsFile, planAgentsMd, type ProjectCommands } from './agents-md.ts';
+import { checkCommands, commandsPath, commandsTemplate, findCommandsFile, parseCommands } from './commands-md.ts';
 import { discover, executablePath, probeSchema } from './discovery.ts';
 import { catalog, findEntry, registryRegistration, registrySchema } from './registry.ts';
 import { contract } from './contract.ts';
@@ -69,6 +70,26 @@ const commands: Record<string, Command> = {
     const items = readTools().map(diagnoseRegistration);
     return { healthy: items.every(item => healthyStatuses.includes(item.status)), items };
   } },
+  commands: { positionals: 0, run: ({ options, limit }) => {
+    const { file, text } = readCommandsFile(options);
+    return { file, ...page(parseCommands(text), limit) };
+  } },
+  'commands check': { positionals: 0, run: ({ options, limit }) => {
+    const { file, text } = readCommandsFile(options);
+    const issues = checkCommands(text);
+    const healthy = issues.every(issue => issue.severity !== 'error');
+    if (!healthy) process.exitCode = 1;
+    return { file, healthy, ...page(issues, limit) };
+  } },
+  'commands init': { positionals: 0, run: ({ options }) => {
+    const root = projectRootOrCwd();
+    const found = findCommandsFile(root);
+    if (!options.file && found.exists) throw new Error(`${relative(root, found.path)} already exists.${found.legacy ? ` Move it to ${commandsPath} with git mv.` : ''}`);
+    const file = resolve(options.file ?? join(root, commandsPath));
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, commandsTemplate, { flag: 'wx' });
+    return { file, next: 'Replace the example bullets with this project\'s commands and decorate each with its effect.' };
+  } },
   ui: { positionals: 0, interactive: true, run: ({ options, scope }) => runUi({ input: process.stdin, output: process.stdout, skillsDir: options['skills-dir'], scope }) },
 };
 
@@ -123,7 +144,21 @@ function sync(tools: Registration[], options: Options) {
   const directory = skillsDir(options);
   const withSkills = target !== 'agents-md';
   const usage = (tool: Registration) => (withSkills ? skillFile(tool, directory) : existingSkillFile(tool, directory));
-  const agents = target === 'skills' ? undefined : planAgentsMd(tools, options['agents-file'] ?? defaultAgentsFile, usage);
+  const agents = target === 'skills' ? undefined : planAgentsMd(tools, options['agents-file'] ?? defaultAgentsFile, usage, projectCommands());
   const skills = withSkills ? syncSkills(tools, directory) : {};
-  return { ...skills, ...(agents ? { agents_md: { file: agents.file, items: agents.items, changed: agents.write() } } : {}) };
+  const { write, ...agentsMd } = agents ?? {};
+  return { ...skills, ...(write ? { agents_md: { ...agentsMd, changed: write() } } : {}) };
+}
+
+const projectRootOrCwd = () => projectRoot() ?? process.cwd();
+
+function readCommandsFile(options: Options): { file: string; text: string } {
+  const file = options.file ? resolve(options.file) : findCommandsFile(projectRootOrCwd()).path;
+  if (!existsSync(file)) throw new Error(`No commands file at ${file}. Run clip commands init to start one.`);
+  return { file, text: readFileSync(file, 'utf8') };
+}
+
+function projectCommands(): ProjectCommands | undefined {
+  const found = findCommandsFile(projectRootOrCwd());
+  return found.exists ? { file: found.path, entries: parseCommands(readFileSync(found.path, 'utf8')) } : undefined;
 }

@@ -20,6 +20,9 @@ clip schema init <name> --purpose <text> --file <path>
 clip sync [--skills-dir <path>] [--target all|skills|agents-md] [--agents-file <path>]
 clip registry search [query]
 clip registry add <id> --purpose <text>
+clip commands [--file <path>]
+clip commands check [--file <path>]
+clip commands init [--file <path>]
 ```
 
-All commands accept `--output auto|json|text`. Auto uses JSON when piped and readable text on a terminal. List commands accept `--limit` from 1 to 10000, defaulting to 100, and include truncation metadata. Failures exit 1 with a structured error on stderr.
+All commands accept `--output auto|json|text`. Auto uses JSON when piped and readable text on a terminal. List commands accept `--limit` from 1 to 10000, defaulting to 100, and include truncation metadata. Failures exit 1 with a structured error on stderr. `clip commands check` also exits 1 when it finds errors, with its report on stdout. See [project commands](./commands.md).

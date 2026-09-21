@@ -69,6 +69,15 @@ Run `clip sync` after changes. Set `--skills-dir` to your agent's skills directo
 
 Sync also keeps a block in `AGENTS.md` listing each tool with its purpose and skill path, so harnesses without skill support still find it. CLIP edits only between its `<!-- clip:begin -->` and `<!-- clip:end -->` markers and refuses a damaged block. Use `--agents-file CLAUDE.md` for another file, or `--target skills` or `--target agents-md` to sync just one.
 
+For the project's own scripts, describe them in `.clip/commands.md`, a Markdown runbook whose decorators tell agents what each command does:
+
+```markdown
+- Check: `npm run check` — what CI runs #safe #ci
+- Deploy: `npm run deploy` #destructive
+```
+
+Run `clip commands init` to start one, `clip commands check` in CI to validate it, and `clip sync` to list the commands in `AGENTS.md`. See [project commands](https://clip.marginalutility.dev/docs/commands).
+
 After updating registered tools or CLIP's bundled registry, run `clip doctor` to check for missing executables and schema drift. Run `clip refresh` to reload file, native-probe, and registry schemas, update registrations, and synchronize skills. Manual registrations have no schema source to refresh. Native diagnosis and refresh rerun the explicitly registered, bounded probe command.
 
 ## CLI behavior

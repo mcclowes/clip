@@ -4,6 +4,7 @@
  * ---
  */
 import { contract } from './contract.ts';
+import { agentTags } from './commands-md.ts';
 export function page<T>(items: T[], limit: number) {
   return { items: items.slice(0, limit), total: items.length, truncated: items.length > limit };
 }
@@ -39,6 +40,11 @@ function renderItems(result: any): string {
 
 function itemLine(item: any): string {
   if (typeof item === 'string') return item;
+  if (item.severity) return `${item.line}: ${item.severity}: ${item.message}`;
+  if (item.command !== undefined) {
+    const tags = agentTags(item);
+    return `${item.name}\t${item.command}${tags.length ? ` [${tags.join(', ')}]` : ''}`;
+  }
   const label = `${item.id ?? item.name}${item.scope ? ` [${item.scope}]` : ''}`;
   const summary = item.purpose ?? item.executable ?? item.status ?? '';
   return `${label}\t${summary}${item.message ? `: ${item.message}` : ''}`;
