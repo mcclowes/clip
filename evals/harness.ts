@@ -32,11 +32,11 @@ export function assertKnownConditions(chosen: Condition[]): void {
   if (unknown.length) throw new Error(`Unknown conditions: ${unknown.join(', ')}. Known: ${conditions.join(', ')}`);
 }
 
-export type PrepareOptions = { extraCommands?: number; loads?: number; distractors?: boolean };
+export type PrepareOptions = { extraCommands?: number; loads?: number; distractors?: boolean; schema?: ClipSchema };
 export type Workspace = { root: string; cwd: string; statePath: string; env: NodeJS.ProcessEnv; claudeArgs: string[] };
 
 export function prepare(condition: Condition, options: PrepareOptions | number = {}): Workspace {
-  const { extraCommands = 0, loads, distractors: withDistractors = false } = typeof options === 'number' ? { extraCommands: options } : options;
+  const { extraCommands = 0, loads, distractors: withDistractors = false, schema: suppliedSchema } = typeof options === 'number' ? { extraCommands: options } : options;
   const root = mkdtempSync(join(tmpdir(), 'clip-eval-'));
   const cwd = join(root, 'work');
   const bin = join(root, 'bin');
@@ -59,7 +59,7 @@ export function prepare(condition: Condition, options: PrepareOptions | number =
   const format = skillFormatByCondition.get(condition);
   if (format) {
     const schemaPath = join(root, 'brindle.schema.json');
-    const schema = clipSchema(paddedCommands(extraCommands)) as ClipSchema;
+    const schema = suppliedSchema ?? clipSchema(paddedCommands(extraCommands)) as ClipSchema;
     writeFileSync(schemaPath, JSON.stringify(schema, null, 2));
     format.render({
       skillsDir: join(cwd, skillsDir), schema, schemaPath, executable: join(bin, 'brindle'), purpose: toolDescription,

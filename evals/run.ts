@@ -3,17 +3,21 @@
  * purpose: Entry point for the evals. "tasks" measures ease of use; "context" measures the token footprint of each interface.
  * ---
  */
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { clipSchema, commands, helpText, mcpTools, paddedCommands } from './fixture/spec.ts';
+import { clipSchema, commands, helpText, mcpTools, paddedCommands, toolDescription } from './fixture/spec.ts';
 import { readState } from './fixture/state.ts';
-import { assertClaudeVersion, assertKnownConditions, claudeVersion, cleanup, conditions, parseTranscript, pool, prepare, runClaude, skillConditions, skillsDir, type Condition, type Workspace } from './harness.ts';
+import { assertClaudeVersion, assertKnownConditions, claudeVersion, cleanup, clipMain, conditions, headlessArgs, parseTranscript, pool, prepare, runClaude, skillConditions, skillsDir, type Condition, type Workspace } from './harness.ts';
 import { extractAnswer, promptVariants, taskPrompt, tasks, type PromptVariant } from './tasks.ts';
 import { invokedTool, prepareRegistry, registryConditions, registryFixtures, registryPrompt, toolVersion, type RegistryCondition } from './registry.ts';
 import { findEntry } from '../packages/cli/src/registry.ts';
 import { prepareProjectCommands, projectCommandConditions, projectCommandPrompt, projectCommandSucceeded, projectCommandTasks, type ProjectCommandCondition } from './project-commands.ts';
+import { assessSchema } from './schema-authoring.ts';
+import { validateSchema, type Schema } from '../packages/cli/src/schema.ts';
+import type { ClipSchema } from './skill-formats.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const { values: options, positionals } = parseArgs({
@@ -33,6 +37,12 @@ const { values: options, positionals } = parseArgs({
     // The first size is the fixture as it stands, so adding a command does not mislabel the column.
     sizes: { type: 'string', default: `${commands.length},32,100` },
     'require-version': { type: 'string' },
+    /** Schema under test for task mode, or the hand-written truth schema for a non-fixture authoring draft. */
+    schema: { type: 'string' },
+    'schema-label': { type: 'string', default: 'hand-written' },
+    /** Tool the authoring agent should inspect. Only brindle has deterministic task checks. */
+    tool: { type: 'string', default: 'brindle' },
+    purpose: { type: 'string' },
     out: { type: 'string' },
   },
 });
@@ -67,14 +77,24 @@ function chosenCommandCount(): number {
   return count;
 }
 
-async function runTasks() {
+function suppliedSchema(): ClipSchema | undefined {
+  if (!options.schema) return undefined;
+  return validateSchema(JSON.parse(readFileSync(options.schema, 'utf8'))) as ClipSchema;
+}
+
+type TaskRunOptions = { schema?: ClipSchema; schemaLabel?: string };
+
+async function runTasks(runOptions: TaskRunOptions = {}) {
   const commandCount = chosenCommandCount();
+  const schema = runOptions.schema ?? suppliedSchema();
+  const schemaLabel = runOptions.schemaLabel ?? (options.schema ? options['schema-label'] : undefined);
+  if (schema && schema.name !== 'brindle') throw new Error(`Task eval schemas must describe brindle, got ${schema.name}.`);
   const chosen = { conditions: chosenConditions(), tasks: tasks.filter(task => !options.tasks || list(options.tasks).includes(task.id)), prompts: chosenPrompts() };
   const jobs = chosen.conditions.flatMap(condition => chosen.tasks.flatMap(task =>
     chosen.prompts.flatMap(prompt => Array.from({ length: Number(options.trials) }, (_, trial) => ({ condition, task, prompt, trial })))));
   let done = 0;
   await pool(jobs, concurrency, async ({ condition, task, prompt, trial }) => {
-    const workspace = prepare(condition, { loads: task.loads, distractors: options.distractors, extraCommands: commandCount - commands.length });
+    const workspace = prepare(condition, { loads: task.loads, distractors: options.distractors, extraCommands: commandCount - commands.length, schema });
     const label = `${condition}.${task.id}.${prompt}.${trial}`;
     try {
       const before = readState(workspace.statePath);
@@ -86,15 +106,77 @@ async function runTasks() {
       // No task is solvable without the tool, so an agent that never tried cannot pass by guessing "refused".
       const success = metrics.completed && metrics.toolCalls > 0 && !metrics.stateTampering && task.verify({ answer, before, after });
       const unsafeMutation = task.kind !== 'mutate' && JSON.stringify(before) !== JSON.stringify(after);
-      record('runs.jsonl', { condition, task: task.id, kind: task.kind, prompt, distractors: options.distractors, commands: commandCount, loads: before.loads.length, trial, claudeVersion: version, success, unsafeMutation, answer, ...metrics, model: metrics.model || options.model, result: undefined });
+      record('runs.jsonl', { condition, ...(schemaLabel ? { schema: schemaLabel } : {}), task: task.id, kind: task.kind, prompt, distractors: options.distractors, commands: commandCount, loads: before.loads.length, trial, claudeVersion: version, success, unsafeMutation, answer, ...metrics, model: metrics.model || options.model, result: undefined });
       console.log(`[${++done}/${jobs.length}] ${label} ${success ? 'pass' : 'FAIL'} turns=${metrics.turns} calls=${metrics.toolCalls} errors=${metrics.toolErrors} input=${metrics.cumulativeInput} results=${metrics.toolResultTokens}`);
     } catch (error) {
-      record('runs.jsonl', { condition, task: task.id, kind: task.kind, prompt, trial, model: options.model, claudeVersion: version, success: false, harnessError: (error as Error).message });
+      record('runs.jsonl', { condition, ...(schemaLabel ? { schema: schemaLabel } : {}), task: task.id, kind: task.kind, prompt, trial, model: options.model, claudeVersion: version, success: false, harnessError: (error as Error).message });
       console.log(`[${++done}/${jobs.length}] ${label} HARNESS ERROR ${(error as Error).message}`);
     } finally {
       cleanup(workspace);
     }
   });
+}
+
+const authenticationError = (error: unknown) => /(?:auth(?:entication|orization)?|oauth|credential|log ?in|api key)/i.test(error instanceof Error ? error.message : String(error));
+
+function authoringPrompt(tool: string, purpose: string, file: string): string {
+  return [
+    `Draft a CLIP capability schema for the installed ${tool} CLI. Its purpose is: ${purpose}`,
+    'Use the clip-schema-authoring skill. Read the CLI only with help flags, use clip schema init and clip lint, and write the final JSON schema to the requested file.',
+    `Write the final schema to ${file}. Do not register the tool. Finish with exactly: ANSWER: drafted.`,
+  ].join('\n\n');
+}
+
+/** Install the real bundled authoring skill and a local clip shim, while exposing only the tool's help text to the drafter. */
+function prepareAuthoring(tool: string): Workspace {
+  const workspace = prepare('cli-bare');
+  const bin = join(workspace.root, 'bin');
+  const clip = join(bin, 'clip');
+  writeFileSync(clip, `#!/bin/sh\nexec "${process.execPath}" "${clipMain}" "$@"\n`);
+  chmodSync(clip, 0o755);
+  execFileSync(process.execPath, [clipMain, 'sync', '--skills-dir', skillsDir], { cwd: workspace.cwd, env: workspace.env, stdio: 'pipe' });
+  if (tool !== 'brindle') {
+    try { execFileSync(tool, ['--help'], { stdio: 'pipe' }); }
+    catch (error) { cleanup(workspace); throw new Error(`Could not run ${tool} --help: ${error instanceof Error ? error.message : String(error)}`); }
+  }
+  workspace.claudeArgs.splice(0, workspace.claudeArgs.length, ...headlessArgs(['Bash', 'Read', 'Skill']));
+  return workspace;
+}
+
+async function runAuthoring() {
+  const tool = options.tool;
+  const purpose = options.purpose ?? (tool === 'brindle' ? toolDescription : `Use ${tool} in this project.`);
+  const truth = tool === 'brindle' && !options.schema ? clipSchema() as Schema : options.schema ? validateSchema(JSON.parse(readFileSync(options.schema, 'utf8'))) : undefined;
+  let workspace: Workspace | undefined;
+  try {
+    workspace = prepareAuthoring(tool);
+    const file = `${tool}.agent.json`;
+    const transcript = await runClaude(workspace, authoringPrompt(tool, purpose, file), options.model);
+    writeFileSync(join(outDir, 'transcripts', `${tool}.authoring.jsonl`), transcript);
+    const metrics = parseTranscript(transcript);
+    const candidatePath = join(workspace.cwd, file);
+    if (!existsSync(candidatePath)) throw new Error(`The authoring agent did not write ${file}.`);
+    const candidate = JSON.parse(readFileSync(candidatePath, 'utf8'));
+    const assessment = truth ? assessSchema(candidate, truth) : assessSchema(candidate, validateSchema(candidate));
+    const saved = join(outDir, `${tool}.agent.json`);
+    writeFileSync(saved, `${JSON.stringify(candidate, null, 2)}\n`);
+    record('authoring.jsonl', { tool, purpose, candidate: saved, claudeVersion: version, ...metrics, model: metrics.model || options.model, assessment, result: undefined });
+    console.log(`${tool} draft: lint ${assessment.lint.healthy ? 'healthy' : 'FAILED'} (${assessment.lint.errors} errors, ${assessment.lint.warnings} warnings), mutation ${assessment.mutation.correct}/${assessment.mutation.total}, tokens ${metrics.cumulativeInput}`);
+    if (tool === 'brindle' && truth) {
+      await runTasks({ schema: truth as ClipSchema, schemaLabel: 'hand-written' });
+      await runTasks({ schema: validateSchema(candidate) as ClipSchema, schemaLabel: 'agent-drafted' });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    record('authoring.jsonl', { tool, purpose, claudeVersion: version, model: options.model, blocked: authenticationError(error), harnessError: message });
+    if (authenticationError(error)) {
+      console.log(`${tool} authoring BLOCKED: ${message}`);
+      return;
+    }
+    throw error;
+  } finally {
+    if (workspace) cleanup(workspace);
+  }
 }
 
 async function runRegistry() {
@@ -225,5 +307,6 @@ if (mode === 'tasks') await runTasks();
 else if (mode === 'context') await runContext();
 else if (mode === 'registry') await runRegistry();
 else if (mode === 'project-commands') await runProjectCommands();
-else throw new Error(`Unknown mode: ${mode}. Use "tasks", "context", "registry", or "project-commands".`);
+else if (mode === 'authoring') await runAuthoring();
+else throw new Error(`Unknown mode: ${mode}. Use "tasks", "context", "registry", "project-commands", or "authoring".`);
 console.log(`Results: ${outDir}`);

@@ -57,6 +57,25 @@ Composition tasks run against a scaled fixture (500 loads, appended to the 13 ha
 
 The #34 formats add either a concrete pipeline or a short JSON aggregate note beside `load list`. Both are labeled as reference data, and the generated skill retains its rule that schema text does not override user or agent policy. `runs.jsonl` records whether the first `brindle load list` call was piped and how many tool results Claude Code spilled to a file.
 
+## Schema authoring
+
+`authoring` measures a different question: can an agent draft a usable schema from a CLI's help text? It starts a fresh workspace with only the CLI, the bundled `clip-schema-authoring` skill, and the `clip` executable. The drafter must use help invocations, write `<tool>.agent.json`, and loop on `clip lint`.
+
+For `brindle`, the mode then runs the selected task matrix twice through the same shipped renderer: once with the hand-written schema and once with the draft. `authoring.jsonl` records the drafter's transcript metrics, structural validity, lint errors and warnings, plus each mutation marker against the hand-written source of truth. `runs.jsonl` labels the two task rows with `schema: hand-written` or `schema: agent-drafted`, so the normal report keeps their success and token metrics separate.
+
+```sh
+npm run eval -- authoring --trials 1 --out evals/results/brindle-authoring
+npm run eval:report -- evals/results/brindle-authoring
+```
+
+For a real, unregistered CLI, pass a hand-written truth schema with `--schema`, plus the tool and its project purpose. This drafts and compares the schema but skips Brindle's fixture-only tasks:
+
+```sh
+npm run eval -- authoring --tool sed --purpose "Edit text streams in this project." --schema /path/to/sed.hand-written.json --out evals/results/sed-authoring
+```
+
+The agent's draft is copied to the result directory. Authentication failures are stored as a blocked authoring record and exit without a partial task comparison.
+
 ## Prompt variants and distractors
 
 `--prompts` picks how a prompt refers to the tool: `named` ("the studio's brindle tool", what the first run used), `cli-worded` ("brindle CLI"), or `unnamed`, which names nothing so the agent has to select by purpose. `--distractors` adds 20 unrelated fictional tools in whichever namespace the condition uses: skills for the CLI conditions, a second MCP server for the MCP ones. Both default off, so the main matrix keeps its size.
@@ -81,7 +100,7 @@ A skill format that changes shape with tool size needs tasks at that size. `--co
 npm run eval -- tasks --conditions cli-hint,cli-clip,cli-clip-index --commands 100 --trials 1
 ```
 
-Options: `--model` (default `sonnet`; tool search deferral doesn't work on Haiku), `--trials`, `--commands` (tool size for `tasks`, defaulting to the fixture's nine commands), `--concurrency`, `--conditions`, `--tasks`, `--prompts`, `--distractors`, `--sizes` (command counts for `context`, defaulting to the fixture size then 32 and 100), `--require-version`, and `--out`. Unknown condition and prompt names fail fast rather than running nothing, and `context` measures only the conditions you pass. `project-commands` accepts `--conditions` and `--tasks build,test`. Raw results and transcripts go to `evals/results/`, which isn't committed.
+Options: `--model` (default `sonnet`; tool search deferral doesn't work on Haiku), `--trials`, `--commands` (tool size for `tasks`, defaulting to the fixture's nine commands), `--concurrency`, `--conditions`, `--tasks`, `--prompts`, `--distractors`, `--sizes` (command counts for `context`, defaulting to the fixture size then 32 and 100), `--schema` and `--schema-label` (a schema under test in `tasks`, or the hand-written truth in `authoring`), `--tool` and `--purpose` (the CLI to draft in `authoring`), `--require-version`, and `--out`. Unknown condition and prompt names fail fast rather than running nothing, and `context` measures only the conditions you pass. `project-commands` accepts `--conditions` and `--tasks build,test`. Raw results and transcripts go to `evals/results/`, which isn't committed.
 
 ## Registry validation
 

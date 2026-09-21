@@ -264,6 +264,12 @@ The signature format costs 33% to 50% more to load than the current skill. It st
 - Weaker models, where mutation markers and argument detail should matter more. Haiku cannot defer tools.
 - Other agent harnesses. Two Claude Code patch releases moved the baseline by 10,000 tokens and flipped a headline result, so treat any single-harness number as perishable.
 
+### Schema authoring comparison
+
+Issue [#38](https://github.com/mcclowes/clip/issues/38) adds an authoring run alongside the interface matrix. The drafter gets only an installed CLI, the bundled `clip-schema-authoring` skill, and `clip`; it reads help, writes a schema, and lints it. The result records lint errors and warnings, every drafted mutation marker against the hand-written schema, and the drafter's token use.
+
+For Brindle, the same task matrix then runs with the hand-written and agent-drafted schemas through the shipped skill renderer. The report splits task success and token metrics by schema. Real, unregistered tools can use the same draft-and-compare command with a hand-written truth schema, although they do not have Brindle's deterministic task fixture.
+
 ---
 
 ## First run (18 September 2026)

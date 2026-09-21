@@ -8,7 +8,7 @@ import { test } from 'node:test';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-function reportOn(files: { runs?: object[]; context?: object[] }, args: string[] = []): string {
+function reportOn(files: { runs?: object[]; context?: object[]; authoring?: object[] }, args: string[] = []): string {
   const directory = mkdtempSync(join(tmpdir(), 'clip-report-'));
   try {
     for (const [name, rows] of Object.entries(files)) {
@@ -123,4 +123,22 @@ test('project-command runs get their own report heading', () => {
   ]);
   assert.match(report, /^## Project command discovery/m);
   assert.doesNotMatch(report, /^## Ease of use/m);
+});
+
+test('authoring results report lint, mutation markers, and drafting tokens', () => {
+  const report = reportOn({ authoring: [{
+    tool: 'brindle', claudeVersion: '2.1.278', model: 'sonnet', cumulativeInput: 12_000, outputTokens: 500, toolResultTokens: 100,
+    assessment: { valid: true, lint: { healthy: true, errors: 0, warnings: 2 }, mutation: { correct: 8, total: 9, missing: 1, wrong: 0, markers: [{ command: 'load list', expected: false, actual: false, correct: true }] } },
+  }] });
+  assert.match(report, /Schema authoring: brindle/);
+  assert.match(report, /Lint: healthy \(0 errors, 2 warnings\)/);
+  assert.match(report, /Mutation markers: 8\/9 correct, 1 missing, 0 wrong/);
+  assert.match(report, /cumulativeInput: 12000/);
+  assert.match(report, /\| load list \| false \| false \| yes \|/);
+});
+
+test('task reports keep hand-written and drafted schemas separate', () => {
+  const report = reportFor([run({ schema: 'hand-written' }), run({ trial: 1, schema: 'agent-drafted' })]);
+  assert.match(report, /cli-clip \(hand-written\)/);
+  assert.match(report, /cli-clip \(agent-drafted\)/);
 });
