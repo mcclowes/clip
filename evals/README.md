@@ -59,6 +59,23 @@ npm run eval -- tasks --conditions cli-hint,cli-clip,cli-clip-index --commands 1
 
 Options: `--model` (default `sonnet`; tool search deferral doesn't work on Haiku), `--trials`, `--commands` (tool size for `tasks`, defaulting to the fixture's nine commands), `--concurrency`, `--conditions`, `--tasks`, `--prompts`, `--distractors`, `--sizes` (command counts for `context`, defaulting to the fixture size then 32 and 100), `--require-version`, and `--out`. Unknown condition and prompt names fail fast rather than running nothing, and `context` measures only the conditions you pass. Raw results and transcripts go to `evals/results/`, which isn't committed.
 
+## Registry validation
+
+`registry` mode runs a [registry](../registry/index.json) schema against its real tool, not a fictional one, so a community schema can be marked as agent-validated ([#22](https://github.com/mcclowes/clip/issues/22)). `evals/registry.ts` gives each covered tool a scratch fixture and two read-only tasks with deterministic verifiers: a git repo with staged, restaged, unstaged, and untracked changes; a 400-item JSON inventory; and a source tree with ignored, hidden, and regex-trap matches. The executable on PATH runs as it is. `cli-bare` gets nothing else, and `cli-clip` gets the skill from the real `clip registry add` and `clip sync`.
+
+A run passes only if the answer is right, a shell call actually invoked the tool (by name or absolute path), and the fixture is unchanged. Unit tests solve every task with the real tool, so an expectation that drifts from the tool fails in `npm test` rather than in a paid run.
+
+```sh
+npm run eval -- registry --tools git,jq,rg --trials 2 --out evals/results/registry-validate
+npm run eval:validate -- evals/results/registry-validate
+```
+
+`eval:validate` writes a `validation` record to each entry in `registry/index.json`: `validated`, pass counts with and without the schema, the resolved model, the Claude Code, CLIP, and tool versions, the date, and the schema digest it ran against. `validated` means every `cli-clip` run passed. It refuses runs that mix models or tool versions, or that ran against a schema that has since changed. Regenerate the site data afterwards with `node scripts/site-registry.mjs`.
+
+A validation holds only for its digest. Editing a schema makes `clip registry search` and the site report it as stale until someone reruns it. Nothing expires by date: the record carries the versions, and readers judge age from those. Failed runs are for reading, not automation. Turn a repeated wrong guess into a `gotchas` entry by hand.
+
+Only tools with a safe local fixture are covered. `kubectl`, `terraform`, and `docker` would need live infrastructure, and `gh` and `curl` need the network, so they stay unvalidated.
+
 ## Claude Code version
 
 Every run prints the installed Claude Code version at the start and records it on every `runs.jsonl` and `context.jsonl` row, because the harness prompt changes between patch releases and can move a result on its own ([#30](https://github.com/mcclowes/clip/issues/30)). `--require-version 2.1.278` makes a rerun meant to reproduce an earlier result fail fast instead of quietly measuring something else.
