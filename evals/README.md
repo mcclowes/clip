@@ -13,6 +13,7 @@ One fictional tool, `brindle`, is exposed through every interface from a single 
 | `cli-clip` | `brindle` on PATH plus the skill from the real `clip register` and `clip sync` |
 | `cli-clip-signatures` | The same, rendered by the eval's own signature renderer with `schema.json` beside it, as proposed in [#11](https://github.com/mcclowes/clip/issues/11) before it shipped |
 | `cli-clip-index` | The shipped renderer with its index forced at any size: `SKILL.md` lists group files, and usage lines live in `commands/<group>.md` ([#12](https://github.com/mcclowes/clip/issues/12)) |
+| `cli-clip-no-examples` | The shipped renderer with every example stripped, so the first example beside each read command can be measured ([#20](https://github.com/mcclowes/clip/issues/20)) |
 | `mcp-eager` | An MCP server with tool schemas loaded upfront |
 | `mcp-deferred` | The same server with schemas deferred behind tool search |
 

@@ -40,3 +40,15 @@ test('the index format writes an index and group files, and no schema.json', t =
   assert.ok(readFileSync(join(dir, 'SKILL.md'), 'utf8').includes('`commands/load.md`: load list, load show, load queue, load move, load cancel'));
   assert.ok(readFileSync(join(dir, 'commands/load.md'), 'utf8').includes('`brindle load cancel <load> --reason <reason> [--dry-run]`'));
 });
+
+test('the no-examples format is the shipped skill minus its example on each usage line', t => {
+  const skillsDir = mkdtempSync(join(tmpdir(), 'clip-format-'));
+  t.after(() => rmSync(skillsDir, { recursive: true, force: true }));
+  const format = skillFormats.find(item => item.id === 'no-examples')!;
+  format.render({ skillsDir, schema, schemaPath: '/unused', executable: '/bin/brindle', purpose: 'test the thing', clip: () => assert.fail('no-examples renders without clip') });
+  const dir = join(skillsDir, 'clip-brindle');
+  const skill = readFileSync(join(dir, 'SKILL.md'), 'utf8');
+  assert.doesNotMatch(skill, /Example/);
+  assert.ok(skill.includes('- `brindle load list [--status '), 'usage lines stay inline');
+  assert.doesNotMatch(readFileSync(join(dir, 'commands/load.md'), 'utf8'), /Example/);
+});

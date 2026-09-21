@@ -5,7 +5,7 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { renderSkillFiles } from '../packages/cli/src/skill-render.ts';
+import { type RenderOptions, renderSkillFiles } from '../packages/cli/src/skill-render.ts';
 
 type Arg = { name: string; type: string; description: string; required?: boolean; positional?: boolean; enum?: readonly string[] };
 type SchemaCommand = { name: string; description: string; mutating?: boolean; args?: Arg[]; examples?: string[] };
@@ -64,6 +64,15 @@ export function renderSignatureSkill(schema: ClipSchema, purpose: string, execut
   ].join('\n');
 }
 
+/** Writes the skill `renderSkillFiles` produces, bypassing `clip sync` so a format can pass the schema or options it wants. */
+function writeShipped(skillsDir: string, schema: ClipSchema, purpose: string, executable: string, options?: RenderOptions) {
+  const dir = join(skillsDir, skillDirName(schema));
+  for (const [path, content] of renderSkillFiles({ skillName: skillDirName(schema), name: schema.name, purpose, executable, schema }, options)) {
+    mkdirSync(dirname(join(dir, path)), { recursive: true });
+    writeFileSync(join(dir, path), content);
+  }
+}
+
 export const skillFormats: SkillFormat[] = [
   {
     id: 'current',
@@ -86,13 +95,13 @@ export const skillFormats: SkillFormat[] = [
   {
     id: 'index',
     summary: 'The large-tool path of the shipped renderer at any size: SKILL.md as an index, usage lines in per-group files (#12).',
-    render: ({ schema, purpose, executable, skillsDir }) => {
-      const dir = join(skillsDir, skillDirName(schema));
-      for (const [path, content] of renderSkillFiles({ skillName: skillDirName(schema), name: schema.name, purpose, executable, schema }, { inlineLimit: 0 })) {
-        mkdirSync(dirname(join(dir, path)), { recursive: true });
-        writeFileSync(join(dir, path), content);
-      }
-    },
+    render: ({ schema, purpose, executable, skillsDir }) => writeShipped(skillsDir, schema, purpose, executable, { inlineLimit: 0 }),
+  },
+  {
+    id: 'no-examples',
+    summary: 'The shipped renderer with every example stripped, so the bounded first example beside each read command can be measured (#20).',
+    render: ({ schema, purpose, executable, skillsDir }) =>
+      writeShipped(skillsDir, { ...schema, commands: schema.commands.map(({ examples: _examples, ...command }) => command) }, purpose, executable),
   },
 ];
 
