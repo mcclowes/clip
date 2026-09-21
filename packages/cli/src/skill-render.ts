@@ -5,11 +5,17 @@
  */
 import type { Operation, Schema } from './schema.ts';
 
-/** Above this many commands, SKILL.md holds an index and usage lines move to group files. */
-export const indexThreshold = 15;
+/**
+ * Usage lines stay in SKILL.md up to this many characters, about 8,000 tokens. An index costs the agent another
+ * turn, which resends the whole context: at 100 commands and 7,700 tokens of usage lines, evals measured no saving from it.
+ */
+export const inlineLimit = 32_000;
+/** A group file over this many commands splits on the next word. */
+export const groupLimit = 15;
 export const groupDir = 'commands';
 
 export type SkillSource = { skillName: string; name: string; purpose: string; executable: string; schema?: Schema };
+export type RenderOptions = { inlineLimit?: number };
 
 type Arg = { name: string; type?: string; required?: boolean; positional?: boolean; enum?: readonly string[]; description?: string; default?: unknown; aliases?: readonly string[] };
 type OutputField = { name?: string; description?: string };
@@ -72,20 +78,27 @@ function commandDetail(tool: string, command: Command): string[] {
   ];
 }
 
-/** A command's last word names the command, not a group, so splitting never reaches one file per command. */
-const groupKey = (command: Command, depth: number) => command.words.slice(0, Math.max(1, Math.min(depth, command.words.length - 1))).join(' ');
+type Grouping = { key: string; commands: Command[] };
 
-/** Groups by leading words, splitting any group still over the threshold on the next word. */
-function groupCommands(commands: Command[], depth = 1): { key: string; commands: Command[] }[] {
-  const groups = new Map<string, Command[]>();
-  for (const command of commands) groups.set(groupKey(command, depth), [...(groups.get(groupKey(command, depth)) ?? []), command]);
-  return [...groups].flatMap(([key, members]) => {
-    const canSplit = members.length > indexThreshold && members.some(command => command.words.length > depth + 1);
-    return canSplit ? groupCommands(members, depth + 1) : [{ key, commands: members }];
+/**
+ * Groups by leading words, splitting any group over the limit on the next word. A split keeps a command in the file
+ * named after it, beside its own subcommands, and returns commands left alone by the split to the parent group.
+ */
+function groupCommands(commands: Command[], depth = 1, parent = ''): Grouping[] {
+  const byKey = new Map<string, Command[]>();
+  for (const command of commands) {
+    const key = command.words.slice(0, depth).join(' ');
+    byKey.set(key, [...(byKey.get(key) ?? []), command]);
+  }
+  const lone = depth > 1 ? [...byKey.values()].filter(members => members.length === 1).flat() : [];
+  const split = [...byKey].filter(([, members]) => !lone.includes(members[0]!)).flatMap(([key, members]) => {
+    const canSplit = members.length > groupLimit && members.some(command => command.words.length > depth);
+    return canSplit ? groupCommands(members, depth + 1, key) : [{ key, commands: members }];
   });
+  return lone.length ? [{ key: parent, commands: lone }, ...split] : split;
 }
 
-function withFiles(groups: { key: string; commands: Command[] }[]): Group[] {
+function withFiles(groups: Grouping[]): Group[] {
   const used = new Set<string>();
   return groups.map(group => {
     const slug = group.key.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'command';
@@ -100,25 +113,26 @@ function renderGroup(tool: string, group: Group): string {
   return [`# ${tool} ${group.key}`, '', ...group.commands.flatMap(command => commandDetail(tool, command)), '', legend, ''].join('\n');
 }
 
-function commandSection(tool: string, commands: Command[], groups: Group[]): string[] {
-  if (commands.length > indexThreshold) {
+function commandSection(tool: string, commands: Command[], groups: Group[], limit: number): string[] {
+  const usage = commands.map(command => usageLine(tool, command));
+  if (usage.join('\n').length > limit) {
     return [
       `${tool} has ${commands.length} commands. Before running one, read the file for its group next to this file; it gives usage lines, arguments, and examples.`, '',
       ...groups.map(group => `- ${code(group.file)}: ${group.commands.map(command => command.path).join(', ')}`), '',
     ];
   }
   return [
-    ...commands.map(command => usageLine(tool, command)), '',
+    ...usage, '',
     legend,
     `Argument descriptions, output notes, and more examples are next to this file in ${groups.map(group => code(group.file)).join(', ')}.`, '',
   ];
 }
 
 /** Every file a skill contains, keyed by path relative to the skill directory. */
-export function renderSkillFiles(source: SkillSource): Map<string, string> {
+export function renderSkillFiles(source: SkillSource, options: RenderOptions = {}): Map<string, string> {
   const commands = source.schema ? invocableCommands(source.schema) : [];
   const groups = withFiles(groupCommands(commands));
-  const body = source.schema ? commandSection(source.name, commands, groups) : ['No capability schema registered. Ask the user to supply one before assuming supported operations.', ''];
+  const body = source.schema ? commandSection(source.name, commands, groups, options.inlineLimit ?? inlineLimit) : ['No capability schema registered. Ask the user to supply one before assuming supported operations.', ''];
   const skill = [
     '---', `name: ${source.skillName}`, `description: ${JSON.stringify(`Use ${source.name} to ${source.purpose}`)}`, '---', '',
     `# ${source.name}`, '', source.purpose, '', `Executable: ${JSON.stringify(source.executable)}`, '',

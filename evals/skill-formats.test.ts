@@ -30,13 +30,13 @@ test('the signature skill names every command and points at its own schema copy'
   assert.equal(rendered.match(/\*\*\[mutating\]\*\*/g)?.length, schema.commands.filter(item => item.mutating).length);
 });
 
-test('the groups format writes usage lines and group files, and no schema.json', t => {
+test('the index format writes an index and group files, and no schema.json', t => {
   const skillsDir = mkdtempSync(join(tmpdir(), 'clip-format-'));
   t.after(() => rmSync(skillsDir, { recursive: true, force: true }));
-  const format = skillFormats.find(item => item.id === 'groups')!;
-  format.render({ skillsDir, schema, schemaPath: '/unused', executable: '/bin/brindle', purpose: 'test the thing', clip: () => assert.fail('groups renders without clip') });
+  const format = skillFormats.find(item => item.id === 'index')!;
+  format.render({ skillsDir, schema, schemaPath: '/unused', executable: '/bin/brindle', purpose: 'test the thing', clip: () => assert.fail('index renders without clip') });
   const dir = join(skillsDir, 'clip-brindle');
   assert.deepEqual(readdirSync(dir).sort(), ['SKILL.md', 'commands']);
-  assert.ok(readFileSync(join(dir, 'SKILL.md'), 'utf8').includes('`brindle load cancel <load> --reason <reason> [--dry-run]`'));
-  assert.ok(readFileSync(join(dir, 'commands/load.md'), 'utf8').includes('Why the load is cancelled.'));
+  assert.ok(readFileSync(join(dir, 'SKILL.md'), 'utf8').includes('`commands/load.md`: load list, load show, load queue, load move, load cancel'));
+  assert.ok(readFileSync(join(dir, 'commands/load.md'), 'utf8').includes('`brindle load cancel <load> --reason <reason> [--dry-run]`'));
 });

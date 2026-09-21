@@ -84,11 +84,11 @@ export const skillFormats: SkillFormat[] = [
     },
   },
   {
-    id: 'groups',
-    summary: 'Usage lines in SKILL.md up to 15 commands, an index above that, and per-group reference files instead of schema.json (#11, #12).',
+    id: 'index',
+    summary: 'The large-tool path of the shipped renderer at any size: SKILL.md as an index, usage lines in per-group files (#12).',
     render: ({ schema, purpose, executable, skillsDir }) => {
       const dir = join(skillsDir, skillDirName(schema));
-      for (const [path, content] of renderSkillFiles({ skillName: skillDirName(schema), name: schema.name, purpose, executable, schema })) {
+      for (const [path, content] of renderSkillFiles({ skillName: skillDirName(schema), name: schema.name, purpose, executable, schema }, { inlineLimit: 0 })) {
         mkdirSync(dirname(join(dir, path)), { recursive: true });
         writeFileSync(join(dir, path), content);
       }

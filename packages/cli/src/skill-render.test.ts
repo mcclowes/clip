@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { indexThreshold, renderSkillFiles } from './skill-render.ts';
+import { groupLimit, inlineLimit, renderSkillFiles, type RenderOptions } from './skill-render.ts';
 import type { Operation, Schema } from './schema.ts';
 
 const kiln: Schema = { name: 'kiln', commands: [
@@ -15,7 +15,8 @@ const kiln: Schema = { name: 'kiln', commands: [
   { name: 'project', description: 'Projects', subcommands: [{ name: 'list', description: 'List projects' }] },
 ] };
 
-const render = (schema?: Schema) => renderSkillFiles({ skillName: 'clip-kiln', name: 'kiln', purpose: 'Fire kilns', executable: '/bin/kiln', ...(schema ? { schema } : {}) });
+const render = (schema?: Schema, options?: RenderOptions) => renderSkillFiles({ skillName: 'clip-kiln', name: 'kiln', purpose: 'Fire kilns', executable: '/bin/kiln', ...(schema ? { schema } : {}) }, options);
+const forceIndex = { inlineLimit: 1000 };
 
 function manyCommands(count: number): Schema {
   const commands: Operation[] = Array.from({ length: count }, (_, index) => {
@@ -53,8 +54,8 @@ test('group files carry argument descriptions, defaults, aliases, output, and ev
   assert.match(load, /\n {2}- Examples: `kiln load show 7 --json`, `kiln load show 8`\n/);
 });
 
-test(`tools over ${indexThreshold} commands get an index in SKILL.md and usage lines in group files`, () => {
-  const files = render(manyCommands(100));
+test('usage lines over the inline limit become an index in SKILL.md and move to group files', () => {
+  const files = render(manyCommands(100), forceIndex);
   const skill = files.get('SKILL.md')!;
   assert.doesNotMatch(skill, /--limit/);
   assert.match(skill, /100 commands/);
@@ -64,13 +65,26 @@ test(`tools over ${indexThreshold} commands get an index in SKILL.md and usage l
   assert.equal(lines.length, 100, 'every command appears in exactly one group file');
 });
 
-test('groups over the threshold split on the next word', () => {
-  const groups = [...render(manyCommands(100)).keys()].filter(path => path !== 'SKILL.md').sort();
+test(`usage lines under ${inlineLimit} characters stay inline, however many commands there are`, () => {
+  const skill = render(manyCommands(100)).get('SKILL.md')!;
+  assert.equal(skill.match(/--limit/g)?.length, 100);
+});
+
+test(`groups over ${groupLimit} commands split on the next word`, () => {
+  const groups = [...render(manyCommands(100), forceIndex).keys()].filter(path => path !== 'SKILL.md').sort();
   assert.deepEqual(groups, ['commands/kiln-list.md', 'commands/kiln-show.md', 'commands/load-list.md', 'commands/load-show.md', 'commands/report-list.md', 'commands/report-show.md']);
 });
 
-test(`${indexThreshold} commands still render inline`, () => {
-  assert.match(render(manyCommands(indexThreshold)).get('SKILL.md')!, /--limit/);
+test('a split group keeps each command in the file named after it, and lone commands in the parent', () => {
+  const commands: Operation[] = [
+    { name: 'load queue', description: 'Queue' },
+    ...Array.from({ length: groupLimit }, (_, index) => ({ name: `load queue v${index}`, description: 'Clone' })),
+    { name: 'load show', description: 'Show' },
+  ];
+  const files = render({ name: 'kiln', commands }, forceIndex);
+  assert.deepEqual([...files.keys()].sort(), ['SKILL.md', 'commands/load-queue.md', 'commands/load.md']);
+  assert.match(files.get('commands/load-queue.md')!, /`kiln load queue` \*\*\[mutation unknown\]\*\* — Queue\./);
+  assert.match(files.get('commands/load.md')!, /`kiln load show`/);
 });
 
 test('group file names are safe and unique', () => {
