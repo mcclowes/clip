@@ -30,6 +30,14 @@ test('reading a skill group file counts as discovery', () => {
   assert.equal(metrics.discoveryCalls, 2);
 });
 
+test('composition metrics distinguish a piped first listing and file spills', () => {
+  const assistant = JSON.stringify({ type: 'assistant', message: { id: 'm-1', usage: { input_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 }, content: [{ type: 'tool_use', name: 'Bash', input: { command: "brindle load list --status done | jq '.items | length'" } }] } });
+  const result = JSON.stringify({ type: 'user', message: { content: [{ type: 'tool_result', content: 'Error: result exceeds maximum allowed tokens. Output has been saved to /tmp/output.' }] } });
+  const metrics = parseTranscript([assistant, result].join('\n'));
+  assert.equal(metrics.firstListCallPiped, true);
+  assert.equal(metrics.spills, 1);
+});
+
 test('reading project task manifests counts as discovery', () => {
   const call = (name: string, input: object) => JSON.stringify({ type: 'assistant', message: { id: `m-${name}-${JSON.stringify(input)}`, usage: { input_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 }, content: [{ type: 'tool_use', name, input }] } });
   const transcript = [

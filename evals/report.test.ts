@@ -52,10 +52,22 @@ test('sections appear only when their runs do', () => {
   ]);
   assert.match(full, /Pass rate by prompt variant/);
   assert.match(full, /unnamed \+ distractors/);
-  assert.match(full, /Tool-result tokens on scaled tasks/);
+  assert.match(full, /Composition on scaled tasks/);
   assert.match(full, /Long session/);
   // 140,000 over 14 turns is the always-loaded cost the long session is there to expose.
   assert.match(full, /\| 10000 \|/);
+});
+
+test('scaled-task reports include piping, spills, turns, pass rate, and tool-result tokens', () => {
+  const report = reportFor([
+    run({ task: 'reduction-share', loads: 500, turns: 3, firstListCallPiped: true, spills: 0, toolResultTokens: 200 }),
+    run({ trial: 1, task: 'reduction-share', loads: 500, turns: 4, firstListCallPiped: false, spills: 1, toolResultTokens: 1_200 }),
+  ]);
+  assert.match(report, /Composition on scaled tasks/);
+  assert.match(report, /Piped first call/);
+  assert.match(report, /Spilled runs/);
+  assert.match(report, /Turns \(median\)/);
+  assert.match(report, /2\/2/);
 });
 
 test('harness errors are counted out rather than scored as failures', () => {

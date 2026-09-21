@@ -69,11 +69,13 @@ function taskReport(rows: Row[]): string {
   const harnessErrors = rows.length - valid.length;
   const scaled = tasks.filter(task => valid.some(row => row.task === task && Number(row.loads) > 20));
   const composition = scaled.length ? [
-    '### Tool-result tokens on scaled tasks', '',
-    `Estimated from result text at four characters per token, over passing runs on ${scaled.join(', ')}.`, '',
-    table(['Condition', 'Tool-result tokens (median)', 'Cumulative input (median)', 'Tool calls'], conditions.map(condition => {
+    '### Composition on scaled tasks', '',
+    `Piped first call and spilled runs cover all valid runs on ${scaled.join(', ')}. Turns and tokens cover passing runs. Tool-result tokens are estimated from result text at four characters per token.`, '',
+    table(['Condition', 'Pass', 'Piped first call', 'Spilled runs', 'Turns (median)', 'Tool-result tokens (median)', 'Cumulative input (median)', 'Tool calls'], conditions.map(condition => {
+      const all = valid.filter(row => row.condition === condition && scaled.includes(String(row.task)));
       const passed = valid.filter(row => row.condition === condition && row.success && scaled.includes(String(row.task)));
-      return [condition, withSpread(metric(passed, 'toolResultTokens')), withSpread(metric(passed, 'cumulativeInput')), round(mean(metric(passed, 'toolCalls')))];
+      return [condition, passRate(passed.length, all.length), `${all.filter(row => row.firstListCallPiped).length}/${all.length}`, `${all.filter(row => Number(row.spills) > 0).length}/${all.length}`,
+        round(median(metric(passed, 'turns'))), withSpread(metric(passed, 'toolResultTokens')), withSpread(metric(passed, 'cumulativeInput')), round(mean(metric(passed, 'toolCalls')))];
     })), '',
   ] : [];
   const variants = unique(valid.map(row => `${row.prompt ?? 'named'}${row.distractors ? ' + distractors' : ''}`));

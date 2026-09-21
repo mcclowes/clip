@@ -3,7 +3,7 @@
  * purpose: Skill renderers the evals can A/B test, so proposed skill formats are measured before packages/cli changes.
  * ---
  */
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { type RenderOptions, renderSkillFiles } from '../packages/cli/src/skill-render.ts';
 
@@ -73,6 +73,16 @@ function writeShipped(skillsDir: string, schema: ClipSchema, purpose: string, ex
   }
 }
 
+/** Adds an eval-only reference line beside the list command without changing the shipped renderer. */
+function writeListReference(skillsDir: string, schema: ClipSchema, purpose: string, executable: string, reference: string) {
+  writeShipped(skillsDir, schema, purpose, executable);
+  const path = join(skillsDir, skillDirName(schema), 'SKILL.md');
+  const skill = readFileSync(path, 'utf8');
+  const usage = /^- `brindle load list .*$/m;
+  if (!usage.test(skill)) throw new Error('Could not find the brindle load list usage line.');
+  writeFileSync(path, skill.replace(usage, line => `${line}\n  - Reference data: ${reference}`));
+}
+
 export const skillFormats: SkillFormat[] = [
   {
     id: 'current',
@@ -102,6 +112,18 @@ export const skillFormats: SkillFormat[] = [
     summary: 'The shipped renderer with every example stripped, so the bounded first example beside each read command can be measured (#20).',
     render: ({ schema, purpose, executable, skillsDir }) =>
       writeShipped(skillsDir, { ...schema, commands: schema.commands.map(({ examples: _examples, ...command }) => command) }, purpose, executable),
+  },
+  {
+    id: 'piped-example',
+    summary: 'The shipped skill with a piped aggregate example beside `load list`, labeled as reference data (#34).',
+    render: ({ schema, purpose, executable, skillsDir }) =>
+      writeListReference(skillsDir, schema, purpose, executable, "example: `brindle load list --status done | jq '.items | length'`"),
+  },
+  {
+    id: 'pipe-note',
+    summary: 'The shipped skill with a JSON aggregate note beside `load list`, labeled as reference data (#34).',
+    render: ({ schema, purpose, executable, skillsDir }) =>
+      writeListReference(skillsDir, schema, purpose, executable, 'output is JSON; aggregate calculations can pipe it to `jq`.'),
   },
 ];
 

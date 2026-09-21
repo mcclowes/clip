@@ -34,6 +34,12 @@ The gap in tokens is within the spread and runs the wrong way for the hypothesis
 
 This doesn't test the rule as written. Brindle's `load list` has no cap or format flag and always emits JSON, so its first example is already bounded and machine-readable, and these tasks need every row anyway. What it does show is that an example beside the signature doesn't change how the agent composes. The spill is the recurring cost, and a bounded example can't prevent it when the task needs the whole set. Only piping on the first call can, and nothing in the skill currently shows piping.
 
+## Piped first-call run (blocked, 21 September 2026)
+
+The #34 matrix attempted three trials of `busiest-queue`, `count-beyond-flags`, and `reduction-share` for `cli-clip`, `cli-clip-piped-example`, and `cli-clip-pipe-note`. Claude Code failed authentication before every model turn: `OAuth session expired and could not be refreshed`.
+
+All 27 rows are harness errors. Piped first calls, spills, turns, pass rate, and tool-result tokens are unavailable, not zero. Re-authenticate the provider, then rerun the command in [the eval README](../evals/README.md#run).
+
 ## Skill format run (21 September 2026)
 
 Claude Code 2.1.278, Sonnet, one trial per cell. Targeted at [#11](https://github.com/mcclowes/clip/issues/11) and [#12](https://github.com/mcclowes/clip/issues/12): the eleven named-prompt tasks that aren't composition or long-session tasks, on `cli-hint` and the CLIP skill variants only, at 9 commands and at 100. 88 sessions.

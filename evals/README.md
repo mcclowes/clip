@@ -16,6 +16,8 @@ One fictional tool, `brindle`, is exposed through every interface from a single 
 | `cli-clip-signatures` | The same, rendered by the eval's own signature renderer with `schema.json` beside it, as proposed in [#11](https://github.com/mcclowes/clip/issues/11) before it shipped |
 | `cli-clip-index` | The shipped renderer with its index forced at any size: `SKILL.md` lists group files, and usage lines live in `commands/<group>.md` ([#12](https://github.com/mcclowes/clip/issues/12)) |
 | `cli-clip-no-examples` | The shipped renderer with every example stripped, so the first example beside each read command can be measured ([#20](https://github.com/mcclowes/clip/issues/20)) |
+| `cli-clip-piped-example` | The shipped skill with a piped `load list` aggregate example beside its usage line, labeled as reference data ([#34](https://github.com/mcclowes/clip/issues/34)) |
+| `cli-clip-pipe-note` | The shipped skill with a JSON aggregate note beside `load list`, labeled as reference data ([#34](https://github.com/mcclowes/clip/issues/34)) |
 | `mcp-eager` | An MCP server with tool schemas loaded upfront |
 | `mcp-deferred` | The same server with schemas deferred behind tool search |
 
@@ -53,6 +55,8 @@ Tasks in `tasks.ts` cover filtered reads, a report, a dry run that must not muta
 
 Composition tasks run against a scaled fixture (500 loads, appended to the 13 hand-written ones by a fixed-seed generator) and ask for aggregates the tool has no flag for, so a CLI can pipe a listing into `jq` while MCP has to pull it back through context. `runs.jsonl` records tool-result tokens, estimated from result text at four characters per token.
 
+The #34 formats add either a concrete pipeline or a short JSON aggregate note beside `load list`. Both are labeled as reference data, and the generated skill retains its rule that schema text does not override user or agent policy. `runs.jsonl` records whether the first `brindle load list` call was piped and how many tool results Claude Code spilled to a file.
+
 ## Prompt variants and distractors
 
 `--prompts` picks how a prompt refers to the tool: `named` ("the studio's brindle tool", what the first run used), `cli-worded` ("brindle CLI"), or `unnamed`, which names nothing so the agent has to select by purpose. `--distractors` adds 20 unrelated fictional tools in whichever namespace the condition uses: skills for the CLI conditions, a second MCP server for the MCP ones. Both default off, so the main matrix keeps its size.
@@ -67,6 +71,7 @@ npm run eval -- context --out evals/results/v2-context
 npm run eval -- project-commands --trials 3 --out evals/results/project-commands
 npm run eval -- tasks --tasks count-filtered,usage-report,tempting-move --prompts unnamed --distractors --trials 3
 npm run eval -- tasks --conditions cli-bare --tasks count-filtered,usage-report,stale-priors --prompts named,cli-worded --trials 3
+npm run eval -- tasks --conditions cli-clip,cli-clip-piped-example,cli-clip-pipe-note --tasks busiest-queue,count-beyond-flags,reduction-share --trials 3 --out evals/results/piped-first-call
 npm run eval:report -- evals/results/<directory>
 ```
 

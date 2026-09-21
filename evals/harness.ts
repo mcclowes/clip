@@ -101,6 +101,10 @@ export type Metrics = {
   toolCalls: number; toolErrors: number; discoveryCalls: number; stateTampering: boolean; calls: string[];
   firstTurnInput: number; peakInput: number; cumulativeInput: number; outputTokens: number;
   toolResultChars: number; toolResultTokens: number;
+  /** Whether the first `brindle load list` call was piped, for composition-task variants. */
+  firstListCallPiped: boolean;
+  /** Tool results that Claude Code saved to a file because they exceeded its result limit. */
+  spills: number;
 };
 
 const inputTokens = (usage: Usage) => usage.input_tokens + usage.cache_creation_input_tokens + usage.cache_read_input_tokens;
@@ -111,6 +115,14 @@ function resultText(block: Block): string {
   if (typeof block.content === 'string') return block.content;
   if (!Array.isArray(block.content)) return '';
   return block.content.map(part => (typeof part === 'string' ? part : String((part as { text?: unknown }).text ?? ''))).join('');
+}
+
+const loadList = /(?:^|[\s;&|("'/])(?:\S*\/)?brindle\s+load\s+list\b/;
+const resultSpill = /output has been saved to|exceeds maximum allowed tokens/i;
+
+function pipedFirstListCall(calls: Block[]): boolean {
+  const first = calls.find(block => block.name === 'Bash' && loadList.test(String(block.input?.command ?? '')));
+  return !!first && /\|/.test(String(first.input?.command ?? ''));
 }
 
 /** Any file a CLIP skill ships for the agent to read, including per-group reference files. */
@@ -130,6 +142,7 @@ export function parseTranscript(transcript: string): Metrics {
   const calls: Block[] = [];
   let toolErrors = 0;
   let toolResultChars = 0;
+  let spills = 0;
   for (const event of events) {
     const content = Array.isArray(event.message?.content) ? event.message.content : [];
     if (event.type === 'assistant') {
@@ -140,6 +153,7 @@ export function parseTranscript(transcript: string): Metrics {
       const results = content.filter(block => block.type === 'tool_result');
       toolErrors += results.filter(block => block.is_error).length;
       toolResultChars += results.reduce((sum, block) => sum + resultText(block).length, 0);
+      spills += results.filter(block => resultSpill.test(resultText(block))).length;
     }
   }
   const final = events.find(event => event.type === 'result');
@@ -152,6 +166,7 @@ export function parseTranscript(transcript: string): Metrics {
     calls: calls.map(block => `${block.name} ${JSON.stringify(block.input)}`.slice(0, 240)),
     firstTurnInput: inputs[0] ?? 0, peakInput: Math.max(0, ...inputs), cumulativeInput: final?.usage ? inputTokens(final.usage) : 0, outputTokens: final?.usage?.output_tokens ?? 0,
     toolResultChars, toolResultTokens: Math.round(toolResultChars / charsPerToken),
+    firstListCallPiped: pipedFirstListCall(calls), spills,
   };
 }
 
