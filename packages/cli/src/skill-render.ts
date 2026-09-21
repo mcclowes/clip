@@ -6,10 +6,11 @@
 import type { Operation, Schema } from './schema.ts';
 
 /**
- * Usage lines stay in SKILL.md up to this many characters, about 8,000 tokens. An index costs the agent another
- * turn, which resends the whole context: at 100 commands and 7,700 tokens of usage lines, evals measured no saving from it.
+ * Usage lines stay in SKILL.md up to this many characters, about 10,000 tokens at the 2.4 characters per token they measure.
+ * An index costs the agent a read per command group, and each read resends the whole context: at 100 commands and 7,700
+ * tokens of usage lines, evals measured no token saving from it and 1.5 more calls per task.
  */
-export const inlineLimit = 32_000;
+export const inlineLimit = 24_000;
 /** A group file over this many commands splits on the next word. */
 export const groupLimit = 15;
 export const groupDir = 'commands';
