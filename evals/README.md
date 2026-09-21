@@ -94,13 +94,25 @@ npm run eval -- tasks --conditions cli-clip,cli-clip-piped-example,cli-clip-pipe
 npm run eval:report -- evals/results/<directory>
 ```
 
+### Gotchas
+
+`--gotchas` adds the fixture's known command gotchas to the schema that `cli-clip` renders. Run a baseline and the gotcha variant into one result directory, using labels so the report keeps them separate:
+
+```sh
+npm run eval -- tasks --conditions cli-clip --tasks cancel-with-reason --trials 3 --schema-label without-gotchas --out evals/results/gotchas
+npm run eval -- tasks --conditions cli-clip --tasks cancel-with-reason --trials 3 --gotchas --schema-label with-gotchas --out evals/results/gotchas
+npm run eval:report -- evals/results/gotchas
+```
+
+The fixture currently records the positional load ID as a gotcha for `load cancel`. `--gotchas` cannot be combined with `--schema`; use a supplied schema when testing different gotchas.
+
 A skill format that changes shape with tool size needs tasks at that size. `--commands 100` pads `brindle` with inert clones for every condition, as `context` does, while the tasks still target the original nine commands:
 
 ```sh
 npm run eval -- tasks --conditions cli-hint,cli-clip,cli-clip-index --commands 100 --trials 1
 ```
 
-Options: `--model` (default `sonnet`; tool search deferral doesn't work on Haiku), `--trials`, `--commands` (tool size for `tasks`, defaulting to the fixture's nine commands), `--concurrency`, `--conditions`, `--tasks`, `--prompts`, `--distractors`, `--sizes` (command counts for `context`, defaulting to the fixture size then 32 and 100), `--schema` and `--schema-label` (a schema under test in `tasks`, or the hand-written truth in `authoring`), `--tool` and `--purpose` (the CLI to draft in `authoring`), `--require-version`, and `--out`. Unknown condition and prompt names fail fast rather than running nothing, and `context` measures only the conditions you pass. `project-commands` accepts `--conditions` and `--tasks build,test`. Raw results and transcripts go to `evals/results/`, which isn't committed.
+Options: `--model` (default `sonnet`; tool search deferral doesn't work on Haiku), `--trials`, `--commands` (tool size for `tasks`, defaulting to the fixture's nine commands), `--concurrency`, `--conditions`, `--tasks`, `--prompts`, `--distractors`, `--sizes` (command counts for `context`, defaulting to the fixture size then 32 and 100), `--schema` and `--schema-label` (a schema under test in `tasks`, or the hand-written truth in `authoring`), `--gotchas` (the fixture's known command gotchas in `tasks`), `--tool` and `--purpose` (the CLI to draft in `authoring`), `--require-version`, and `--out`. Unknown condition and prompt names fail fast rather than running nothing, and `context` measures only the conditions you pass. `project-commands` accepts `--conditions` and `--tasks build,test`. Raw results and transcripts go to `evals/results/`, which isn't committed.
 
 ## Registry validation
 

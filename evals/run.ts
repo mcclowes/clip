@@ -40,6 +40,8 @@ const { values: options, positionals } = parseArgs({
     /** Schema under test for task mode, or the hand-written truth schema for a non-fixture authoring draft. */
     schema: { type: 'string' },
     'schema-label': { type: 'string', default: 'hand-written' },
+    /** Include the fixture's known command gotchas in a task schema. */
+    gotchas: { type: 'boolean', default: false },
     /** Tool the authoring agent should inspect. Only brindle has deterministic task checks. */
     tool: { type: 'string', default: 'brindle' },
     purpose: { type: 'string' },
@@ -86,8 +88,9 @@ type TaskRunOptions = { schema?: ClipSchema; schemaLabel?: string };
 
 async function runTasks(runOptions: TaskRunOptions = {}) {
   const commandCount = chosenCommandCount();
-  const schema = runOptions.schema ?? suppliedSchema();
-  const schemaLabel = runOptions.schemaLabel ?? (options.schema ? options['schema-label'] : undefined);
+  if (options.gotchas && options.schema) throw new Error('--gotchas cannot be combined with --schema.');
+  const schema = runOptions.schema ?? suppliedSchema() ?? (options.gotchas ? clipSchema(paddedCommands(commandCount - commands.length), { gotchas: true }) as ClipSchema : undefined);
+  const schemaLabel = runOptions.schemaLabel ?? ((options.schema || options.gotchas || options['schema-label'] !== 'hand-written') ? options['schema-label'] : undefined);
   if (schema && schema.name !== 'brindle') throw new Error(`Task eval schemas must describe brindle, got ${schema.name}.`);
   const chosen = { conditions: chosenConditions(), tasks: tasks.filter(task => !options.tasks || list(options.tasks).includes(task.id)), prompts: chosenPrompts() };
   const jobs = chosen.conditions.flatMap(condition => chosen.tasks.flatMap(task =>
@@ -95,7 +98,7 @@ async function runTasks(runOptions: TaskRunOptions = {}) {
   let done = 0;
   await pool(jobs, concurrency, async ({ condition, task, prompt, trial }) => {
     const workspace = prepare(condition, { loads: task.loads, distractors: options.distractors, extraCommands: commandCount - commands.length, schema });
-    const label = `${condition}.${task.id}.${prompt}.${trial}`;
+    const label = [condition, schemaLabel, task.id, prompt, trial].filter(Boolean).join('.');
     try {
       const before = readState(workspace.statePath);
       const transcript = await runClaude(workspace, taskPrompt(task, prompt), options.model);

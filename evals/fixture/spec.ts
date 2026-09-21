@@ -11,7 +11,7 @@ export type State = { kilns: Kiln[]; loads: Load[] };
 
 export type Arg = { name: string; type: 'string' | 'integer' | 'boolean'; description: string; required?: boolean; positional?: boolean; enum?: readonly string[] };
 export type Values = Record<string, string | number | boolean | undefined>;
-export type Command = { name: string; description: string; mutating: boolean; args: Arg[]; examples: string[]; run: (state: State, values: Values) => unknown };
+export type Command = { name: string; description: string; mutating: boolean; args: Arg[]; examples: string[]; gotchas?: string[]; run: (state: State, values: Values) => unknown };
 
 export class UsageError extends Error {}
 
@@ -129,6 +129,7 @@ export const commands: Command[] = [
       dryRun,
     ],
     examples: ['brindle load cancel LD-0011 --reason "cracked greenware"'],
+    gotchas: ['The load id is positional; there is no --id flag.'],
     run: (state, values) => {
       const load = findLoad(state, values.load);
       assertQueued(load, 'cancel');
@@ -210,10 +211,13 @@ export function validate(command: Command, values: Values): Values {
 
 export const toolDescription = 'Schedule and inspect pottery kiln firings for the studio.';
 
-export function clipSchema(list: Command[] = commands) {
+export function clipSchema(list: Command[] = commands, { gotchas = false }: { gotchas?: boolean } = {}) {
   return {
     name: 'brindle', version: '1.0.0', description: toolDescription, command_layout: 'flat', output: { tty: 'json', piped: 'json' },
-    commands: list.map(({ name, description, mutating, args, examples }) => ({ name, description, mutating, args: args.map(arg => ({ ...arg })), examples })),
+    commands: list.map(({ name, description, mutating, args, examples, gotchas: commandGotchas }) => ({
+      name, description, mutating, args: args.map(arg => ({ ...arg })), examples,
+      ...(gotchas && commandGotchas ? { gotchas: [...commandGotchas] } : {}),
+    })),
   };
 }
 

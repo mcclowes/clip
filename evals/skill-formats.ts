@@ -8,8 +8,8 @@ import { dirname, join } from 'node:path';
 import { type RenderOptions, renderSkillFiles } from '../packages/cli/src/skill-render.ts';
 
 type Arg = { name: string; type: string; description: string; required?: boolean; positional?: boolean; enum?: readonly string[] };
-type SchemaCommand = { name: string; description: string; mutating?: boolean; args?: Arg[]; examples?: string[] };
-export type ClipSchema = { name: string; description?: string; commands: SchemaCommand[] };
+type SchemaCommand = { name: string; description: string; mutating?: boolean; args?: Arg[]; examples?: string[]; gotchas?: string[] };
+export type ClipSchema = { name: string; description?: string; gotchas?: string[]; commands: SchemaCommand[] };
 
 /** What `prepare` hands a renderer: where skills go, the schema, and the real `clip` CLI. */
 export type SkillContext = {

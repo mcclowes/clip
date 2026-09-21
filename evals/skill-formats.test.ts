@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { clipSchema } from './fixture/spec.ts';
-import { conditions, skillConditions } from './harness.ts';
+import { cleanup, conditions, prepare, skillConditions } from './harness.ts';
 import { renderSignatureSkill, signature, skillFormats, type ClipSchema } from './skill-formats.ts';
 
 const schema = clipSchema() as ClipSchema;
@@ -20,6 +20,19 @@ test('signatures show required arguments bare and optional ones bracketed', () =
   assert.equal(signature('brindle', command('kiln list')), 'brindle kiln list');
   assert.equal(signature('brindle', command('load cancel')), 'brindle load cancel <load> --reason <reason> [--dry-run]');
   assert.equal(signature('brindle', command('load queue')), 'brindle load queue --kiln <kiln> --cone 06|04|6|10 --atmosphere oxidation|reduction|neutral --pieces <n>');
+});
+
+test('the fixture adds the positional load ID gotcha only when requested', t => {
+  const plain = clipSchema() as ClipSchema;
+  const withGotchas = clipSchema(undefined, { gotchas: true }) as ClipSchema;
+  assert.equal(command('load cancel').gotchas, undefined);
+  assert.deepEqual(withGotchas.commands.find(item => item.name === 'load cancel')!.gotchas, ['The load id is positional; there is no --id flag.']);
+
+  const workspace = prepare('cli-clip', { schema: withGotchas });
+  t.after(() => cleanup(workspace));
+  const skill = readFileSync(join(workspace.cwd, '.claude/skills/clip-brindle/SKILL.md'), 'utf8');
+  assert.match(skill, /`brindle load cancel <load> --reason <reason> \[--dry-run\]`.*\n  - Gotcha: The load id is positional; there is no --id flag\./);
+  assert.equal(plain.commands.find(item => item.name === 'load cancel')!.gotchas, undefined);
 });
 
 test('the signature skill names every command and points at its own schema copy', () => {

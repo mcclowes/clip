@@ -1,5 +1,18 @@
 # Eval findings
 
+## Gotchas run (21 September 2026)
+
+Claude Code 2.1.278, Sonnet, three trials per condition. Targeted at [#40](https://github.com/mcclowes/clip/issues/40): `cancel-with-reason`, the task that previously guessed `load cancel --id`, on `cli-clip` with and without the `load cancel` gotcha. Six sessions.
+
+**The gotcha did not change usage errors in this harness.** Both conditions passed 3 of 3, made three calls per run, and had zero usage errors. The current skill already prints `brindle load cancel <load> --reason <reason> [--dry-run]`, so the positional argument is visible before the agent makes its first command call. The gotcha added 73 median input tokens, from 35,494 to 35,567.
+
+| Condition | Pass | Tool calls | Usage errors | Cumulative input (median) |
+| --- | --- | --- | --- | --- |
+| `cli-clip` without gotchas | 3/3 | 3 | 0 | 35,494 |
+| `cli-clip` with gotchas | 3/3 | 3 | 0 | 35,567 |
+
+This doesn't show that gotchas never help. It shows that the shipped usage line corrected this particular wrong guess before the gotcha could. Keep the field for errors that argument usage alone doesn't prevent, and rerun the targeted comparison when one appears.
+
 ## Registry validation run (21 September 2026)
 
 Claude Code 2.1.278, `claude-sonnet-5`, two trials. The first run against real tools rather than `brindle` ([#22](https://github.com/mcclowes/clip/issues/22)): `git` 2.55.0, `jq` 1.7.1, and `rg` 15.2.0, two read-only tasks each, with and without the registry schema. 24 sessions, after a 12-session smoke run that found one harness bug: the skill names the resolved executable, and the tool-use check didn't recognise `/opt/homebrew/bin/rg`.
