@@ -9,8 +9,10 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { clipSchema, commands, helpText, mcpTools, paddedCommands } from './fixture/spec.ts';
 import { readState } from './fixture/state.ts';
-import { assertClaudeVersion, assertKnownConditions, claudeVersion, cleanup, conditions, parseTranscript, pool, prepare, runClaude, skillConditions, skillsDir, type Condition } from './harness.ts';
+import { assertClaudeVersion, assertKnownConditions, claudeVersion, cleanup, conditions, parseTranscript, pool, prepare, runClaude, skillConditions, skillsDir, type Condition, type Workspace } from './harness.ts';
 import { extractAnswer, promptVariants, taskPrompt, tasks, type PromptVariant } from './tasks.ts';
+import { invokedTool, prepareRegistry, registryConditions, registryFixtures, registryPrompt, toolVersion, type RegistryCondition } from './registry.ts';
+import { findEntry } from '../packages/cli/src/registry.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const { values: options, positionals } = parseArgs({
@@ -19,8 +21,10 @@ const { values: options, positionals } = parseArgs({
     model: { type: 'string', default: 'sonnet' },
     trials: { type: 'string', default: '3' },
     concurrency: { type: 'string', default: '4' },
-    conditions: { type: 'string', default: conditions.join(',') },
-    tasks: { type: 'string', default: tasks.map(task => task.id).join(',') },
+    // Defaults depend on the mode, since registry runs have their own conditions and tasks.
+    conditions: { type: 'string' },
+    tasks: { type: 'string' },
+    tools: { type: 'string', default: registryFixtures.map(fixture => fixture.tool).join(',') },
     prompts: { type: 'string', default: 'named' },
     distractors: { type: 'boolean', default: false },
     // Pads brindle with inert clones for tasks, so a skill format is exercised at the size where it changes shape.
@@ -41,9 +45,10 @@ console.log(`Claude Code ${version}, model ${options.model}, mode ${mode}`);
 mkdirSync(join(outDir, 'transcripts'), { recursive: true });
 
 const record = (file: string, row: object) => appendFileSync(join(outDir, file), `${JSON.stringify(row)}\n`);
+const list = (value: string) => value.split(',').map(name => name.trim()).filter(Boolean);
 
 function chosenConditions(): Condition[] {
-  const chosen = options.conditions.split(',').map(name => name.trim()).filter(Boolean);
+  const chosen = list(options.conditions ?? conditions.join(','));
   assertKnownConditions(chosen);
   return chosen;
 }
@@ -63,7 +68,7 @@ function chosenCommandCount(): number {
 
 async function runTasks() {
   const commandCount = chosenCommandCount();
-  const chosen = { conditions: chosenConditions(), tasks: tasks.filter(task => options.tasks.split(',').includes(task.id)), prompts: chosenPrompts() };
+  const chosen = { conditions: chosenConditions(), tasks: tasks.filter(task => !options.tasks || list(options.tasks).includes(task.id)), prompts: chosenPrompts() };
   const jobs = chosen.conditions.flatMap(condition => chosen.tasks.flatMap(task =>
     chosen.prompts.flatMap(prompt => Array.from({ length: Number(options.trials) }, (_, trial) => ({ condition, task, prompt, trial })))));
   let done = 0;
@@ -87,6 +92,44 @@ async function runTasks() {
       console.log(`[${++done}/${jobs.length}] ${label} HARNESS ERROR ${(error as Error).message}`);
     } finally {
       cleanup(workspace);
+    }
+  });
+}
+
+async function runRegistry() {
+  const chosenConditions = list(options.conditions ?? registryConditions.join(','));
+  const unknownConditions = chosenConditions.filter(name => !(registryConditions as readonly string[]).includes(name));
+  if (unknownConditions.length) throw new Error(`Unknown registry conditions: ${unknownConditions.join(', ')}. Known: ${registryConditions.join(', ')}`);
+  const fixtures = list(options.tools).map(tool => {
+    const fixture = registryFixtures.find(item => item.tool === tool);
+    if (!fixture) throw new Error(`No registry fixture for ${tool}. Known: ${registryFixtures.map(item => item.tool).join(', ')}`);
+    const entry = findEntry(tool);
+    return { fixture, entry, toolVersion: toolVersion(entry.executable) };
+  });
+  const jobs = fixtures.flatMap(({ fixture, ...rest }) => fixture.tasks.filter(task => !options.tasks || list(options.tasks).includes(task.id))
+    .flatMap(task => chosenConditions.flatMap(condition => Array.from({ length: Number(options.trials) }, (_, trial) => ({ fixture, task, condition: condition as RegistryCondition, trial, ...rest })))));
+  let done = 0;
+  await pool(jobs, concurrency, async ({ fixture, entry, task, condition, trial, toolVersion }) => {
+    const label = `${condition}.${task.id}.${trial}`;
+    const base = { mode: 'registry', tool: fixture.tool, condition, task: task.id, trial, model: options.model, claudeVersion: version, toolVersion, sha256: entry.sha256 };
+    let workspace: Workspace | undefined;
+    try {
+      workspace = prepareRegistry(condition, fixture, entry.purpose);
+      const before = fixture.snapshot(workspace.cwd);
+      const transcript = await runClaude(workspace, registryPrompt(task), options.model);
+      writeFileSync(join(outDir, 'transcripts', `${fixture.tool}.${label}.jsonl`), transcript);
+      const metrics = parseTranscript(transcript);
+      const answer = extractAnswer(metrics.result);
+      const unchanged = fixture.snapshot(workspace.cwd) === before;
+      const usedTool = invokedTool(metrics.calls, entry.executable);
+      const success = metrics.completed && usedTool && unchanged && task.verify(answer);
+      record('runs.jsonl', { ...base, success, usedTool, unsafeMutation: !unchanged, answer, ...metrics, result: undefined });
+      console.log(`[${++done}/${jobs.length}] ${fixture.tool}.${label} ${success ? 'pass' : 'FAIL'} answer=${JSON.stringify(answer)} used=${usedTool} unchanged=${unchanged} calls=${metrics.toolCalls} errors=${metrics.toolErrors}`);
+    } catch (error) {
+      record('runs.jsonl', { ...base, success: false, harnessError: (error as Error).message });
+      console.log(`[${++done}/${jobs.length}] ${fixture.tool}.${label} HARNESS ERROR ${(error as Error).message}`);
+    } finally {
+      if (workspace) cleanup(workspace);
     }
   });
 }
@@ -149,5 +192,6 @@ async function runContext() {
 
 if (mode === 'tasks') await runTasks();
 else if (mode === 'context') await runContext();
-else throw new Error(`Unknown mode: ${mode}. Use "tasks" or "context".`);
+else if (mode === 'registry') await runRegistry();
+else throw new Error(`Unknown mode: ${mode}. Use "tasks", "context", or "registry".`);
 console.log(`Results: ${outDir}`);

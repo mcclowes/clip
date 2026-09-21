@@ -33,7 +33,7 @@ const baseSeed = (): State => ({
 export const baseLoadCount = baseSeed().loads.length;
 
 /** Fixed-seed PRNG, so a scaled fixture is identical on every machine and run. */
-function random(state: number): () => number {
+export function random(state: number): () => number {
   return () => {
     state = (state + 0x6d2b79f5) | 0;
     let value = Math.imul(state ^ (state >>> 15), 1 | state);
@@ -42,7 +42,7 @@ function random(state: number): () => number {
   };
 }
 
-const pick = <T>(next: () => number, items: readonly T[]) => items[Math.floor(next() * items.length)]!;
+export const pick = <T>(next: () => number, items: readonly T[]) => items[Math.floor(next() * items.length)]!;
 
 /**
  * Seeds `loads` firing loads. The first 13 are hand-written and every existing task depends on them,

@@ -19,8 +19,8 @@ export const conditions = ['cli-bare', 'cli-hint', ...skillConditions, 'mcp-eage
 export type Condition = string;
 
 const here = dirname(fileURLToPath(import.meta.url));
-const clipMain = resolve(here, '../packages/cli/src/main.ts');
-const builtinTools = ['Bash', 'Read', 'Skill'];
+export const clipMain = resolve(here, '../packages/cli/src/main.ts');
+export const builtinTools = ['Bash', 'Read', 'Skill'];
 const runTimeoutMs = 6 * 60_000;
 /** Stands in for the one line a project would otherwise put in CLAUDE.md. */
 const cliHint = 'The brindle CLI is installed and on PATH.';
@@ -80,9 +80,13 @@ export function prepare(condition: Condition, options: PrepareOptions | number =
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'SKILL.md'), distractorSkill(tool));
   }
-  claudeArgs.push('--setting-sources', 'project', '--strict-mcp-config', '--tools', tools.join(','), '--allowedTools', [...tools, 'mcp__brindle', 'mcp__backoffice'].join(','), '--no-session-persistence', '--output-format', 'stream-json', '--verbose');
+  claudeArgs.push(...headlessArgs(tools, ['mcp__brindle', 'mcp__backoffice']));
   return { root, cwd, statePath, env, claudeArgs };
 }
+
+/** Project settings only and no MCP beyond what a condition configures, so the user's own skills, plugins, and servers stay out. */
+export const headlessArgs = (tools: string[], extraAllowed: string[] = []) =>
+  ['--setting-sources', 'project', '--strict-mcp-config', '--tools', tools.join(','), '--allowedTools', [...tools, ...extraAllowed].join(','), '--no-session-persistence', '--output-format', 'stream-json', '--verbose'];
 
 export const cleanup = (workspace: Workspace) => rmSync(workspace.root, { recursive: true, force: true });
 

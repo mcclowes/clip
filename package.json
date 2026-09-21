@@ -13,7 +13,8 @@
     "check": "tsc -p packages/cli/tsconfig.json --noEmit && tsc -p evals/tsconfig.json",
     "registry:check": "node scripts/validate-registry.ts",
     "eval": "node evals/run.ts",
-    "eval:report": "node evals/report.ts"
+    "eval:report": "node evals/report.ts",
+    "eval:validate": "node evals/record-validation.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
