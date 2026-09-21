@@ -44,7 +44,7 @@ export type CommandEntry = {
   unknown: string[];
 };
 
-export type CommandIssue = { line: number; severity: 'error' | 'warning'; message: string };
+export type CommandIssue = { line?: number; severity: 'error' | 'warning'; message: string };
 
 const includes = <T extends string>(list: readonly T[], value: string): value is T => (list as readonly string[]).includes(value);
 /** Lists run least to most cautious, so a conflict resolves to the safer reading. */
@@ -65,7 +65,7 @@ export function parseCommands(markdown: string): CommandEntry[] {
   return readBullets(markdown).flatMap(bullet => (bullet.kind === 'command' ? [bullet.entry] : []));
 }
 
-export function checkCommands(markdown: string): CommandIssue[] {
+export function checkCommands(markdown: string, options: { root?: string; strict?: boolean } = {}): CommandIssue[] {
   const issues: CommandIssue[] = [];
   const firstLineByName = new Map<string, number>();
   for (const bullet of readBullets(markdown)) {
@@ -81,7 +81,42 @@ export function checkCommands(markdown: string): CommandIssue[] {
     if (first === undefined) firstLineByName.set(key, entry.line);
     else warn(`Another command on line ${first} is also named "${entry.name}".`);
   }
+  if (options.strict) issues.push(...strictEffectIssues(markdown));
+  if (options.root) issues.push(...manifestDriftIssues(options.root, markdown, Boolean(options.strict)));
   return issues;
+}
+
+/** Strict CI requires authors to say whether every shell command is safe, writes files, or is destructive. */
+function strictEffectIssues(markdown: string): CommandIssue[] {
+  return parseCommands(markdown)
+    .filter(entry => isShellCommand(entry) && !entry.effect)
+    .map(entry => ({ line: entry.line, severity: 'error' as const, message: 'Declare one effect: #safe, #writes, or #destructive.' }));
+}
+
+/** Matches a declared invocation before its optional arguments, without inspecting the task body. */
+export function manifestDriftIssues(root: string, markdown: string, strict: boolean): CommandIssue[] {
+  const ignored = ignoredCommands(markdown);
+  const entries = parseCommands(markdown);
+  const declared = manifestCommands(root);
+  const severity: CommandIssue['severity'] = strict ? 'error' : 'warning';
+  const issues: CommandIssue[] = declared
+    .filter(seed => !ignored.has(seed.command) && !entries.some(entry => describesManifestCommand(entry.command, seed.command)))
+    .map(seed => ({ severity, message: `${seed.source} declares "${seed.command}", but .clip/commands.md does not describe it.` }));
+  for (const manifest of supportedManifests(root)) {
+    const declaredCommands = new Set(declared.filter(seed => seed.source === manifest.source).map(seed => seed.command));
+    for (const entry of entries) {
+      if (ignored.has(entry.command) || !manifest.matches(entry.command) || [...declaredCommands].some(command => describesManifestCommand(entry.command, command))) continue;
+      issues.push({ line: entry.line, severity, message: `The commands file describes "${entry.command}", but ${manifest.source} does not declare it.` });
+    }
+  }
+  return issues;
+}
+
+const describesManifestCommand = (entry: string, declared: string) => entry === declared || entry.startsWith(`${declared} `);
+
+/** A comment keeps an intentional exclusion out of both Markdown readers and generated agent guidance. */
+function ignoredCommands(markdown: string): Set<string> {
+  return new Set([...markdown.matchAll(/<!--\s*clip:ignore\s+(.+?)\s*-->/g)].map(match => match[1]!.trim()));
 }
 
 /** The decorators an agent acts on, in a fixed order: effect, lifetime, then flags. */
@@ -246,17 +281,13 @@ The commands a launcher opens together. Add \`#auto\` to this heading to open th
 - Deploy: \`npm run deploy\` #destructive
 `;
 
-type Seed = { source: string; name: string; command: string; note?: string };
+export type ManifestCommand = { source: string; name: string; command: string; note?: string };
+
+type SupportedManifest = { source: string; matches: (command: string) => boolean };
 
 /** Reads conventional task manifests without invoking their runners. */
 export function seededCommandsTemplate(root: string): string {
-  const seeds = [
-    ...packageScripts(root),
-    ...makeTargets(root),
-    ...justRecipes(root),
-    ...taskfileTasks(root),
-    ...miseTasks(root),
-  ];
+  const seeds = manifestCommands(root);
   if (!seeds.length) return commandsTemplate;
   return `# Commands
 
@@ -267,7 +298,30 @@ Named commands for this project, for people and agents. These commands came from
 ${seededSections(seeds)}`;
 }
 
-function packageScripts(root: string): Seed[] {
+/** The same declarations that `commands init` reads, exposed for offline drift checks. */
+export function manifestCommands(root: string): ManifestCommand[] {
+  return [
+    ...packageScripts(root),
+    ...makeTargets(root),
+    ...justRecipes(root),
+    ...taskfileTasks(root),
+    ...miseTasks(root),
+  ];
+}
+
+/** A source is checked only when its manifest exists; unrelated shell commands remain valid. */
+function supportedManifests(root: string): SupportedManifest[] {
+  const supports = (source: string, files: string[], matches: (command: string) => boolean) => readFirstManifest(root, files) === undefined ? [] : [{ source, matches }];
+  return [
+    ...supports('package.json scripts', ['package.json'], command => /^npm run \S+(?:\s|$)/.test(command)),
+    ...supports('Makefile', ['Makefile', 'makefile', 'GNUmakefile'], command => /^make \S+(?:\s|$)/.test(command)),
+    ...supports('justfile', ['justfile', '.justfile'], command => /^just \S+(?:\s|$)/.test(command)),
+    ...supports('Taskfile', ['Taskfile.yml', 'Taskfile.yaml', 'taskfile.yml', 'taskfile.yaml'], command => /^task \S+(?:\s|$)/.test(command)),
+    ...supports('mise', ['mise.toml', '.mise.toml'], command => /^mise run \S+(?:\s|$)/.test(command)),
+  ];
+}
+
+function packageScripts(root: string): ManifestCommand[] {
   const text = readManifest(root, 'package.json');
   if (!text) return [];
   try {
@@ -280,7 +334,7 @@ function packageScripts(root: string): Seed[] {
 }
 
 /** Only documented, concrete targets are task-like; special, pattern, and variable targets are Make plumbing. */
-function makeTargets(root: string): Seed[] {
+function makeTargets(root: string): ManifestCommand[] {
   const text = readFirstManifest(root, ['Makefile', 'makefile', 'GNUmakefile']);
   if (!text) return [];
   return text.split(/\r\n?|\n/).flatMap(line => {
@@ -290,10 +344,10 @@ function makeTargets(root: string): Seed[] {
   });
 }
 
-function justRecipes(root: string): Seed[] {
+function justRecipes(root: string): ManifestCommand[] {
   const text = readFirstManifest(root, ['justfile', '.justfile']);
   if (!text) return [];
-  const seeds: Seed[] = [];
+  const seeds: ManifestCommand[] = [];
   let comment: string | undefined;
   for (const line of text.split(/\r\n?|\n/)) {
     const description = line.match(/^\s*#\s?(.*?)\s*$/);
@@ -310,13 +364,13 @@ function justRecipes(root: string): Seed[] {
   return seeds;
 }
 
-function taskfileTasks(root: string): Seed[] {
+function taskfileTasks(root: string): ManifestCommand[] {
   const text = readFirstManifest(root, ['Taskfile.yml', 'Taskfile.yaml', 'taskfile.yml', 'taskfile.yaml']);
   if (!text) return [];
-  const seeds: Seed[] = [];
+  const seeds: ManifestCommand[] = [];
   let tasksIndent: number | undefined;
   let taskIndent: number | undefined;
-  let task: { indent: number; seed: Seed } | undefined;
+  let task: { indent: number; seed: ManifestCommand } | undefined;
   for (const line of text.split(/\r\n?|\n/)) {
     const indent = line.match(/^\s*/)?.[0].length ?? 0;
     if (tasksIndent === undefined) {
@@ -327,7 +381,7 @@ function taskfileTasks(root: string): Seed[] {
     const taskMatch = line.match(/^(\s+)([A-Za-z0-9][\w.-]*):\s*(?:#.*)?$/);
     if (taskMatch && taskMatch[1]!.length > tasksIndent && (taskIndent === undefined || taskMatch[1]!.length === taskIndent)) {
       const name = taskMatch[2]!;
-      const seed: Seed = { source: 'Taskfile', name: `task ${name}`, command: `task ${name}` };
+      const seed: ManifestCommand = { source: 'Taskfile', name: `task ${name}`, command: `task ${name}` };
       seeds.push(seed);
       taskIndent = taskMatch[1]!.length;
       task = { indent: taskMatch[1]!.length, seed };
@@ -339,11 +393,11 @@ function taskfileTasks(root: string): Seed[] {
   return seeds;
 }
 
-function miseTasks(root: string): Seed[] {
+function miseTasks(root: string): ManifestCommand[] {
   const text = readFirstManifest(root, ['mise.toml', '.mise.toml']);
   if (!text) return [];
-  const seeds: Seed[] = [];
-  let task: Seed | undefined;
+  const seeds: ManifestCommand[] = [];
+  let task: ManifestCommand | undefined;
   for (const line of text.split(/\r\n?|\n/)) {
     const section = line.match(/^\s*\[tasks\.([^\]]+)]\s*$/);
     if (section) {
@@ -359,7 +413,7 @@ function miseTasks(root: string): Seed[] {
   return seeds;
 }
 
-function seededSections(seeds: Seed[]): string {
+function seededSections(seeds: ManifestCommand[]): string {
   return [...new Map(seeds.map(seed => [seed.source, seed])).keys()].map(source => {
     const entries = seeds.filter(seed => seed.source === source);
     return `## ${source}\n\n${entries.map(seed => `- ${seed.name}: \`${seed.command}\`${seed.note ? ` — ${escapeNote(seed.note)}` : ''}`).join('\n')}`;

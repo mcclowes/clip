@@ -509,6 +509,83 @@ test('commands check exits 1 on errors, with the report on stdout, and passes on
   assert.equal(run('commands', 'check', '--file', file).status, 0);
 });
 
+test('commands check reports package script drift, and strict mode fails it', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { check: 'tsc --noEmit', added: 'node --test' } }));
+  mkdirSync(join(dir, '.clip'));
+  writeFileSync(join(dir, '.clip/commands.md'), '- Check: `npm run check` #safe\n- Removed: `npm run removed` #safe\n');
+
+  const warned = run('commands', 'check');
+
+  assert.equal(warned.status, 0, warned.stderr);
+  assert.deepEqual(JSON.parse(warned.stdout).items, [
+    { severity: 'warning', message: 'package.json scripts declares "npm run added", but .clip/commands.md does not describe it.' },
+    { line: 2, severity: 'warning', message: 'The commands file describes "npm run removed", but package.json scripts does not declare it.' },
+  ]);
+
+  const strict = run('commands', 'check', '--strict');
+  assert.equal(strict.status, 1, strict.stderr);
+  assert.deepEqual(JSON.parse(strict.stdout).items.map((item: { severity: string }) => item.severity), ['error', 'error']);
+});
+
+test('commands check recognizes a documented manifest command with arguments', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { validate: 'node validate.js' } }));
+  mkdirSync(join(dir, '.clip'));
+  writeFileSync(join(dir, '.clip/commands.md'), '- Validate: `npm run validate -- fixture` #safe\n');
+
+  const report = JSON.parse(run('commands', 'check').stdout);
+
+  assert.deepEqual(report.items, []);
+});
+
+test('commands check tracks every supported manifest and honors explicit exclusions', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { check: 'tsc --noEmit', private: 'node secret.js' } }));
+  writeFileSync(join(dir, 'Makefile'), 'build: ## Build\n');
+  writeFileSync(join(dir, 'justfile'), 'format:\n');
+  writeFileSync(join(dir, 'Taskfile.yml'), 'tasks:\n  test:\n    cmds: [node --test]\n');
+  writeFileSync(join(dir, 'mise.toml'), '[tasks.deploy]\nrun = "node deploy.js"\n');
+  mkdirSync(join(dir, '.clip'));
+  writeFileSync(join(dir, '.clip/commands.md'), [
+    '<!-- clip:ignore npm run private -->',
+    '- Check: `npm run check` #safe',
+    '- Build: `make build` #safe',
+    '- Format: `just format` #safe',
+    '- Test: `task test` #safe',
+    '- Deploy: `mise run deploy` #destructive',
+    '- Removed script: `npm run removed` #safe',
+    '- Removed target: `make removed` #safe',
+    '- Removed recipe: `just removed` #safe',
+    '- Removed task: `task removed` #safe',
+    '- Removed mise task: `mise run removed` #safe',
+  ].join('\n'));
+
+  const report = JSON.parse(run('commands', 'check').stdout);
+
+  assert.equal(report.healthy, true);
+  assert.deepEqual(report.items.map((item: { message: string }) => item.message), [
+    'The commands file describes "npm run removed", but package.json scripts does not declare it.',
+    'The commands file describes "make removed", but Makefile does not declare it.',
+    'The commands file describes "just removed", but justfile does not declare it.',
+    'The commands file describes "task removed", but Taskfile does not declare it.',
+    'The commands file describes "mise run removed", but mise does not declare it.',
+  ]);
+});
+
+test('strict commands check requires an effect for every shell command', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.clip'));
+  writeFileSync(join(dir, '.clip/commands.md'), '- Unknown: `npm run check`\n- Agent: `@claude review this` #primary\n');
+
+  assert.equal(run('commands', 'check').status, 0);
+  const strict = run('commands', 'check', '--strict');
+  assert.equal(strict.status, 1, strict.stderr);
+  assert.deepEqual(JSON.parse(strict.stdout).items, [
+    { line: 1, severity: 'error', message: 'Declare one effect: #safe, #writes, or #destructive.' },
+  ]);
+});
+
 test("commands reads Saggar's file until the project moves it, and init won't start a second one", t => {
   const { dir, run } = fixture(t);
   mkdirSync(join(dir, '.saggar'));

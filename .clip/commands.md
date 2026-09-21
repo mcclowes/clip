@@ -4,7 +4,7 @@
 
 - Lint: `npm run lint` #safe #ci
 - Types: `npm run check` #safe #ci
-- Test: `npm test` #safe
+- Test: `npm run test` #safe
 - Coverage: `npm run test:coverage` — tests with the 85% line floor #safe #ci
 - Build: `npm run build` — compiles the CLI into `packages/cli/dist` #safe #ci
 - Registry check: `npm run registry:check` — `clip lint` over every schema #safe #ci
@@ -18,13 +18,13 @@
 ## Site
 
 - Site install: `npm --prefix site ci` #writes
-- Site dev: `npm --prefix site run dev` #long-running
+- Site dev: `npm --prefix site run dev` #safe #long-running
 - Site build: `npm --prefix site run build` #safe #slow
 - Site types: `npm --prefix site run typecheck` #safe
 
 ## Evals
 
-- Eval: `npm run eval` — runs real Claude sessions and costs money; ask first #slow
+- Eval: `npm run eval` — runs real Claude sessions and costs money; ask first #destructive #slow
 - Eval report: `npm run eval:report` #safe
 - Record validation: `npm run eval:validate -- evals/results/<run>` — writes registry validation into `registry/index.json` #writes
 

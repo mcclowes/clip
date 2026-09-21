@@ -22,7 +22,7 @@ import { runUi } from './ui.ts';
 import { mergeClaudeSettings, proposeRules } from './permissions.ts';
 import { diagnoseRegistration, healthyStatuses, refreshRegistration, refreshable, reviewRegistryUpdate } from './refresh.ts';
 
-export type Options = { purpose?: string; profile?: string; schema?: string; probe?: string; file?: string; 'skills-dir'?: string; target?: string; 'agents-file'?: string; trust?: string[]; accept?: string[]; 'accept-all'?: boolean; write?: boolean };
+export type Options = { purpose?: string; profile?: string; schema?: string; probe?: string; file?: string; 'skills-dir'?: string; target?: string; 'agents-file'?: string; trust?: string[]; accept?: string[]; 'accept-all'?: boolean; write?: boolean; strict?: boolean };
 export type Invocation = { args: string[]; options: Options; scope: Scope; limit: number };
 type Command = { positionals: number; interactive?: true; run: (invocation: Invocation) => unknown };
 
@@ -88,7 +88,7 @@ const commands: Record<string, Command> = {
   } },
   'commands check': { positionals: 0, run: ({ options, limit }) => {
     const { file, text } = readCommandsFile(options);
-    const issues = checkCommands(text);
+    const issues = checkCommands(text, { root: projectRootOrCwd(), strict: Boolean(options.strict) });
     const healthy = issues.every(issue => issue.severity !== 'error');
     if (!healthy) process.exitCode = 1;
     return { file, healthy, ...page(issues, limit) };

@@ -34,7 +34,7 @@ function parseCli() {
     purpose: { type: 'string' }, profile: { type: 'string' }, schema: { type: 'string' }, 'skills-dir': { type: 'string' },
     probe: { type: 'string' }, limit: { type: 'string', default: '100' },
     target: { type: 'string' }, 'agents-file': { type: 'string' },
-    file: { type: 'string' }, trust: { type: 'string', multiple: true }, accept: { type: 'string', multiple: true }, 'accept-all': { type: 'boolean' }, write: { type: 'boolean' }, scope: { type: 'string' }, version: { type: 'boolean' },
+    file: { type: 'string' }, trust: { type: 'string', multiple: true }, accept: { type: 'string', multiple: true }, 'accept-all': { type: 'boolean' }, write: { type: 'boolean' }, strict: { type: 'boolean' }, scope: { type: 'string' }, version: { type: 'boolean' },
     output: { type: 'string', short: 'o', default: 'auto' }, help: { type: 'boolean', short: 'h' },
   } });
   if (!outputFormats.includes(options.output as Format)) throw new Error('Output must be auto, json, or text.');

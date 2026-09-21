@@ -90,7 +90,7 @@ For the project's own scripts, describe them in `.clip/commands.md`, a Markdown 
 - Deploy: `npm run deploy` #destructive
 ```
 
-Run `clip commands init` to seed one from local task manifests without running their tools, `clip commands check` in CI to validate it, and `clip sync` to list the commands in `AGENTS.md`. The seed leaves effects unknown, so review and decorate each command. See [project commands](https://clip.marginalutility.dev/docs/commands).
+Run `clip commands init` to seed one from local task manifests without running their tools, `clip commands check --strict` in CI to catch manifest drift and missing effects, and `clip sync` to list the commands in `AGENTS.md`. The seed leaves effects unknown, so review and decorate each command. Use `<!-- clip:ignore npm run private-task -->` for a manifest task agents should not see. See [project commands](https://clip.marginalutility.dev/docs/commands).
 
 After updating registered tools or CLIP's bundled registry, run `clip doctor` to check for missing executables and schema drift. `clip refresh` reloads file and native-probe schemas, then shows the rendered agent-facing diff for each registry update without adopting it. Mutation-marker changes are called out separately. Run `clip refresh --accept <tool>` to adopt a reviewed update, or `clip refresh --accept-all` in CI. Manual registrations have no schema source to refresh. Native diagnosis and refresh rerun the explicitly registered, bounded probe command.
 

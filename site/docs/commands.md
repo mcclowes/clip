@@ -14,6 +14,7 @@ The commands file fixes both. It's a Markdown runbook in the repository: one bul
 clip commands init       # write .clip/commands.md
 clip commands            # list what it describes
 clip commands check      # validate it; exits 1 on errors
+clip commands check --strict # also fail on manifest drift and missing effects
 clip sync                # list the commands in AGENTS.md
 ```
 
@@ -22,6 +23,18 @@ clip sync                # list the commands in AGENTS.md
 The generated commands are grouped by source. Package scripts and task names become their runner invocations. Documented Make targets keep their `##` note, just recipes keep a preceding comment, and Taskfile `desc` and mise `description` fields become notes. Make's special, pattern, and undocumented targets are skipped.
 
 Every seeded entry is undecorated, including one whose description happens to contain a decorator-looking word. Review the commands, then add decorators yourself. An undecorated command means its effect is unknown.
+
+## Keeping commands current
+
+When one of the supported manifests exists, `clip commands check` compares its declared tasks with the commands file. It warns when a task has no matching bullet, or when a bullet names a task the manifest no longer declares. It only matches runner invocations (`npm run <name>`, `make <target>`, `just <recipe>`, `task <name>`, and `mise run <name>`), with optional task arguments. Other shell commands stay outside this check.
+
+Use `--strict` in CI. It turns manifest drift into errors and requires every shell command to declare one effect: `#safe`, `#writes`, or `#destructive`. Launcher shorthand such as `@claude review this` doesn't need an effect.
+
+To intentionally keep a manifest task out of agent guidance, add its exact runner invocation in an HTML comment. The comment is ignored by the commands parser and never reaches the generated `AGENTS.md` block.
+
+```markdown
+<!-- clip:ignore npm run private-release -->
+```
 
 ## Example
 
@@ -116,7 +129,7 @@ Readers accept these older spellings, and writers never produce them:
 
 ## Checks
 
-`clip commands check` reads the file and reports each issue with its line number.
+`clip commands check` reads the file and reports each issue with its line number when it has one.
 
 Errors, which exit 1:
 
@@ -129,9 +142,10 @@ Warnings:
 - A name repeated within a section.
 - A list item with an unclosed or empty code span.
 - `#quick` in the layout section, or `#quick` with `#long-running`.
+- A task in a supported manifest missing from the file, or a matching runner invocation whose manifest task no longer exists.
 
-Add it to CI to keep the file readable:
+Add strict mode to CI to keep the file current and fully classified:
 
 ```yaml
-- run: clip commands check
+- run: clip commands check --strict
 ```
