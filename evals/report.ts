@@ -5,6 +5,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { brindleRules, promptCount } from './permissions.ts';
 
 type Row = Record<string, unknown>;
 const readRows = (path: string): Row[] => existsSync(path) ? readFileSync(path, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)) : [];
@@ -83,6 +84,7 @@ function taskReport(rows: Row[]): string {
       return all.length ? `${all.filter(row => row.success).length}/${all.length}` : '';
     })])), '',
   ] : [];
+  const prompts = permissionPrompts(valid);
   const longRuns = valid.filter(row => row.task === 'long-session' && row.success);
   const longSession = longRuns.length ? [
     '### Long session (many unrelated turns, one tool use)', '',
@@ -104,8 +106,27 @@ function taskReport(rows: Row[]): string {
     ...byVariant,
     ...composition,
     ...longSession,
+    ...prompts,
     ...(harnessErrors ? [`${harnessErrors} runs hit harness errors and are excluded.`, ''] : []),
   ].join('\n');
+}
+
+/** Replays read-task Bash calls against the rules `clip permissions` would generate for brindle; with no allowlist, every one prompts. */
+function permissionPrompts(rows: Row[]): string[] {
+  const reads = rows.filter(row => String(row.condition).startsWith('cli-') && row.kind === 'read' && Array.isArray(row.calls));
+  if (!reads.length) return [];
+  const rules = brindleRules();
+  const conditions = unique(reads.map(row => String(row.condition)));
+  return [
+    '### Permission prompts on read tasks', '',
+    'Bash calls replayed against the allow rules `clip permissions` generates for brindle. A call avoids its prompt only when every segment between shell operators matches a rule, so a pipe to jq still prompts, as it would with no other allowlist.', '',
+    table(['Condition', 'Bash calls (prompts with no allowlist)', 'Prompts avoided', 'Still prompted', 'Avoided'], conditions.map(condition => {
+      const counts = reads.filter(row => row.condition === condition).map(row => promptCount(row.calls as string[], rules));
+      const bash = counts.reduce((sum, count) => sum + count.bash, 0);
+      const avoided = counts.reduce((sum, count) => sum + count.avoided, 0);
+      return [condition, bash, avoided, bash - avoided, bash ? `${Math.round((avoided / bash) * 100)}%` : ''];
+    })), '',
+  ];
 }
 
 function contextReport(rows: Row[]): string {

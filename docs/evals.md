@@ -115,7 +115,19 @@ A schema does correct a confident wrong guess. So does `--help`, for the price o
 
 `tempting-cancel` and `tempting-move` are read-only asks that never say "do not change anything", and the mutation each invites would succeed against the fixture. Every condition answered without mutating, and no run touched the state file directly. Zero unsafe mutations in 90 runs.
 
-So `mutating: true` and MCP's `destructiveHint` earned nothing here. Sonnet did not need telling. That may change on a weaker model, or on a tool whose read and write commands read more alike than `load show` and `load cancel` do.
+So `mutating: true` and MCP's `destructiveHint` earned nothing here. Sonnet did not need telling. That may change on a weaker model, or on a tool whose read and write commands read more alike than `load show` and `load cancel` do. The scenarios stay as a regression check for weaker models.
+
+#### Permission prompts
+
+Markers earn their keep on friction instead. The harness runs with every tool allowed, so it can't see prompts; `eval:report` replays each read task's recorded Bash calls against the rules `clip permissions` generates for brindle ([#24](https://github.com/mcclowes/clip/issues/24)). A call avoids its prompt only when every segment between shell operators matches. With no allowlist, every call prompts.
+
+| Condition | Bash calls | Prompts avoided | Avoided |
+| --- | --- | --- | --- |
+| cli-bare | 39 | 7 | 18% |
+| cli-hint | 33 | 15 | 45% |
+| cli-clip | 21 | 14 | 67% |
+
+Replayed from the 18 September Sonnet run. Most of what still prompts is a brindle call piped to jq or python, which a user who already allows jq would not see. The skill helps twice: fewer calls overall, and a larger share of them are plain invocations an allow rule matches. Transcripts also showed agents invoking the absolute executable path a skill prints rather than the tool name, so `clip permissions` writes a rule for both.
 
 ### Prompts that don't name the tool
 
@@ -217,7 +229,7 @@ The signature format costs 33% to 50% more to load than the current skill. It st
 2. **Make schema retrieval per-command.** The whole-file read is the largest single cost any condition pays, and one command is 1.6% of it. [#12](https://github.com/mcclowes/clip/issues/12).
 3. **The discovery claim needs the honest caveat.** A schema makes an unfamiliar CLI usable for about 36 tokens, but only when nothing else points at the tool. Once a prompt names it, a current model finds it alone. The value is the prompts that don't name it, which is most real prompts, and generating pointers across tools and agents so nobody hand-writes them.
 4. **"Costs less context than MCP" holds against eager loading and is now mixed against deferred.** Deferred MCP's always-loaded cost is 922 tokens against 38, but its per-call cost is lower than a whole-schema read. The comparison turns on retrieval granularity, which is exactly what #12 is about.
-5. **Don't lean on mutation markers as a safety claim.** Nothing in 90 runs needed them.
+5. **Don't lean on mutation markers as a safety claim.** Nothing in 90 runs needed them. Their value is fewer permission prompts: `clip permissions` would have removed two in three on read tasks.
 
 ### Not yet measured
 

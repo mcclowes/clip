@@ -89,3 +89,17 @@ test('the explicit flag reports the mixture, loudly', () => {
 test('an unrecognised option fails rather than being read as a directory', () => {
   assert.throws(() => reportFor([run()], ['--allow-mixed']), /Unknown options: --allow-mixed/);
 });
+
+test('counts permission prompts a clip permissions allowlist avoids on read tasks', () => {
+  const bash = (command: string) => `Bash ${JSON.stringify({ command })}`;
+  const output = reportFor([
+    run({ calls: [bash('/tmp/clip-eval-a/bin/brindle load list'), bash('brindle load list | jq .items')] }),
+    run({ trial: 1, calls: [bash('brindle kiln list')] }),
+    run({ task: 'tempting-cancel', calls: [bash('brindle load cancel LD-1')], kind: 'write' }),
+    run({ condition: 'mcp-eager', calls: ['mcp__brindle__load_list {}'] }),
+  ]);
+
+  assert.match(output, /### Permission prompts on read tasks/);
+  assert.match(output, /\| cli-clip \| 3 \| 2 \| 1 \|/);
+  assert.doesNotMatch(output, /\| mcp-eager \| \d+ \| \d+ \| \d+ \|/);
+});
