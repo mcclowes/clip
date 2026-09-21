@@ -12,6 +12,8 @@ export const renderVersion = () => `clip ${contract.version}`;
 export function renderText(result: any): string {
   if (result === contract) return renderHelp();
   if (result.items || result.agents_md) return renderItems(result);
+  const single = renderSingle(result);
+  if (single) return single;
   return JSON.stringify(result, null, 2);
 }
 
@@ -36,6 +38,13 @@ function renderItems(result: any): string {
   if (result.directory) lines.push(`Skills: ${result.directory}`);
   if (result.agents_md) lines.push(`Agents file: ${result.agents_md.file} (${result.agents_md.changed ? 'updated' : 'unchanged'})`);
   return lines.join('\n');
+}
+
+function renderSingle(result: any): string | undefined {
+  if (typeof result.file === 'string' && typeof result.next === 'string') return `Wrote ${result.file}\n${result.next}`;
+  if (typeof result.removed === 'string') return `Removed ${result.removed}`;
+  if (typeof result.name === 'string' && typeof result.executable === 'string' && typeof result.purpose === 'string' && result.source) return `Registered ${result.name}`;
+  return undefined;
 }
 
 const validationTags: Record<string, string> = { validated: 'agent-validated', failed: 'agent validation failed', stale: 'agent validation stale' };

@@ -115,6 +115,15 @@ test('register defaults to local project scope', t => {
   assert.equal(JSON.parse(run('list').stdout).items[0].scope, 'local');
 });
 
+test('register describes the tool it added in text output', t => {
+  const { run } = fixture(t);
+
+  const registered = run('register', process.execPath, '--purpose', 'Run local scripts', '--output', 'text');
+
+  assert.equal(registered.status, 0, registered.stderr);
+  assert.equal(registered.stdout, 'Registered node\n');
+});
+
 test('shared registrations store portable executable names', t => {
   const { dir, run } = fixture(t);
   mkdirSync(join(dir, '.git'));
@@ -138,6 +147,16 @@ test('local removal disables an inherited registration', t => {
   assert.deepEqual(JSON.parse(run('list').stdout).items, []);
   const document = JSON.parse(readFileSync(join(dir, '.clip', 'tools.local.json'), 'utf8'));
   assert.deepEqual(document.disabled, ['node']);
+});
+
+test('remove describes the tool it removed in text output', t => {
+  const { run } = fixture(t);
+  assert.equal(run('register', process.execPath, '--purpose', 'Run scripts').status, 0);
+
+  const removed = run('remove', 'node', '--output', 'text');
+
+  assert.equal(removed.status, 0, removed.stderr);
+  assert.equal(removed.stdout, 'Removed node\n');
 });
 
 test('probe capabilities explicitly, preserve nested contracts, and discover without executing', t => {
@@ -173,6 +192,15 @@ test('add a community schema without running its executable, and expose offline 
   assert.equal(JSON.parse(run('schema').stdout).name, 'clip');
   assert.ok(JSON.parse(run('capabilities').stdout).commands.some((c: any) => c.name === 'register'));
   assert.ok(JSON.parse(run('capabilities').stdout).commands.some((c: any) => c.name === 'ui'));
+});
+
+test('registry add describes the tool it added in text output', t => {
+  const { run } = fixture(t);
+
+  const added = run('registry', 'add', 'git', '--purpose', 'Review changes', '--output', 'text');
+
+  assert.equal(added.status, 0, added.stderr);
+  assert.equal(added.stdout, 'Registered git\n');
 });
 
 test('ui requires an interactive terminal', t => {
@@ -378,6 +406,25 @@ test('commands init writes a starter file once, and commands lists what it descr
   const checked = run('commands', 'check');
   assert.equal(checked.status, 0, checked.stderr);
   assert.deepEqual(JSON.parse(checked.stdout), { file: listed.file, healthy: true, items: [], total: 0, truncated: false });
+});
+
+test('commands init describes the file it wrote in text output', t => {
+  const { dir, run } = fixture(t);
+
+  const created = run('commands', 'init', '--output', 'text');
+
+  assert.equal(created.status, 0, created.stderr);
+  assert.equal(created.stdout, `Wrote ${join(realpathSync(dir), '.clip/commands.md')}\nReplace the example bullets with this project's commands and decorate each with its effect.\n`);
+});
+
+test('schema init describes the file it wrote in text output', t => {
+  const { dir, run } = fixture(t);
+
+  const created = run('schema', 'init', 'sample', '--purpose', 'Test', '--file', 'draft.json', '--output', 'text');
+
+  assert.equal(created.status, 0, created.stderr);
+  assert.match(created.stdout, new RegExp(`^Wrote ${join(realpathSync(dir), 'draft.json')}\\n`));
+  assert.match(created.stdout, /^Wrote .*\nAdd command names, descriptions, arguments, and mutation markers,/);
 });
 
 test('commands check exits 1 on errors, with the report on stdout, and passes on warnings alone', t => {
