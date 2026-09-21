@@ -38,6 +38,8 @@ function renderItems(result: any): string {
   return lines.join('\n');
 }
 
+const validationTags: Record<string, string> = { validated: 'agent-validated', failed: 'agent validation failed', stale: 'agent validation stale' };
+
 function itemLine(item: any): string {
   if (typeof item === 'string') return item;
   if (item.severity) return `${item.line ?? item.at}: ${item.severity}: ${item.message}`;
@@ -45,7 +47,8 @@ function itemLine(item: any): string {
     const tags = agentTags(item);
     return `${item.name}\t${item.command}${tags.length ? ` [${tags.join(', ')}]` : ''}`;
   }
-  const label = `${item.id ?? item.name}${item.scope ? ` [${item.scope}]` : ''}`;
+  const tag = item.scope ?? validationTags[item.agent_validation];
+  const label = `${item.id ?? item.name}${tag ? ` [${tag}]` : ''}`;
   const summary = item.purpose ?? item.executable ?? item.status ?? '';
   return `${label}\t${summary}${item.message ? `: ${item.message}` : ''}`;
 }

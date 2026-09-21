@@ -14,7 +14,7 @@ import { defaultSkillsDir, existingSkillFile, skillFile, syncSkills } from './sk
 import { defaultAgentsFile, planAgentsMd, type ProjectCommands } from './agents-md.ts';
 import { checkCommands, commandsPath, commandsTemplate, findCommandsFile, parseCommands } from './commands-md.ts';
 import { discover, executablePath, probeSchema } from './discovery.ts';
-import { catalog, findEntry, registryRegistration, registrySchema, trustOf } from './registry.ts';
+import { catalog, findEntry, registryRegistration, registrySchema, trustOf, validationStatus } from './registry.ts';
 import { contract } from './contract.ts';
 import { page } from './output.ts';
 import { lintSchema } from './lint.ts';
@@ -68,7 +68,8 @@ const commands: Record<string, Command> = {
   permissions: { positionals: 0, run: permissions },
   'registry search': { positionals: 1, run: ({ args: [query = ''], limit }) => {
     const needle = query.toLowerCase();
-    return page(catalog().filter(item => `${item.id} ${item.name} ${item.purpose} ${item.category}`.toLowerCase().includes(needle)), limit);
+    const matches = catalog().filter(item => `${item.id} ${item.name} ${item.purpose} ${item.category}`.toLowerCase().includes(needle));
+    return page(matches.map(item => ({ ...item, agent_validation: validationStatus(item) })), limit);
   } },
   'registry add': { positionals: 1, run: ({ args: [id], options, scope }) => {
     const entry = findEntry(id);

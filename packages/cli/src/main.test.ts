@@ -159,6 +159,7 @@ test('probe capabilities explicitly, preserve nested contracts, and discover wit
 test('add a community schema without running its executable, and expose offline introspection', t => {
   const { dir, run } = fixture(t);
   const search = run('registry', 'search', 'git');
+  assert.match(JSON.parse(search.stdout).items[0].agent_validation, /^(validated|unvalidated|stale|failed)$/);
   assert.equal(search.status, 0, search.stderr);
   assert.ok(JSON.parse(search.stdout).items.some((item: any) => item.id === 'git'));
   const shown = run('schema', 'show', 'git');
