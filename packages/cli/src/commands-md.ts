@@ -2,7 +2,7 @@
  * ---
  * purpose: Parse and check the project commands file, the Markdown runbook of named commands and their decorators that CLIP specifies and Saggar reads.
  * related:
- *   - ../../../docs/commands.md - The grammar and decorators this module implements.
+ *   - ../../../site/docs/commands.md -The grammar and decorators this module implements.
  *   - ./agents-md.ts - Lists the parsed commands in the AGENTS.md block.
  * ---
  */
