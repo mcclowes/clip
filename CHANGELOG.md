@@ -4,6 +4,8 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-21
+
 ### Added
 
 - Community schemas for ripgrep, fd, curl, Docker, npm, uv, kubectl, Terraform, and yq.
@@ -60,6 +62,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 - Install versioned community capability schemas from the bundled registry.
 - Docs site and searchable tool directory.
 
-[Unreleased]: https://github.com/mcclowes/clip/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/mcclowes/clip/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/mcclowes/clip/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/mcclowes/clip/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/mcclowes/clip/releases/tag/v0.1.0

@@ -1,6 +1,6 @@
 {
   "name": "@mcclowes/clip",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "CLI capabilities shared by people and agents",
   "keywords": ["cli", "agents", "skills", "mcp", "clispec", "llm"],
   "homepage": "https://clip.marginalutility.dev",
