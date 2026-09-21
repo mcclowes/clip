@@ -20,7 +20,7 @@ export const contract = {
     { name: '--version', type: 'boolean', description: 'Show CLIP version.' },
   ],
   commands: [
-    { name: 'discover', description: 'List executables on PATH without running them.', mutating: false, args: [arg('query', 'Optional name filter.')] },
+    { name: 'discover', description: 'List installed tools that have a registry schema, without running them. A query or --all searches every executable on PATH.', mutating: false, args: [arg('query', 'Optional name filter across all of PATH.'), { name: '--all', type: 'boolean', description: 'List every executable on PATH.', required: false }] },
     { name: 'register', description: 'Register or update an installed tool. Probes execute only when explicitly requested.', mutating: true, args: [arg('executable', 'Executable name or path.', true), arg('--purpose', 'When agents should use this tool.', true), arg('--schema', 'Local JSON capability file.'), arg('--profile', 'Show agents only this named command subset from the schema.'), { ...arg('--probe', 'Run a native introspection command.'), enum: ['schema', 'capabilities'] }] },
     { name: 'list', description: 'List registered tools.', mutating: false, args: [] },
     { name: 'ui', description: 'Manage registered tools and browse the registry in an interactive terminal.', mutating: true, args: [] },

@@ -9,7 +9,7 @@ description: CLIP commands, arguments, output modes, and failure behavior.
 Run `clip schema` or `clip capabilities` for the machine-readable command contract. Both work offline without configuration.
 
 ```text
-clip discover [query]
+clip discover [query] [--all]
 clip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities] [--profile <name>]
 clip list
 clip remove <name>

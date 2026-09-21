@@ -62,6 +62,7 @@ function renderItems(result: any): string {
   const lines = (result.items ?? []).map(itemLine);
   if (result.items && !lines.length) lines.push('No results.');
   if (result.truncated) lines.push(`Showing ${result.items.length} of ${result.total}; increase --limit for more.`);
+  if (result.unlisted) lines.push(`${result.unlisted} other executables on PATH have no registry schema; search them with clip discover <query>, or list them with --all.`);
   if (result.directory) lines.push(`Skills: ${result.directory}`);
   if (result.agents_md) lines.push(`Agents file: ${result.agents_md.file} (${result.agents_md.changed ? 'updated' : 'unchanged'})`);
   return lines.join('\n');
@@ -76,6 +77,8 @@ function renderSingle(result: any): string | undefined {
 
 const validationTags: Record<string, string> = { validated: 'agent-validated', failed: 'agent validation failed', stale: 'agent validation stale' };
 
+const discoverTag = (item: any) => item.registered ? 'registered' : item.registry ? `registry: ${item.registry}` : undefined;
+
 function itemLine(item: any): string {
   if (typeof item === 'string') return item;
   if (item.severity) return `${item.line ?? item.at}: ${item.severity}: ${item.message}`;
@@ -83,7 +86,7 @@ function itemLine(item: any): string {
     const tags = agentTags(item);
     return `${item.name}\t${item.command}${tags.length ? ` [${tags.join(', ')}]` : ''}`;
   }
-  const tag = item.scope ?? validationTags[item.agent_validation];
+  const tag = item.scope ?? validationTags[item.agent_validation] ?? discoverTag(item);
   const label = `${item.id ?? item.name}${tag ? ` [${tag}]` : ''}`;
   const summary = item.purpose ?? item.executable ?? item.status ?? '';
   return `${label}\t${summary}${item.message ? `: ${item.message}` : ''}`;

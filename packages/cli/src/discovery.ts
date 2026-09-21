@@ -7,7 +7,6 @@ import { accessSync, constants, readdirSync, statSync } from 'node:fs';
 import { delimiter, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { validateSchema } from './schema.ts';
-import { page } from './output.ts';
 
 const probeCommands = ['schema', 'capabilities'];
 const probeTimeoutMs = 5000;
@@ -23,7 +22,7 @@ export function executablePath(command: string): string {
   }
   throw new Error(`Executable not found: ${command}`);
 }
-export function discover(query = '', limit = 100) {
+export function discover(query = '') {
   const found = new Map<string, { name: string; executable: string }>();
   for (const directory of pathDirectories()) {
     let names: string[];
@@ -36,7 +35,7 @@ export function discover(query = '', limit = 100) {
       } catch {}
     }
   }
-  return page([...found.values()].sort((a, b) => a.name.localeCompare(b.name)), limit);
+  return [...found.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 export function probeSchema(executable: string, command: string) {
   if (!probeCommands.includes(command)) throw new Error('--probe must be schema or capabilities.');

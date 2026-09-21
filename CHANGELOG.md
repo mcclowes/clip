@@ -4,6 +4,10 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `clip discover` lists only installed tools with a registry schema by default, and counts the rest. A query or `--all` searches all of PATH.
+
 ## [0.3.0] - 2026-09-21
 
 ### Added

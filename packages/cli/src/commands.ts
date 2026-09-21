@@ -22,7 +22,7 @@ import { runUi } from './ui.ts';
 import { mergeClaudeSettings, proposeRules } from './permissions.ts';
 import { diagnoseRegistration, healthyStatuses, refreshRegistration, refreshable, reviewRegistryUpdate } from './refresh.ts';
 
-export type Options = { purpose?: string; profile?: string; schema?: string; probe?: string; file?: string; 'skills-dir'?: string; target?: string; 'agents-file'?: string; trust?: string[]; accept?: string[]; 'accept-all'?: boolean; write?: boolean; strict?: boolean };
+export type Options = { purpose?: string; profile?: string; schema?: string; probe?: string; file?: string; 'skills-dir'?: string; target?: string; 'agents-file'?: string; trust?: string[]; accept?: string[]; 'accept-all'?: boolean; all?: boolean; write?: boolean; strict?: boolean };
 export type Invocation = { args: string[]; options: Options; scope: Scope; limit: number };
 type Command = { positionals: number; interactive?: true; run: (invocation: Invocation) => unknown };
 
@@ -34,12 +34,22 @@ function requirePurpose(options: Options, message: string): string {
   return options.purpose;
 }
 
+/** Without a query, show only installed tools CLIP already has a schema for; the rest of PATH is mostly noise. */
+function discoverTools(query: string | undefined, all: boolean, limit: number) {
+  const known = new Map(catalog().map(entry => [entry.executable, entry.id]));
+  const registered = new Set(names(readTools()));
+  const onPath = discover(query).map(tool => ({ ...tool, registry: known.get(tool.name), registered: registered.has(tool.name) }));
+  if (query || all) return page(onPath, limit);
+  const items = onPath.filter(tool => tool.registry);
+  return { ...page(items, limit), unlisted: onPath.length - items.length };
+}
+
 const commands: Record<string, Command> = {
   help: { positionals: 0, run: () => contract },
   capabilities: { positionals: 0, run: () => contract },
   schema: { positionals: 2, run: ({ args }) => { if (args.length) throw new Error('Use schema show or init.'); return contract; } },
   registry: { positionals: 2, run: () => { throw new Error('Use registry search or add.'); } },
-  discover: { positionals: 1, run: ({ args: [query], limit }) => discover(query, limit) },
+  discover: { positionals: 1, run: ({ args: [query], options, limit }) => discoverTools(query, Boolean(options.all), limit) },
   list: { positionals: 0, run: ({ limit }) => page(readTools().map(tool => ({ ...tool, trust: trustOf(tool) })), limit) },
   register: { positionals: 1, run: register },
   remove: { positionals: 1, run: ({ args: [name], scope }) => {

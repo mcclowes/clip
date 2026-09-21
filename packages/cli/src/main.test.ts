@@ -203,6 +203,18 @@ test('remove describes the tool it removed in text output', t => {
   assert.equal(removed.stdout, 'Removed node\n');
 });
 
+test('discover shows only tools with a registry schema unless asked for all of PATH', t => {
+  const { dir } = fixture(t);
+  for (const name of ['git', 'noise-tool']) writeFileSync(join(dir, name), '#!/bin/sh\n', { mode: 0o755 });
+  const discover = (...args: string[]) => spawnSync(process.execPath, [main.pathname, 'discover', ...args], { cwd: dir, encoding: 'utf8', env: { ...process.env, PATH: dir, CLIP_HOME: join(dir, 'config') } });
+  const known = JSON.parse(discover().stdout);
+  assert.deepEqual(known.items.map((item: any) => [item.name, item.registry]), [['git', 'git']]);
+  assert.equal(known.unlisted, 1);
+  assert.match(discover('--output', 'text').stdout, /git \[registry: git\][\s\S]*1 other executables/);
+  assert.deepEqual(JSON.parse(discover('--all').stdout).items.map((item: any) => item.name), ['git', 'noise-tool']);
+  assert.deepEqual(JSON.parse(discover('noise').stdout).items.map((item: any) => item.name), ['noise-tool']);
+});
+
 test('probe capabilities explicitly, preserve nested contracts, and discover without executing', t => {
   const { dir, run } = fixture(t);
   const executable = join(dir, 'fixture-tool');

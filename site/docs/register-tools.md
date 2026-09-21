@@ -6,10 +6,11 @@ description: Discover executables and register them with a clear purpose.
 
 # Register tools with a purpose
 
-`clip discover` lists executable files on PATH without running them. Choose which tools to register; discovery doesn't opt tools in automatically.
+`clip discover` lists the installed tools that have a registry schema, without running them, and marks the ones already registered. Pass a query to search every executable on PATH by name, or `--all` to list them all. Choose which tools to register; discovery doesn't opt tools in automatically.
 
 ```bash
-clip discover git --limit 20
+clip discover
+clip discover deploy --limit 20
 clip register mytool --purpose "Manage project deployments" --probe schema
 ```
 
