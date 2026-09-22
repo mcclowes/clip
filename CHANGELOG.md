@@ -4,6 +4,8 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-22
+
 ### Added
 
 - The docs site publishes notices for the third-party code in its browser bundle at `/third-party-notices.txt`, linked from the footer. The site build fails when a bundled package, its version, or its license text differs from the reviewed inventory (#43).
@@ -70,7 +72,8 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 - Install versioned community capability schemas from the bundled registry.
 - Docs site and searchable tool directory.
 
-[Unreleased]: https://github.com/mcclowes/clip/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/mcclowes/clip/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/mcclowes/clip/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/mcclowes/clip/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/mcclowes/clip/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/mcclowes/clip/releases/tag/v0.1.0

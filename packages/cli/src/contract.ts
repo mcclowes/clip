@@ -10,7 +10,7 @@ const syncArgs = [
   arg('--agents-file', 'File holding the pointer block; defaults to AGENTS.md.'),
 ];
 export const contract = {
-  name: 'clip', version: '0.3.0', description: 'Register CLI tools and share their capabilities with agents.',
+  name: 'clip', version: '0.4.0', description: 'Register CLI tools and share their capabilities with agents.',
   command_layout: 'flat', output: { tty: 'text', piped: 'json' },
   global_args: [
     { name: '--output', aliases: ['-o'], type: 'string', enum: ['auto', 'json', 'text'], default: 'auto', description: 'Output format.' },
