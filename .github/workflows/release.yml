@@ -32,7 +32,68 @@ jobs:
         run: |
           node scripts/release-notes.mjs "${GITHUB_REF_NAME#v}" > release-notes.md
           gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.sha256 --verify-tag --notes-file release-notes.md
+
+  # npm and Homebrew publish independently, so one channel failing never holds back the other.
+  npm:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm ci && npm run build
       # Trusted publishing (OIDC): no npm token is stored in the repository.
       - name: Publish to npm
         working-directory: packages/cli
         run: npm install -g npm@latest && npm publish --provenance
+
+  homebrew:
+    needs: release
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HOMEBREW_NO_AUTO_UPDATE: 1
+    steps:
+      # The deploy key can write only to the tap repository.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mcclowes/homebrew-clip
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          path: tap
+      - name: Verify release archive
+        run: |
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern '*.tar.gz' --pattern '*.sha256'
+          shasum -a 256 -c clip-*.tar.gz.sha256
+          gh attestation verify clip-*.tar.gz --repo "$GITHUB_REPOSITORY"
+      - name: Update formula
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          sha="$(cut -d' ' -f1 clip-*.tar.gz.sha256)"
+          sed -i '' -E \
+            -e "s#^  url \".*\"#  url \"https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/clip-$version.tar.gz\"#" \
+            -e "s#^  sha256 \".*\"#  sha256 \"$sha\"#" \
+            tap/Formula/clip.rb
+          git -C tap diff
+      - name: Install, test, and audit formula
+        run: |
+          brew tap mcclowes/clip "$PWD/tap"
+          # Homebrew 7 refuses non-official taps until trusted; older releases lack the command.
+          if brew commands | grep -qx trust; then brew trust --tap mcclowes/clip; fi
+          brew install mcclowes/clip/clip
+          brew test mcclowes/clip/clip
+          brew audit --strict mcclowes/clip/clip
+      - name: Publish formula
+        working-directory: tap
+        run: |
+          git diff --quiet && exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -am "Dependency: update CLIP to ${GITHUB_REF_NAME#v}"
+          git push
