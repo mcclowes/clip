@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test packages/cli/src/*.test.ts evals/*.test.ts scripts/*.test.ts",
-    "test:coverage": "node --test --experimental-test-coverage --test-coverage-exclude='**/*.test.ts' --test-coverage-lines=85 packages/cli/src/*.test.ts evals/*.test.ts scripts/*.test.ts",
+    "test": "node --test packages/cli/src/*.test.ts evals/*.test.ts scripts/*.test.ts site/plugins/*/*.test.ts",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-exclude='**/*.test.ts' --test-coverage-lines=85 packages/cli/src/*.test.ts evals/*.test.ts scripts/*.test.ts site/plugins/*/*.test.ts",
     "demo": "node scripts/demo.ts",
     "lint": "biome lint",
     "build": "tsc -p packages/cli/tsconfig.json && node scripts/copy-registry.mjs",

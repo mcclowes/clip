@@ -4,6 +4,10 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- The docs site publishes notices for the third-party code in its browser bundle at `/third-party-notices.txt`, linked from the footer. The site build fails when a bundled package, its version, or its license text differs from the reviewed inventory (#43).
+
 ### Changed
 
 - `clip discover` lists only installed tools with a registry schema by default, and counts the rest. A query or `--all` searches all of PATH.

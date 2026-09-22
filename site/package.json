@@ -9,7 +9,8 @@
     "build": "docusaurus build",
     "serve": "docusaurus serve --no-open",
     "clear": "docusaurus clear",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "licenses:update": "CLIP_LICENSES_WRITE=1 docusaurus build"
   },
   "dependencies": {
     "@docusaurus/core": "3.10.2",

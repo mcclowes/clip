@@ -13,6 +13,7 @@ const config: Config = {
   onBrokenLinks: 'throw',
   onBrokenAnchors: 'warn',
   trailingSlash: false,
+  plugins: ['./plugins/third-party-licenses/index.ts'],
   presets: [
     [
       'classic',
@@ -38,7 +39,7 @@ const config: Config = {
       style: 'dark',
       links: [
         {title: './clip', items: [{label: 'Docs', to: '/docs'}, {label: 'Tools', to: '/tools'}]},
-        {title: 'Source', items: [{label: 'GitHub ↗', href: 'https://github.com/mcclowes/clip'}, {label: 'CLI Spec principles ↗', href: 'https://clispec.dev/spec/v0.2/'}]},
+        {title: 'Source', items: [{label: 'GitHub ↗', href: 'https://github.com/mcclowes/clip'}, {label: 'CLI Spec principles ↗', href: 'https://clispec.dev/spec/v0.2/'}, {label: 'Third-party notices', href: 'pathname:///third-party-notices.txt'}]},
       ],
       copyright: `CLIP ${new Date().getFullYear()} / one interface / shared capabilities`,
     },

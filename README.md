@@ -119,6 +119,6 @@ npm ci
 npm run dev
 ```
 
-The CLI is TypeScript with no runtime dependencies. The docs site is a static Docusaurus build. Registry JSON is the source of truth for both surfaces.
+The CLI is TypeScript with no runtime dependencies, and a test keeps it that way. The docs site is a static Docusaurus build; its build fails unless every npm package in the client bundle matches the reviewed license inventory in [`site/third-party/`](site/third-party/README.md), and it publishes their notices at `/third-party-notices.txt`. Registry JSON is the source of truth for both surfaces.
 
 See [the specification](docs/spec.md), [eval findings](docs/evals.md), [contributing](CONTRIBUTING.md), [the changelog](CHANGELOG.md), and [release instructions](docs/releasing.md). Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md). Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
