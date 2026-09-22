@@ -17,7 +17,7 @@ CLIP makes installed CLI tools discoverable to people and agents through portabl
 
 ## Commands
 
-`clip discover [query]`, `clip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities] [--profile <name>] [--scope local|shared|global]`, `clip list`, `clip remove <name> [--scope local|shared|global]`, `clip schema`, `clip capabilities`, `clip schema show <id>`, `clip schema init <name> --purpose <text> --file <path>`, `clip lint <schema-file|tool|registry-id>`, `clip sync [--skills-dir <path>] [--target all|skills|agents-md] [--agents-file <path>]`, `clip refresh [--accept <tool>] [--accept-all] [--skills-dir <path>] [--target all|skills|agents-md] [--agents-file <path>]`, `clip doctor`, `clip commands [--file <path>]`, `clip commands check [--file <path>]`, `clip commands init [--file <path>]`, `clip registry search [query]`, and `clip registry add <id> --purpose <text> [--profile <name>] [--scope local|shared|global]`.
+`clip discover [query] [--all]`, `clip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities] [--profile <name>] [--scope local|shared|global]`, `clip list`, `clip remove <name> [--scope local|shared|global]`, `clip ui`, `clip schema`, `clip capabilities`, `clip schema show <id>`, `clip schema init <name> --purpose <text> --file <path>`, `clip lint <schema-file|tool|registry-id>`, `clip sync [--skills-dir <path>] [--target all|skills|agents-md] [--agents-file <path>]`, `clip refresh [--accept <tool>] [--accept-all] [--skills-dir <path>] [--target all|skills|agents-md] [--agents-file <path>]`, `clip doctor`, `clip permissions [--write] [--trust <tool>] [--file <path>] [--target claude]`, `clip commands [--file <path>]`, `clip commands check [--file <path>] [--strict]`, `clip commands init [--file <path>]`, `clip registry search [query]`, and `clip registry add <id> --purpose <text> [--profile <name>] [--scope local|shared|global]`.
 
 All commands accept `--output auto|json|text`. Non-TTY output defaults to JSON. Errors are structured on stderr. Schema and capabilities work without configuration or network. Registry additions use the bundled catalog, which updates with CLIP releases; community contributions go through GitHub pull requests.
 
@@ -67,4 +67,4 @@ Exercise the public CLI in temporary directories: registration and purpose updat
 
 ## Publishing
 
-Source: https://github.com/mcclowes/clip. Homebrew tap: https://github.com/mcclowes/homebrew-clip. Initial release: v0.1.0. Implementation is tracked in issue #1. The docs and directory are hosted through Sites, with public access awaiting the owner's audience choice. No existing repository or files were present at task start.
+Source: https://github.com/mcclowes/clip. Homebrew tap: https://github.com/mcclowes/homebrew-clip. Docs and tool directory: https://clip.marginalutility.dev. Initial release: v0.1.0. Implementation is tracked in issue #1.

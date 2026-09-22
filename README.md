@@ -77,7 +77,7 @@ clip permissions --write    # merges them into .claude/settings.local.json
 
 Each command marked `mutating: false` becomes a rule such as `Bash(gh pr list:*)`, so your agent stops asking before read-only calls. Only reviewed bundled schemas qualify; add `--trust <tool>` for one you wrote. Mutating commands, unknown markers, parent commands, and paths with placeholders or flags never get a rule, so they keep prompting. The output lists the rules it would add and why everything else was skipped.
 
-Use `clip list` and `clip remove mytool` to maintain registrations. Inside a Git project, changes default to the uncommitted `.clip/tools.local.json`. Use `--scope shared` for the repository's `.clip/tools.json`, or `--scope global` for `~/.config/clip/tools.json`. Local registrations override shared registrations, which override global ones. Removing an inherited tool disables it in the selected project scope.
+Use `clip list` and `clip remove mytool` to maintain registrations, or `clip ui` to manage them and browse the registry interactively. Inside a Git project, changes default to the uncommitted `.clip/tools.local.json`. Use `--scope shared` for the repository's `.clip/tools.json`, or `--scope global` for `~/.config/clip/tools.json`. Local registrations override shared registrations, which override global ones. Removing an inherited tool disables it in the selected project scope.
 
 Run `clip sync` after changes. Set `--skills-dir` to your agent's skills directory. CLIP refuses to replace unowned skill directories; generated files should be edited through their source schemas.
 
@@ -102,7 +102,7 @@ After updating registered tools or CLIP's bundled registry, run `clip doctor` to
 - Failures exit 1 and write a structured error to stderr.
 - Discovery scans PATH without executing tools. Native probing is explicit, shell-free, and bounded to five seconds and 1 MiB.
 - Registrations merge from global, shared project, and local project configuration. `CLIP_HOME` changes the global directory.
-- The first release bundles the community registry. Upgrade CLIP, review the `clip refresh` output, then accept catalog updates explicitly. Local schema files and native probes use the same refresh workflow.
+- Each release bundles the community registry. Upgrade CLIP, review the `clip refresh` output, then accept catalog updates explicitly. Local schema files and native probes use the same refresh workflow.
 
 ## Development
 

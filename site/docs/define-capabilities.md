@@ -23,14 +23,16 @@ Add real operations to the empty commands list before registration:
     "name": "list",
     "description": "List deployments",
     "mutating": false,
-    "args": [{ "name": "--limit", "type": "integer", "default": 20 }]
+    "args": [{ "name": "--limit", "type": "integer", "default": 20 }],
+    "examples": ["mytool list --limit 20"]
   }]
 }
 ```
 
 ```bash
+clip lint mytool.json
 clip register mytool --purpose "Manage deployments" --schema mytool.json
-clip schema mytool
+clip sync
 ```
 
 ## Draft with an agent

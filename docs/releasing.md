@@ -4,6 +4,6 @@
 2. Run `npm ci`, `npm test`, `npm run build`, and `npm run registry:check`. Regenerate site data with `node scripts/site-registry.mjs` and build the site.
 3. Commit the release changes. Push the reviewed commit, then tag it as `vX.Y.Z` and push the tag. The release workflow checks the version, builds a dependency-free archive, attests its build provenance, publishes it with its SHA-256 digest, and publishes `@mcclowes/clip` to npm with provenance through trusted publishing. Verify an archive with `gh attestation verify clip-X.Y.Z.tar.gz --repo mcclowes/clip`.
 4. Update `Formula/clip.rb` in `mcclowes/homebrew-clip` with the release URL and checksum. Validate using `brew install mcclowes/clip/clip` and `brew test mcclowes/clip/clip` before publishing the formula update.
-5. Publish the static docs through Sites using `site/.openai/hosting.json`. The source registry lives at the repository root; run `node scripts/site-registry.mjs` before building. The hosting archive contains only `site/build` and hosting metadata.
+5. The docs site is served by Vercel from `site/` (see `site/vercel.json`). The source registry lives at the repository root; run `node scripts/site-registry.mjs` and commit the regenerated `site/data` and `site/static/registry` before the site builds, since CI fails when they're stale.
 
 Never replace a release asset under an existing version. Publish a new version for fixes. The catalog is bundled in the CLI archive, and installed registrations retain the exact schema and checksum they were installed with.

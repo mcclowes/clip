@@ -10,9 +10,10 @@ Run `clip schema` or `clip capabilities` for the machine-readable command contra
 
 ```text
 clip discover [query] [--all]
-clip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities] [--profile <name>]
+clip register <executable> --purpose <text> [--schema <file> | --probe schema|capabilities] [--profile <name>] [--scope local|shared|global]
 clip list
-clip remove <name>
+clip remove <name> [--scope local|shared|global]
+clip ui [--skills-dir <path>]
 clip schema
 clip capabilities
 clip schema show <id>
@@ -21,16 +22,19 @@ clip lint <schema-file|tool|registry-id>
 clip sync [--skills-dir <path>] [--target all|skills|agents-md] [--agents-file <path>]
 clip refresh [--accept <tool>] [--accept-all] [--skills-dir <path>] [--target all|skills|agents-md] [--agents-file <path>]
 clip doctor
+clip permissions [--write] [--trust <tool>] [--file <path>] [--target claude]
 clip registry search [query]
-clip registry add <id> --purpose <text> [--profile <name>]
+clip registry add <id> --purpose <text> [--profile <name>] [--scope local|shared|global]
 clip commands [--file <path>]
-clip commands check [--file <path>]
+clip commands check [--file <path>] [--strict]
 clip commands init [--file <path>]
 ```
 
-All commands accept `--output auto|json|text`. Auto uses JSON when piped and readable text on a terminal. List commands accept `--limit` from 1 to 10000, defaulting to 100, and include truncation metadata. Failures exit 1 with a structured error on stderr. `clip commands check` and `clip lint` also exit 1 when they find errors, with the report on stdout. See [project commands](./commands.md).
+All commands accept `--output auto|json|text`. `--scope` defaults to `local` inside a Git project and `global` elsewhere. Auto uses JSON when piped and readable text on a terminal. List commands accept `--limit` from 1 to 10000, defaulting to 100, and include truncation metadata. Failures exit 1 with a structured error on stderr. `clip commands check` and `clip lint` also exit 1 when they find errors, with the report on stdout. See [project commands](./commands.md).
 
 `clip list` marks each registration `reviewed` when its schema is a bundled registry schema, unmodified, and `unreviewed` otherwise: local files, probes, manual registrations, and registry schemas edited after install or left behind by a catalog update until `clip refresh`.
+
+`clip ui` is an interactive terminal for managing registrations and browsing the registry.
 
 `clip refresh` immediately reloads local files and explicitly registered native probes. A bundled registry change stays pending: CLIP shows a diff of the exact skill text agents would see, with mutation-marker changes ahead of the diff, and preserves the installed registration. Run `clip refresh --accept <tool>` to adopt one reviewed update. CI can opt in to the old bulk behavior with `clip refresh --accept-all`.
 
