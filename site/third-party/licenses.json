@@ -121,6 +121,18 @@
       ]
     },
     {
+      "name": "@vercel/analytics",
+      "version": "2.0.1",
+      "license": "MIT",
+      "reviewed": true,
+      "notices": [
+        {
+          "file": "LICENSE",
+          "sha256": "592702a2a974fdaf3f43acb336275c4b8ab0a7cfcbeb248f897848f96954c5ed"
+        }
+      ]
+    },
+    {
       "name": "clsx",
       "version": "2.1.1",
       "license": "MIT",

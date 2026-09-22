@@ -14,6 +14,7 @@ const config: Config = {
   onBrokenAnchors: 'warn',
   trailingSlash: false,
   plugins: ['./plugins/third-party-licenses/index.ts'],
+  clientModules: ['./src/clientModules/vercelAnalytics.ts'],
   presets: [
     [
       'classic',
