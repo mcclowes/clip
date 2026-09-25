@@ -233,7 +233,7 @@
       "upstream": "https://turnstile.marginalutility.dev",
       "documentation": "https://turnstile.marginalutility.dev/commands",
       "schema": "schemas/turnstile.json",
-      "sha256": "ee5afdfab06ff6c34a417b2b633939eac7c4c1eceec2ad309ac070b892b47068",
+      "sha256": "0058b341ee4d15241e0dff9f933bd4d14a5b5f9ee1ffd7c81a3eb56fd646c20e",
       "coverage": "Read-only status, history, run logs, and classification; excludes queue control and setup"
     }
   ]
