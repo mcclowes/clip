@@ -41,7 +41,6 @@ const config: Config = {
       links: [
         {title: './clip', items: [{label: 'Docs', to: '/docs'}, {label: 'Tools', to: '/tools'}]},
         {title: 'Source', items: [{label: 'GitHub ↗', href: 'https://github.com/mcclowes/clip'}, {label: 'CLI Spec principles ↗', href: 'https://clispec.dev/spec/v0.2/'}, {label: 'Third-party notices', href: 'pathname:///third-party-notices.txt'}]},
-        {title: 'More tools', items: [{label: 'Shelf ↗', href: 'https://github.com/mcclowes/shelf'}, {label: 'turnstile ↗', href: 'https://turnstile.marginalutility.dev'}]},
       ],
       copyright: `CLIP ${new Date().getFullYear()} / one interface / shared capabilities`,
     },
