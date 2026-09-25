@@ -4,6 +4,10 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Community schemas for Shelf and turnstile.
+
 ## [0.4.0] - 2026-09-22
 
 ### Added

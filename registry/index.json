@@ -207,6 +207,34 @@
       "schema": "schemas/yq.json",
       "sha256": "f64c38c18fdac466e1f38bd1e8c6ec52568c2daa9ce1bff101db5af6e71e2ef6",
       "coverage": "YAML expression evaluation across individual or multiple documents; excludes file writes"
+    },
+    {
+      "id": "shelf",
+      "name": "Shelf",
+      "executable": "shelf",
+      "purpose": "Find your other repositories and what each one does",
+      "category": "Development",
+      "maintainer": "mcclowes",
+      "version": "1.0.0",
+      "upstream": "https://github.com/mcclowes/shelf",
+      "documentation": "https://github.com/mcclowes/shelf#readme",
+      "schema": "schemas/shelf.json",
+      "sha256": "f88aeffe1f23a2720adc7609ffc46462ec33e2f4ecf7cd1a96ea2940f4bc03c7",
+      "coverage": "Repository search, lookup, listing, description overrides, and scanning"
+    },
+    {
+      "id": "turnstile",
+      "name": "turnstile",
+      "executable": "turnstile",
+      "purpose": "Inspect the machine-wide queue for builds and tests",
+      "category": "Development",
+      "maintainer": "mcclowes",
+      "version": "1.0.0",
+      "upstream": "https://turnstile.marginalutility.dev",
+      "documentation": "https://turnstile.marginalutility.dev/commands",
+      "schema": "schemas/turnstile.json",
+      "sha256": "ee5afdfab06ff6c34a417b2b633939eac7c4c1eceec2ad309ac070b892b47068",
+      "coverage": "Read-only status, history, run logs, and classification; excludes queue control and setup"
     }
   ]
 }
