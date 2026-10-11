@@ -81,6 +81,11 @@ jobs:
             -e "s#^  sha256 \".*\"#  sha256 \"$sha\"#" \
             tap/Formula/clip.rb
           git -C tap diff
+          # brew tap clones committed HEAD, so commit the update before testing it.
+          git -C tap diff --quiet && exit 0
+          git -C tap config user.name 'github-actions[bot]'
+          git -C tap config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C tap commit -am "Dependency: update CLIP to $version"
       - name: Install, test, and audit formula
         run: |
           brew tap mcclowes/clip "$PWD/tap"
@@ -91,9 +96,4 @@ jobs:
           brew audit --strict mcclowes/clip/clip
       - name: Publish formula
         working-directory: tap
-        run: |
-          git diff --quiet && exit 0
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -am "Dependency: update CLIP to ${GITHUB_REF_NAME#v}"
-          git push
+        run: git push
