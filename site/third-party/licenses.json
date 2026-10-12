@@ -294,7 +294,7 @@
     },
     {
       "name": "react-dom",
-      "version": "19.2.4",
+      "version": "19.3.0",
       "license": "MIT",
       "reviewed": true,
       "notices": [
@@ -366,7 +366,7 @@
     },
     {
       "name": "react",
-      "version": "19.2.4",
+      "version": "19.3.0",
       "license": "MIT",
       "reviewed": true,
       "notices": [
@@ -390,7 +390,7 @@
     },
     {
       "name": "scheduler",
-      "version": "0.27.0",
+      "version": "0.28.0",
       "license": "MIT",
       "reviewed": true,
       "notices": [
