@@ -19,6 +19,8 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
       - run: npm ci
+      - run: npm run lint
+      - run: npm run check
       - run: npm test && npm run build && npm run registry:check
       - name: Check release version
         run: node -e 'const p=require("./packages/cli/package.json"); if(process.env.GITHUB_REF_NAME!==`v${p.version}`) process.exit(1)'
