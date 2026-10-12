@@ -1,5 +1,9 @@
 {
   "extends": "@docusaurus/tsconfig",
-  "compilerOptions": { "baseUrl": ".", "allowImportingTsExtensions": true },
+  "compilerOptions": {
+    "baseUrl": ".",
+    "allowImportingTsExtensions": true,
+    "ignoreDeprecations": "6.0"
+  },
   "exclude": ["build", ".docusaurus"]
 }
