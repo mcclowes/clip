@@ -31,7 +31,7 @@ test('the fixture adds the positional load ID gotcha only when requested', t => 
   const workspace = prepare('cli-clip', { schema: withGotchas });
   t.after(() => cleanup(workspace));
   const skill = readFileSync(join(workspace.cwd, '.claude/skills/clip-brindle/SKILL.md'), 'utf8');
-  assert.match(skill, /`brindle load cancel <load> --reason <reason> \[--dry-run\]`.*\n  - Gotcha: The load id is positional; there is no --id flag\./);
+  assert.match(skill, /`brindle load cancel <load> --reason <reason> \[--dry-run\]`.*\n {2}- Gotcha: The load id is positional; there is no --id flag\./);
   assert.equal(plain.commands.find(item => item.name === 'load cancel')!.gotchas, undefined);
 });
 
