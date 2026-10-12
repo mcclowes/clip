@@ -105,18 +105,23 @@ export function manifestDriftIssues(root: string, markdown: string, strict: bool
   for (const manifest of supportedManifests(root)) {
     const declaredCommands = new Set(declared.filter(seed => seed.source === manifest.source).map(seed => seed.command));
     for (const entry of entries) {
-      if (ignored.has(entry.command) || !manifest.matches(entry.command) || [...declaredCommands].some(command => describesManifestCommand(entry.command, command))) continue;
+      if (ignored.has(canonicalManifestCommand(entry.command)) || !manifest.matches(entry.command) || [...declaredCommands].some(command => describesManifestCommand(entry.command, command))) continue;
       issues.push({ line: entry.line, severity, message: `The commands file describes "${entry.command}", but ${manifest.source} does not declare it.` });
     }
   }
   return issues;
 }
 
-const describesManifestCommand = (entry: string, declared: string) => entry === declared || entry.startsWith(`${declared} `);
+const canonicalManifestCommand = (command: string) => command.replace(/^npm (?:test|tst|t)(?= |$)/, 'npm run test');
+
+function describesManifestCommand(entry: string, declared: string): boolean {
+  const canonical = canonicalManifestCommand(entry);
+  return canonical === declared || canonical.startsWith(`${declared} `);
+}
 
 /** A comment keeps an intentional exclusion out of both Markdown readers and generated agent guidance. */
 function ignoredCommands(markdown: string): Set<string> {
-  return new Set([...markdown.matchAll(/<!--\s*clip:ignore\s+(.+?)\s*-->/g)].map(match => match[1]!.trim()));
+  return new Set([...markdown.matchAll(/<!--\s*clip:ignore\s+(.+?)\s*-->/g)].map(match => canonicalManifestCommand(match[1]!.trim())));
 }
 
 /** The decorators an agent acts on, in a fixed order: effect, lifetime, then flags. */
@@ -313,7 +318,7 @@ export function manifestCommands(root: string): ManifestCommand[] {
 function supportedManifests(root: string): SupportedManifest[] {
   const supports = (source: string, files: string[], matches: (command: string) => boolean) => readFirstManifest(root, files) === undefined ? [] : [{ source, matches }];
   return [
-    ...supports('package.json scripts', ['package.json'], command => /^npm run \S+(?:\s|$)/.test(command)),
+    ...supports('package.json scripts', ['package.json'], command => /^npm run \S+(?:\s|$)/.test(canonicalManifestCommand(command))),
     ...supports('Makefile', ['Makefile', 'makefile', 'GNUmakefile'], command => /^make \S+(?:\s|$)/.test(command)),
     ...supports('justfile', ['justfile', '.justfile'], command => /^just \S+(?:\s|$)/.test(command)),
     ...supports('Taskfile', ['Taskfile.yml', 'Taskfile.yaml', 'taskfile.yml', 'taskfile.yaml'], command => /^task \S+(?:\s|$)/.test(command)),

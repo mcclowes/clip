@@ -540,6 +540,67 @@ test('commands check reports package script drift, and strict mode fails it', t 
   assert.deepEqual(JSON.parse(strict.stdout).items.map((item: { severity: string }) => item.severity), ['error', 'error']);
 });
 
+test('commands check recognizes npm test aliases and their arguments', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { test: 'node --test' } }));
+  mkdirSync(join(dir, '.clip'));
+  const file = join(dir, '.clip/commands.md');
+
+  for (const command of ['npm test', 'npm t', 'npm tst', 'npm test -- --watch', 'npm t -- --watch', 'npm tst -- --watch']) {
+    writeFileSync(file, `- Tests: \`${command}\` #safe\n`);
+    const checked = run('commands', 'check', '--strict');
+    assert.equal(checked.status, 0, `${command}: ${checked.stdout}${checked.stderr}`);
+    assert.deepEqual(JSON.parse(checked.stdout).items, []);
+  }
+
+  writeFileSync(file, '- Tests: `npm test`\n');
+  const undecorated = run('commands', 'check', '--strict');
+  assert.equal(undecorated.status, 1);
+  assert.equal(JSON.parse(undecorated.stdout).items.length, 1);
+  assert.match(JSON.parse(undecorated.stdout).items[0].message, /effect/);
+});
+
+test('commands check does not treat arbitrary npm subcommands or alias prefixes as scripts', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { test: 'node --test', build: 'tsc' } }));
+  mkdirSync(join(dir, '.clip'));
+  writeFileSync(join(dir, '.clip/commands.md'), '- Tests: `npm test-extra` #safe\n- Build: `npm build` #safe\n');
+
+  const checked = run('commands', 'check', '--strict');
+  assert.equal(checked.status, 1);
+  assert.deepEqual(JSON.parse(checked.stdout).items.map((item: { message: string }) => item.message), [
+    'package.json scripts declares "npm run test", but .clip/commands.md does not describe it.',
+    'package.json scripts declares "npm run build", but .clip/commands.md does not describe it.',
+  ]);
+});
+
+test('commands check reports removed test scripts documented using aliases', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: {} }));
+  mkdirSync(join(dir, '.clip'));
+  for (const command of ['npm test', 'npm t', 'npm tst']) {
+    writeFileSync(join(dir, '.clip/commands.md'), `- Tests: \`${command}\` #safe\n`);
+    const checked = run('commands', 'check', '--strict');
+    assert.equal(checked.status, 1);
+    assert.deepEqual(JSON.parse(checked.stdout).items, [
+      { line: 1, severity: 'error', message: `The commands file describes "${command}", but package.json scripts does not declare it.` },
+    ]);
+  }
+});
+
+test('commands check honors npm test alias exclusions in both directions', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.clip'));
+  const file = join(dir, '.clip/commands.md');
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { test: 'node --test' } }));
+  writeFileSync(file, '<!-- clip:ignore npm tst -->\n');
+  assert.equal(run('commands', 'check', '--strict').status, 0);
+
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: {} }));
+  writeFileSync(file, '<!-- clip:ignore npm run test -->\n- Tests: `npm t` #safe\n');
+  assert.equal(run('commands', 'check', '--strict').status, 0);
+});
+
 test('commands check recognizes a documented manifest command with arguments', t => {
   const { dir, run } = fixture(t);
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { validate: 'node validate.js' } }));
