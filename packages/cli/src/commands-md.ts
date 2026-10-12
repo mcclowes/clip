@@ -100,7 +100,7 @@ export function manifestDriftIssues(root: string, markdown: string, strict: bool
   const declared = manifestCommands(root);
   const severity: CommandIssue['severity'] = strict ? 'error' : 'warning';
   const issues: CommandIssue[] = declared
-    .filter(seed => !ignored.has(seed.command) && !entries.some(entry => describesManifestCommand(entry.command, seed.command)))
+    .filter(seed => !ignored.has(canonicalManifestCommand(seed.command)) && !entries.some(entry => describesManifestCommand(entry.command, seed.command)))
     .map(seed => ({ severity, message: `${seed.source} declares "${seed.command}", but .clip/commands.md does not describe it.` }));
   for (const manifest of supportedManifests(root)) {
     const declaredCommands = new Set(declared.filter(seed => seed.source === manifest.source).map(seed => seed.command));
@@ -112,11 +112,14 @@ export function manifestDriftIssues(root: string, markdown: string, strict: bool
   return issues;
 }
 
-const canonicalManifestCommand = (command: string) => command.replace(/^npm (?:test|tst|t)(?= |$)/, 'npm run test');
+const canonicalManifestCommand = (command: string) => command
+  .replace(/^pnpm (?:run|run-script)(?= |$)/, 'npm run')
+  .replace(/^npm (?:test|tst|t)(?= |$)/, 'npm run test');
 
 function describesManifestCommand(entry: string, declared: string): boolean {
   const canonical = canonicalManifestCommand(entry);
-  return canonical === declared || canonical.startsWith(`${declared} `);
+  const expected = canonicalManifestCommand(declared);
+  return canonical === expected || canonical.startsWith(`${expected} `);
 }
 
 /** A comment keeps an intentional exclusion out of both Markdown readers and generated agent guidance. */
@@ -330,9 +333,10 @@ function packageScripts(root: string): ManifestCommand[] {
   const text = readManifest(root, 'package.json');
   if (!text) return [];
   try {
-    const scripts = JSON.parse(text).scripts;
+    const { scripts, packageManager } = JSON.parse(text);
     if (!scripts || typeof scripts !== 'object' || Array.isArray(scripts)) return [];
-    return Object.keys(scripts).filter(name => validTaskName(name) && typeof scripts[name] === 'string').map(name => ({ source: 'package.json scripts', name: `npm ${name}`, command: `npm run ${name}` }));
+    const runner = typeof packageManager === 'string' && packageManager.startsWith('pnpm@') ? 'pnpm' : 'npm';
+    return Object.keys(scripts).filter(name => validTaskName(name) && typeof scripts[name] === 'string').map(name => ({ source: 'package.json scripts', name: `${runner} ${name}`, command: `${runner} run ${name}` }));
   } catch {
     return [];
   }

@@ -467,6 +467,83 @@ test('commands init seeds package scripts without guessing their effects', t => 
   assert.deepEqual(JSON.parse(checked.stdout), { file: listed.file, healthy: true, items: [], total: 0, truncated: false });
 });
 
+test('commands init uses the declared pnpm manager without running scripts', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'pnpm@11.22.0', scripts: { test: 'touch forbidden' } }));
+
+  const created = run('commands', 'init');
+  assert.equal(created.status, 0, created.stderr);
+  assert.deepEqual(JSON.parse(run('commands').stdout).items.map((item: { name: string; command: string; effect?: string }) => [item.name, item.command, item.effect]), [
+    ['pnpm test', 'pnpm run test', undefined],
+  ]);
+  assert.equal(existsSync(join(dir, 'forbidden')), false);
+  assert.deepEqual(JSON.parse(run('commands', 'check').stdout).items, []);
+});
+
+test('commands check recognizes explicit pnpm scripts and arguments with either package manager', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.clip'));
+  const file = join(dir, '.clip/commands.md');
+  for (const packageManager of ['pnpm@11.22.0', 'npm@11.16.0']) {
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager, scripts: { test: 'node --test', build: 'tsc' } }));
+    for (const runner of ['pnpm run', 'pnpm run-script']) {
+      writeFileSync(file, `- Tests: \`${runner} test --watch\` #safe\n- Build: \`${runner} build -- --production\` #safe\n`);
+      const checked = run('commands', 'check', '--strict');
+      assert.equal(checked.status, 0, `${packageManager}, ${runner}: ${checked.stdout}${checked.stderr}`);
+      assert.deepEqual(JSON.parse(checked.stdout).items, []);
+    }
+  }
+  writeFileSync(file, '- Tests: `npm test` #safe\n- Build: `npm run build` #safe\n');
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'pnpm@11.22.0', scripts: { test: 'node --test', build: 'tsc' } }));
+  assert.equal(run('commands', 'check', '--strict').status, 0);
+});
+
+test('commands check tracks pnpm drift and normalizes exclusions in both directions', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.clip'));
+  const file = join(dir, '.clip/commands.md');
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'pnpm@11.22.0', scripts: { test: 'node --test', added: 'node added.js' } }));
+  writeFileSync(file, '- Tests: `pnpm run test` #safe\n- Removed: `pnpm run-script removed` #safe\n');
+  const checked = run('commands', 'check', '--strict');
+  assert.equal(checked.status, 1);
+  assert.deepEqual(JSON.parse(checked.stdout).items.map((item: { message: string }) => item.message), [
+    'package.json scripts declares "pnpm run added", but .clip/commands.md does not describe it.',
+    'The commands file describes "pnpm run-script removed", but package.json scripts does not declare it.',
+  ]);
+
+  writeFileSync(file, '<!-- clip:ignore npm run added -->\n- Tests: `pnpm run-script test` #safe\n');
+  assert.equal(run('commands', 'check', '--strict').status, 0);
+  writeFileSync(file, '<!-- clip:ignore pnpm run-script added -->\n- Tests: `npm test` #safe\n');
+  assert.equal(run('commands', 'check', '--strict').status, 0);
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: {} }));
+  writeFileSync(file, '<!-- clip:ignore pnpm run test -->\n- Tests: `pnpm run-script test` #safe\n');
+  assert.equal(run('commands', 'check', '--strict').status, 0);
+});
+
+test('commands check keeps pnpm built-ins and implicit aliases outside script matching', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'pnpm@11.22.0', scripts: { install: 'node install.js', test: 'node --test' } }));
+  mkdirSync(join(dir, '.clip'));
+  writeFileSync(join(dir, '.clip/commands.md'), '- Install: `pnpm install` #safe\n- Execute: `pnpm exec test` #safe\n- Prefix: `pnpm run-script-extra test` #safe\n- Shorthand: `pnpm test` #safe\n');
+
+  const checked = run('commands', 'check', '--strict');
+  assert.equal(checked.status, 1);
+  assert.deepEqual(JSON.parse(checked.stdout).items.map((item: { message: string }) => item.message), [
+    'package.json scripts declares "pnpm run install", but .clip/commands.md does not describe it.',
+    'package.json scripts declares "pnpm run test", but .clip/commands.md does not describe it.',
+  ]);
+});
+
+test('strict commands check still requires effects for explicit pnpm scripts', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'pnpm@11.22.0', scripts: { test: 'node --test' } }));
+  mkdirSync(join(dir, '.clip'));
+  writeFileSync(join(dir, '.clip/commands.md'), '- Tests: `pnpm run test`\n');
+  const checked = run('commands', 'check', '--strict');
+  assert.equal(checked.status, 1);
+  assert.deepEqual(JSON.parse(checked.stdout).items.map((item: { message: string }) => item.message), ['Declare one effect: #safe, #writes, or #destructive.']);
+});
+
 test('commands init seeds documented Make, just, Taskfile, and mise tasks without running them', t => {
   const { dir, run } = fixture(t);
   writeFileSync(join(dir, 'Makefile'), '.PHONY: check\ncheck: ## Check safely #safe\n\t@exit 1\n%.o: %.c\n');
