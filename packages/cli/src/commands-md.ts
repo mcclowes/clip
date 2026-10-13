@@ -128,7 +128,7 @@ function ignoredCommands(markdown: string): Set<string> {
 }
 
 /** The decorators an agent acts on, in a fixed order: effect, lifetime, then flags. */
-export function agentTags(entry: CommandEntry): string[] {
+export function agentTags(entry: Pick<CommandEntry, 'effect' | 'lifetime' | 'interactive' | 'ci'>): string[] {
   return [entry.effect, entry.lifetime, entry.interactive && 'interactive', entry.ci && 'ci'].filter((tag): tag is string => Boolean(tag));
 }
 
