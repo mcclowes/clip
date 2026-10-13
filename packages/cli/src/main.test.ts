@@ -44,6 +44,23 @@ test('refresh reloads a local schema and synchronizes its skill', t => {
   assert.equal(JSON.parse(run('list').stdout).items[0].schema.commands[0].name, '--help');
 });
 
+test('refresh skips manual registrations without changing them and synchronizes their guidance', t => {
+  const { dir, run } = fixture(t);
+  assert.equal(run('register', process.execPath, '--purpose', 'Run project scripts').status, 0);
+  const before = run('list').stdout;
+  const config = join(dir, 'config', 'tools.json');
+  const original = readFileSync(config, 'utf8');
+
+  const refreshed = run('refresh');
+
+  assert.equal(refreshed.status, 0, refreshed.stderr);
+  assert.deepEqual(JSON.parse(refreshed.stdout).refreshed, []);
+  assert.deepEqual(JSON.parse(refreshed.stdout).skipped, ['node']);
+  assert.equal(run('list').stdout, before);
+  assert.equal(readFileSync(config, 'utf8'), original);
+  assert.match(readFileSync(join(dir, '.agents/skills/clip-node/SKILL.md'), 'utf8'), /Run project scripts/);
+});
+
 test('refresh requires explicit acceptance for agent-facing registry updates', t => {
   const { dir, run } = fixture(t);
   assert.equal(run('registry', 'add', 'git', '--purpose', 'Review changes').status, 0);
@@ -103,8 +120,10 @@ test('doctor reports schema drift without changing registrations or skills', t =
   assert.equal(existsSync(join(dir, '.agents/skills/clip-node')), false);
 });
 
-test('refresh reruns a registered native schema probe', t => {
+test('refresh reruns a native schema probe alongside skipped manual registrations', t => {
   const { dir, run } = fixture(t);
+  assert.equal(run('register', process.execPath, '--purpose', 'Run project scripts').status, 0);
+  const manual = JSON.parse(run('list').stdout).items[0];
   const executable = join(dir, 'native-tool');
   const liveSchema = join(dir, 'native-schema.json');
   writeFileSync(liveSchema, JSON.stringify({ name: 'native', commands: [{ name: 'old', description: 'Old command' }] }));
@@ -115,6 +134,11 @@ test('refresh reruns a registered native schema probe', t => {
   const refreshed = run('refresh');
 
   assert.equal(refreshed.status, 0, refreshed.stderr);
+  assert.deepEqual(JSON.parse(refreshed.stdout).refreshed, ['native']);
+  assert.deepEqual(JSON.parse(refreshed.stdout).skipped, ['node']);
+  const tools = JSON.parse(run('list').stdout).items;
+  assert.deepEqual(tools.find((tool: { name: string }) => tool.name === 'node'), manual);
+  assert.equal(tools.find((tool: { name: string }) => tool.name === 'native').schema.commands[0].name, 'new');
   assert.match(readFileSync(join(dir, '.agents/skills/clip-native/SKILL.md'), 'utf8'), /new/);
 });
 
