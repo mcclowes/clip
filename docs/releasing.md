@@ -9,3 +9,8 @@
 5. The docs site is served by Vercel from `site/` (see `site/vercel.json`). The source registry lives at the repository root; run `node scripts/site-registry.mjs` and commit the regenerated `site/data` and `site/static/registry` before the site builds, since CI fails when they're stale.
 
 Never replace a release asset under an existing version. Publish a new version for fixes. The catalog is bundled in the CLI archive, and installed registrations retain the exact schema and checksum they were installed with.
+
+Local archive packaging stages both the tarball and checksum before replacing
+their final files. Missing inputs, tar failures, and checksum creation failures
+keep a previous local archive intact. Payload and output staging are removed
+after success or failure; this does not permit replacing a published release.
