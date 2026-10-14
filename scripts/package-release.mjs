@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, readFileSync, writeFileSync, mkdtempSync, rmSync, renameSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, mkdtempSync, rmSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -7,6 +7,7 @@ const root = new URL('../', import.meta.url);
 const { version } = JSON.parse(readFileSync(new URL('packages/cli/package.json', root), 'utf8'));
 const staging = mkdtempSync(join(tmpdir(), 'clip-release-'));
 let outputStaging = '';
+let retainOutputStaging = false;
 try {
   const directory = join(staging, `clip-${version}`);
   mkdirSync(directory);
@@ -19,10 +20,27 @@ try {
   execFileSync('tar', ['-czf', stagedArchive, '-C', staging, `clip-${version}`]);
   const digest = createHash('sha256').update(readFileSync(stagedArchive)).digest('hex');
   writeFileSync(`${stagedArchive}.sha256`, `${digest}  clip-${version}.tar.gz\n`);
+  const previousArchive = join(outputStaging, 'previous-archive.tar.gz');
+  const hadPreviousArchive = existsSync(archive);
+  if (hadPreviousArchive) cpSync(archive, previousArchive);
   renameSync(stagedArchive, archive);
-  renameSync(`${stagedArchive}.sha256`, `${archive}.sha256`);
+  try {
+    renameSync(`${stagedArchive}.sha256`, `${archive}.sha256`);
+  } catch (promotionError) {
+    try {
+      if (hadPreviousArchive) renameSync(previousArchive, archive);
+      else rmSync(archive);
+    } catch (rollbackError) {
+      retainOutputStaging = true;
+      throw new AggregateError(
+        [promotionError, rollbackError],
+        `Could not restore release archive; recovery files retained in ${outputStaging}`,
+      );
+    }
+    throw promotionError;
+  }
   console.log(`${archive}\n${digest}`);
 } finally {
   rmSync(staging, { recursive: true, force: true });
-  if (outputStaging) rmSync(outputStaging, { recursive: true, force: true });
+  if (outputStaging && !retainOutputStaging) rmSync(outputStaging, { recursive: true, force: true });
 }

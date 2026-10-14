@@ -12,5 +12,8 @@ Never replace a release asset under an existing version. Publish a new version f
 
 Local archive packaging stages both the tarball and checksum before replacing
 their final files. Missing inputs, tar failures, and checksum creation failures
-keep a previous local archive intact. Payload and output staging are removed
-after success or failure; this does not permit replacing a published release.
+keep a previous local archive intact. If checksum promotion fails, the prior
+archive is restored, or the new archive is removed when no prior one existed.
+If restoration also fails, the error reports a recovery directory containing
+the prior archive. Payload and output staging are otherwise removed after
+success or failure; this does not permit replacing a published release.
