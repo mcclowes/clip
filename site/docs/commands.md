@@ -30,6 +30,8 @@ Every seeded entry is undecorated, including one whose description happens to co
 
 When one of the supported manifests exists, `clip commands check` compares its declared tasks with the commands file. It warns when a task has no matching bullet, or when a bullet names a task the manifest no longer declares. It only matches runner invocations (`npm run <name>`, `pnpm run <name>`, `make <target>`, `just <recipe>`, `task <name>`, and `mise run <name>`), with optional task arguments. Other shell commands stay outside this check.
 
+For Make, only targets with `##` notes are seeded or required in the catalog. Undocumented literal rules are accepted when their targets are listed explicitly, including multi-target, double-colon, and grouped rules. Variable and pattern expansion aren't evaluated.
+
 Package script checks also recognize `npm test`, `npm t`, `npm tst`, and `pnpm run-script <name>`. npm and pnpm explicit forms match the same script declaration and exclusion comments. Use the explicit pnpm forms for drift checking; pnpm shorthand and options before the script name aren't matched.
 
 Use `--strict` in CI. It turns manifest drift into errors and requires every shell command to declare one effect: `#safe`, `#writes`, or `#destructive`. Launcher shorthand such as `@claude review this` doesn't need an effect.

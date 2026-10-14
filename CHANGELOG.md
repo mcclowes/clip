@@ -8,6 +8,10 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 - Community schemas for Shelf and turnstile.
 
+### Fixed
+
+- `clip commands check` accepts explicitly listed Make targets without `##` notes while still reporting removed targets. Make command seeding remains limited to documented tasks.
+
 ## [0.4.0] - 2026-09-22
 
 ### Added

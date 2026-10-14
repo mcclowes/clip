@@ -716,6 +716,104 @@ test('commands check recognizes a documented manifest command with arguments', t
   assert.deepEqual(report.items, []);
 });
 
+test('commands check accepts explicitly listed Make targets without documentation comments', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'Makefile'), 'build:\n\t@exit 1\n');
+  mkdirSync(join(dir, '.clip'));
+  writeFileSync(join(dir, '.clip/commands.md'), '- Build: `make build` #safe\n');
+
+  for (const args of [[], ['--strict']]) {
+    const checked = run('commands', 'check', ...args);
+    assert.equal(checked.status, 0, checked.stdout + checked.stderr);
+    assert.deepEqual(JSON.parse(checked.stdout).items, []);
+  }
+});
+
+for (const filename of ['Makefile', 'makefile', 'GNUmakefile']) {
+  test(`commands check recognizes literal Make rules in ${filename} without running recipes`, t => {
+    const { dir, run } = fixture(t);
+    writeFileSync(join(dir, filename), [
+      'build : ; touch recipes-ran',
+      'first second: ; touch recipes-ran',
+      'double:: ; touch recipes-ran',
+      'group-a group-b &: ; touch recipes-ran',
+      'twice-a twice-b &:: ; touch recipes-ran',
+      'build/output: ; touch recipes-ran',
+      '_internal: ; touch recipes-ran',
+      '.hidden: ; touch recipes-ran',
+    ].join('\n'));
+    mkdirSync(join(dir, '.clip'));
+    const targets = ['build', 'first', 'second', 'double', 'group-a', 'group-b', 'twice-a', 'twice-b', 'build/output', '_internal', '.hidden'];
+    writeFileSync(join(dir, '.clip/commands.md'), targets.map(target => `- ${target}: \`make ${target} MODE=debug\` #safe`).join('\n'));
+
+    const checked = run('commands', 'check', '--strict');
+    assert.equal(checked.status, 0, checked.stdout + checked.stderr);
+    assert.deepEqual(JSON.parse(checked.stdout).items, []);
+    assert.equal(existsSync(join(dir, 'recipes-ran')), false);
+  });
+}
+
+test('commands check accepts literal phony targets without a separate recipe rule', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'Makefile'), '.PHONY: build noop # Not documentation\n');
+  mkdirSync(join(dir, '.clip'));
+  writeFileSync(join(dir, '.clip/commands.md'), '- Build: `make build` #safe\n- Noop: `make noop` #safe\n');
+  const checked = run('commands', 'check', '--strict');
+  assert.equal(checked.status, 0, checked.stdout + checked.stderr);
+  assert.deepEqual(JSON.parse(checked.stdout).items, []);
+});
+
+test('commands check still rejects a removed undocumented Make target', t => {
+  const { dir, run } = fixture(t);
+  const makefile = join(dir, 'Makefile');
+  writeFileSync(makefile, 'build:\n');
+  mkdirSync(join(dir, '.clip'));
+  writeFileSync(join(dir, '.clip/commands.md'), '- Build: `make build` #safe\n');
+  assert.equal(run('commands', 'check', '--strict').status, 0);
+  writeFileSync(makefile, 'other:\n');
+
+  const checked = run('commands', 'check', '--strict');
+  assert.equal(checked.status, 1);
+  assert.deepEqual(JSON.parse(checked.stdout).items, [{
+    line: 1, severity: 'error', message: 'The commands file describes "make build", but Makefile does not declare it.',
+  }]);
+});
+
+test('Make seeding and required catalog coverage remain limited to documented tasks', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'Makefile'), 'build:\ncheck: ## Check safely\ninternal:\n');
+  mkdirSync(join(dir, '.clip'));
+  const catalog = join(dir, '.clip/commands.md');
+  writeFileSync(catalog, '- Build: `make build` #safe\n');
+  const checked = run('commands', 'check', '--strict');
+  assert.equal(checked.status, 1);
+  assert.deepEqual(JSON.parse(checked.stdout).items.map((item: CommandIssue) => item.message), [
+    'Makefile declares "make check", but .clip/commands.md does not describe it.',
+  ]);
+  writeFileSync(catalog, '<!-- clip:ignore make check -->\n- Build: `make build` #safe\n');
+  assert.equal(run('commands', 'check', '--strict').status, 0);
+  unlinkSync(catalog);
+  const created = run('commands', 'init');
+  assert.equal(created.status, 0, created.stderr);
+  assert.deepEqual(JSON.parse(run('commands').stdout).items.map((item: CommandEntry) => item.command), ['make check']);
+});
+
+test('Make assignments, recipe lines, and expanded target declarations do not create literal rules', t => {
+  const { dir, run } = fixture(t);
+  writeFileSync(join(dir, 'Makefile'), [
+    'ASSIGNED := value', 'IMMEDIATE ::= value', 'EXPANDED :::= value',
+    'scoped: FLAGS += value', 'exported: unexport FLAGS = value',
+    '\tphantom: recipe text', '$(TARGET):', '%.o:', '.PHONY: $(TARGET) %.o # No expansion',
+  ].join('\n'));
+  mkdirSync(join(dir, '.clip'));
+  const targets = ['ASSIGNED', 'IMMEDIATE', 'EXPANDED', 'scoped', 'exported', 'phantom', 'dynamic', 'output.o'];
+  writeFileSync(join(dir, '.clip/commands.md'), targets.map(target => `- ${target}: \`make ${target}\` #safe`).join('\n'));
+  const checked = run('commands', 'check', '--strict');
+  assert.equal(checked.status, 1);
+  assert.deepEqual(JSON.parse(checked.stdout).items.map((item: CommandIssue) => item.message),
+    targets.map(target => `The commands file describes "make ${target}", but Makefile does not declare it.`));
+});
+
 test('commands check tracks every supported manifest and honors explicit exclusions', t => {
   const { dir, run } = fixture(t);
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { check: 'tsc --noEmit', private: 'node secret.js' } }));

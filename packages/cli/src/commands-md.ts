@@ -103,7 +103,7 @@ export function manifestDriftIssues(root: string, markdown: string, strict: bool
     .filter(seed => !ignored.has(canonicalManifestCommand(seed.command)) && !entries.some(entry => describesManifestCommand(entry.command, seed.command)))
     .map(seed => ({ severity, message: `${seed.source} declares "${seed.command}", but .clip/commands.md does not describe it.` }));
   for (const manifest of supportedManifests(root)) {
-    const declaredCommands = new Set(declared.filter(seed => seed.source === manifest.source).map(seed => seed.command));
+    const declaredCommands = new Set(manifest.declaredCommands ?? declared.filter(seed => seed.source === manifest.source).map(seed => seed.command));
     for (const entry of entries) {
       if (ignored.has(canonicalManifestCommand(entry.command)) || !manifest.matches(entry.command) || [...declaredCommands].some(command => describesManifestCommand(entry.command, command))) continue;
       issues.push({ line: entry.line, severity, message: `The commands file describes "${entry.command}", but ${manifest.source} does not declare it.` });
@@ -291,7 +291,8 @@ The commands a launcher opens together. Add \`#auto\` to this heading to open th
 
 export type ManifestCommand = { source: string; name: string; command: string; note?: string };
 
-type SupportedManifest = { source: string; matches: (command: string) => boolean };
+type SupportedManifest = { source: string; matches: (command: string) => boolean; declaredCommands?: string[] };
+const makeFiles = ['Makefile', 'makefile', 'GNUmakefile'];
 
 /** Reads conventional task manifests without invoking their runners. */
 export function seededCommandsTemplate(root: string): string {
@@ -320,13 +321,28 @@ export function manifestCommands(root: string): ManifestCommand[] {
 /** A source is checked only when its manifest exists; unrelated shell commands remain valid. */
 function supportedManifests(root: string): SupportedManifest[] {
   const supports = (source: string, files: string[], matches: (command: string) => boolean) => readFirstManifest(root, files) === undefined ? [] : [{ source, matches }];
+  const make = readFirstManifest(root, makeFiles);
   return [
     ...supports('package.json scripts', ['package.json'], command => /^npm run \S+(?:\s|$)/.test(canonicalManifestCommand(command))),
-    ...supports('Makefile', ['Makefile', 'makefile', 'GNUmakefile'], command => /^make \S+(?:\s|$)/.test(command)),
+    ...(make === undefined ? [] : [{ source: 'Makefile', matches: (command: string) => /^make \S+(?:\s|$)/.test(command), declaredCommands: makeRuleCommands(make) }]),
     ...supports('justfile', ['justfile', '.justfile'], command => /^just \S+(?:\s|$)/.test(command)),
     ...supports('Taskfile', ['Taskfile.yml', 'Taskfile.yaml', 'taskfile.yml', 'taskfile.yaml'], command => /^task \S+(?:\s|$)/.test(command)),
     ...supports('mise', ['mise.toml', '.mise.toml'], command => /^mise run \S+(?:\s|$)/.test(command)),
   ];
+}
+
+/** Explicit catalog entries can name literal rules without a documentation comment. */
+function makeRuleCommands(text: string): string[] {
+  return text.split(/\r\n?|\n/).flatMap(line => {
+    const rule = line.match(/^([A-Za-z0-9_./-]+(?:[ \t]+[A-Za-z0-9_./-]+)*)[ \t]*&?:{1,2}(?![=:])(.*)$/);
+    if (!rule || /^\s*(?:(?:override|private|export|unexport)\s+)*[\w.-]+\s*(?:[?+!]?=|:{1,3}=)/.test(rule[2]!)) return [];
+    const targets = rule[1]!.trim().split(/[ \t]+/);
+    if (targets.includes('.PHONY')) {
+      targets.push(...rule[2]!.split(/[;#]/, 1)[0]!.trim().split(/[ \t]+/)
+        .filter(target => /^[A-Za-z0-9_./-]+$/.test(target)));
+    }
+    return targets.map(target => `make ${target}`);
+  });
 }
 
 function packageScripts(root: string): ManifestCommand[] {
@@ -344,7 +360,7 @@ function packageScripts(root: string): ManifestCommand[] {
 
 /** Only documented, concrete targets are task-like; special, pattern, and variable targets are Make plumbing. */
 function makeTargets(root: string): ManifestCommand[] {
-  const text = readFirstManifest(root, ['Makefile', 'makefile', 'GNUmakefile']);
+  const text = readFirstManifest(root, makeFiles);
   if (!text) return [];
   return text.split(/\r\n?|\n/).flatMap(line => {
     const match = line.match(/^([A-Za-z0-9][A-Za-z0-9_./-]*):[^#]*\s##\s*(.*?)\s*$/);
