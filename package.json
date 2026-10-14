@@ -11,6 +11,7 @@
     "release:npm": "npm run build && npm publish ./packages/cli",
     "release:npm:dry": "npm run build && npm publish ./packages/cli --dry-run",
     "check": "tsc -p packages/cli/tsconfig.check.json && tsc -p evals/tsconfig.json",
+    "check:version": "node scripts/check-version.mjs",
     "registry:check": "node scripts/validate-registry.ts",
     "eval": "node evals/run.ts",
     "eval:report": "node evals/report.ts",

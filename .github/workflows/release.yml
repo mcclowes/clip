@@ -23,7 +23,7 @@ jobs:
       - run: npm run check
       - run: npm test && npm run build && npm run registry:check
       - name: Check release version
-        run: node -e 'const p=require("./packages/cli/package.json"); if(process.env.GITHUB_REF_NAME!=="v"+p.version) process.exit(1)'
+        run: npm run check:version -- "$GITHUB_REF_NAME"
       - run: node scripts/package-release.mjs
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:

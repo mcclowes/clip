@@ -1,7 +1,7 @@
 # Releasing CLIP
 
 1. Update the version in `packages/cli/package.json` and `packages/cli/src/contract.ts`. Rename the `Unreleased` section of `CHANGELOG.md` to the new version and date, and add a fresh empty `Unreleased` section. The release notes come from this section. Review community schema updates and bump their independent versions.
-2. Run `npm ci`, `npm test`, `npm run build`, and `npm run registry:check`. Regenerate site data with `node scripts/site-registry.mjs` and build the site.
+2. Run `npm ci`, `npm test`, `npm run check:version -- vX.Y.Z`, `npm run build`, and `npm run registry:check`. The version check compares the CLI contract, package manifest, and intended tag. Regenerate site data with `node scripts/site-registry.mjs` and build the site.
 3. Commit the release changes. Push the reviewed commit, then tag it as `vX.Y.Z` and push the tag. The release workflow checks the version, builds a dependency-free archive, attests its build provenance, and publishes it with its SHA-256 digest. Two independent jobs then ship it to both channels, so a failure in one never blocks the other:
    - `npm` publishes `@mcclowes/clip` with provenance through trusted publishing.
    - `homebrew` verifies the archive's checksum and attestation, points `Formula/clip.rb` in `mcclowes/homebrew-clip` at it, installs, tests, and audits the formula on macOS, then pushes it with the `HOMEBREW_TAP_DEPLOY_KEY` deploy key.
