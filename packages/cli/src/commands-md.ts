@@ -100,27 +100,35 @@ export function manifestDriftIssues(root: string, markdown: string, strict: bool
   const declared = manifestCommands(root);
   const severity: CommandIssue['severity'] = strict ? 'error' : 'warning';
   const issues: CommandIssue[] = declared
-    .filter(seed => !ignored.has(seed.command) && !entries.some(entry => describesManifestCommand(entry.command, seed.command)))
+    .filter(seed => !ignored.has(canonicalManifestCommand(seed.command)) && !entries.some(entry => describesManifestCommand(entry.command, seed.command)))
     .map(seed => ({ severity, message: `${seed.source} declares "${seed.command}", but .clip/commands.md does not describe it.` }));
   for (const manifest of supportedManifests(root)) {
-    const declaredCommands = new Set(declared.filter(seed => seed.source === manifest.source).map(seed => seed.command));
+    const declaredCommands = new Set(manifest.declaredCommands ?? declared.filter(seed => seed.source === manifest.source).map(seed => seed.command));
     for (const entry of entries) {
-      if (ignored.has(entry.command) || !manifest.matches(entry.command) || [...declaredCommands].some(command => describesManifestCommand(entry.command, command))) continue;
+      if (ignored.has(canonicalManifestCommand(entry.command)) || !manifest.matches(entry.command) || [...declaredCommands].some(command => describesManifestCommand(entry.command, command))) continue;
       issues.push({ line: entry.line, severity, message: `The commands file describes "${entry.command}", but ${manifest.source} does not declare it.` });
     }
   }
   return issues;
 }
 
-const describesManifestCommand = (entry: string, declared: string) => entry === declared || entry.startsWith(`${declared} `);
+const canonicalManifestCommand = (command: string) => command
+  .replace(/^pnpm (?:run|run-script)(?= |$)/, 'npm run')
+  .replace(/^npm (?:test|tst|t)(?= |$)/, 'npm run test');
+
+function describesManifestCommand(entry: string, declared: string): boolean {
+  const canonical = canonicalManifestCommand(entry);
+  const expected = canonicalManifestCommand(declared);
+  return canonical === expected || canonical.startsWith(`${expected} `);
+}
 
 /** A comment keeps an intentional exclusion out of both Markdown readers and generated agent guidance. */
 function ignoredCommands(markdown: string): Set<string> {
-  return new Set([...markdown.matchAll(/<!--\s*clip:ignore\s+(.+?)\s*-->/g)].map(match => match[1]!.trim()));
+  return new Set([...markdown.matchAll(/<!--\s*clip:ignore\s+(.+?)\s*-->/g)].map(match => canonicalManifestCommand(match[1]!.trim())));
 }
 
 /** The decorators an agent acts on, in a fixed order: effect, lifetime, then flags. */
-export function agentTags(entry: CommandEntry): string[] {
+export function agentTags(entry: Pick<CommandEntry, 'effect' | 'lifetime' | 'interactive' | 'ci'>): string[] {
   return [entry.effect, entry.lifetime, entry.interactive && 'interactive', entry.ci && 'ci'].filter((tag): tag is string => Boolean(tag));
 }
 
@@ -283,7 +291,8 @@ The commands a launcher opens together. Add \`#auto\` to this heading to open th
 
 export type ManifestCommand = { source: string; name: string; command: string; note?: string };
 
-type SupportedManifest = { source: string; matches: (command: string) => boolean };
+type SupportedManifest = { source: string; matches: (command: string) => boolean; declaredCommands?: string[] };
+const makeFiles = ['Makefile', 'makefile', 'GNUmakefile'];
 
 /** Reads conventional task manifests without invoking their runners. */
 export function seededCommandsTemplate(root: string): string {
@@ -312,22 +321,38 @@ export function manifestCommands(root: string): ManifestCommand[] {
 /** A source is checked only when its manifest exists; unrelated shell commands remain valid. */
 function supportedManifests(root: string): SupportedManifest[] {
   const supports = (source: string, files: string[], matches: (command: string) => boolean) => readFirstManifest(root, files) === undefined ? [] : [{ source, matches }];
+  const make = readFirstManifest(root, makeFiles);
   return [
-    ...supports('package.json scripts', ['package.json'], command => /^npm run \S+(?:\s|$)/.test(command)),
-    ...supports('Makefile', ['Makefile', 'makefile', 'GNUmakefile'], command => /^make \S+(?:\s|$)/.test(command)),
+    ...supports('package.json scripts', ['package.json'], command => /^npm run \S+(?:\s|$)/.test(canonicalManifestCommand(command))),
+    ...(make === undefined ? [] : [{ source: 'Makefile', matches: (command: string) => /^make \S+(?:\s|$)/.test(command), declaredCommands: makeRuleCommands(make) }]),
     ...supports('justfile', ['justfile', '.justfile'], command => /^just \S+(?:\s|$)/.test(command)),
     ...supports('Taskfile', ['Taskfile.yml', 'Taskfile.yaml', 'taskfile.yml', 'taskfile.yaml'], command => /^task \S+(?:\s|$)/.test(command)),
     ...supports('mise', ['mise.toml', '.mise.toml'], command => /^mise run \S+(?:\s|$)/.test(command)),
   ];
 }
 
+/** Explicit catalog entries can name literal rules without a documentation comment. */
+function makeRuleCommands(text: string): string[] {
+  return text.split(/\r\n?|\n/).flatMap(line => {
+    const rule = line.match(/^([A-Za-z0-9_./-]+(?:[ \t]+[A-Za-z0-9_./-]+)*)[ \t]*&?:{1,2}(?![=:])(.*)$/);
+    if (!rule || /^\s*(?:(?:override|private|export|unexport)\s+)*[\w.-]+\s*(?:[?+!]?=|:{1,3}=)/.test(rule[2]!)) return [];
+    const targets = rule[1]!.trim().split(/[ \t]+/);
+    if (targets.includes('.PHONY')) {
+      targets.push(...rule[2]!.split(/[;#]/, 1)[0]!.trim().split(/[ \t]+/)
+        .filter(target => /^[A-Za-z0-9_./-]+$/.test(target)));
+    }
+    return targets.map(target => `make ${target}`);
+  });
+}
+
 function packageScripts(root: string): ManifestCommand[] {
   const text = readManifest(root, 'package.json');
   if (!text) return [];
   try {
-    const scripts = JSON.parse(text).scripts;
+    const { scripts, packageManager } = JSON.parse(text);
     if (!scripts || typeof scripts !== 'object' || Array.isArray(scripts)) return [];
-    return Object.keys(scripts).filter(name => validTaskName(name) && typeof scripts[name] === 'string').map(name => ({ source: 'package.json scripts', name: `npm ${name}`, command: `npm run ${name}` }));
+    const runner = typeof packageManager === 'string' && packageManager.startsWith('pnpm@') ? 'pnpm' : 'npm';
+    return Object.keys(scripts).filter(name => validTaskName(name) && typeof scripts[name] === 'string').map(name => ({ source: 'package.json scripts', name: `${runner} ${name}`, command: `${runner} run ${name}` }));
   } catch {
     return [];
   }
@@ -335,7 +360,7 @@ function packageScripts(root: string): ManifestCommand[] {
 
 /** Only documented, concrete targets are task-like; special, pattern, and variable targets are Make plumbing. */
 function makeTargets(root: string): ManifestCommand[] {
-  const text = readFirstManifest(root, ['Makefile', 'makefile', 'GNUmakefile']);
+  const text = readFirstManifest(root, makeFiles);
   if (!text) return [];
   return text.split(/\r\n?|\n/).flatMap(line => {
     const match = line.match(/^([A-Za-z0-9][A-Za-z0-9_./-]*):[^#]*\s##\s*(.*?)\s*$/);

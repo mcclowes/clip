@@ -4,6 +4,7 @@
 
 - Lint: `npm run lint` #safe #ci
 - Types: `npm run check` #safe #ci
+- Version check: `npm run check:version` — compares the CLI contract with its package manifest; pass `-- vX.Y.Z` to check a release tag too #safe #ci
 - Test: `npm run test` #safe
 - Coverage: `npm run test:coverage` — tests with the 85% line floor #safe #ci
 - Build: `npm run build` — compiles the CLI into `packages/cli/dist` #safe #ci
