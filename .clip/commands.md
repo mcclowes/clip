@@ -32,4 +32,5 @@
 
 - Demo: `npm run demo` — re-records `docs/demo.svg` after CLI output changes #writes
 - Release dry run: `npm run release:npm:dry` — inspect the tarball #safe
+- Release notes: `node scripts/release-notes.mjs 0.4.0` — read the changelog section for a version #safe
 - Release: `npm run release:npm` — first release only; later releases go through a `v<version>` tag #destructive #interactive
