@@ -641,7 +641,7 @@ test('commands check reports package script drift, and strict mode fails it', t 
 
   assert.equal(warned.status, 0, warned.stderr);
   assert.deepEqual(JSON.parse(warned.stdout).items, [
-    { severity: 'warning', message: 'package.json scripts declares "npm run added", but .clip/commands.md does not describe it.' },
+    { severity: 'warning', message: 'package.json scripts declares "npm run added", but the commands file does not describe it.' },
     { line: 2, severity: 'warning', message: 'The commands file describes "npm run removed", but package.json scripts does not declare it.' },
   ]);
 
@@ -649,6 +649,45 @@ test('commands check reports package script drift, and strict mode fails it', t 
   assert.equal(strict.status, 1, strict.stderr);
   assert.deepEqual(JSON.parse(strict.stdout).items.map((item: { severity: string }) => item.severity), ['error', 'error']);
 });
+
+for (const location of ['legacy', 'custom'] as const) {
+  for (const strict of [false, true]) {
+    test(`commands check names the selected ${location} file accurately in ${strict ? 'strict' : 'warning'} mode`, t => {
+      const { dir, run } = fixture(t);
+      mkdirSync(join(dir, '.git'));
+      const relativeFile = location === 'legacy' ? '.saggar/commands.md' : 'docs/custom commands.md';
+      const file = join(dir, relativeFile);
+      mkdirSync(join(dir, location === 'legacy' ? '.saggar' : 'docs'));
+      writeFileSync(file, '# Project commands\n');
+      const manifest = join(dir, 'package.json');
+      writeFileSync(manifest, JSON.stringify({ scripts: { missing: 'node should-not-run.mjs' } }));
+      const executable = join(dir, 'should-not-run.mjs');
+      writeFileSync(executable, "import { writeFileSync } from 'node:fs'; writeFileSync('executed', 'yes');\n");
+      if (location === 'custom') {
+        mkdirSync(join(dir, '.clip'));
+        writeFileSync(join(dir, '.clip/commands.md'), '- Missing: `npm run missing` #safe\n');
+      }
+      const files = [file, manifest, executable];
+      const before = files.map(path => readFileSync(path));
+      const entries = readdirSync(dir, { recursive: true }).sort();
+
+      const result = run('commands', 'check', ...(location === 'custom' ? ['--file', relativeFile] : []), ...(strict ? ['--strict'] : []));
+
+      assert.equal(result.status, strict ? 1 : 0, result.stderr);
+      assert.equal(result.stderr, '');
+      const report = JSON.parse(result.stdout);
+      assert.equal(report.file, join(realpathSync(dir), relativeFile));
+      assert.equal(report.healthy, !strict);
+      assert.deepEqual(report.items, [{
+        severity: strict ? 'error' : 'warning',
+        message: 'package.json scripts declares "npm run missing", but the commands file does not describe it.',
+      }]);
+      assert.deepEqual(files.map(path => readFileSync(path)), before);
+      assert.deepEqual(readdirSync(dir, { recursive: true }).sort(), entries);
+      assert.equal(existsSync(join(dir, 'executed')), false);
+    });
+  }
+}
 
 test('commands check recognizes a documented manifest command with arguments', t => {
   const { dir, run } = fixture(t);

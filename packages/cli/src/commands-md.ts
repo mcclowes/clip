@@ -101,7 +101,7 @@ export function manifestDriftIssues(root: string, markdown: string, strict: bool
   const severity: CommandIssue['severity'] = strict ? 'error' : 'warning';
   const issues: CommandIssue[] = declared
     .filter(seed => !ignored.has(seed.command) && !entries.some(entry => describesManifestCommand(entry.command, seed.command)))
-    .map(seed => ({ severity, message: `${seed.source} declares "${seed.command}", but .clip/commands.md does not describe it.` }));
+    .map(seed => ({ severity, message: `${seed.source} declares "${seed.command}", but the commands file does not describe it.` }));
   for (const manifest of supportedManifests(root)) {
     const declaredCommands = new Set(declared.filter(seed => seed.source === manifest.source).map(seed => seed.command));
     for (const entry of entries) {
