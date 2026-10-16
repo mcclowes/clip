@@ -159,6 +159,44 @@ test('register defaults to local project scope', t => {
   assert.equal(JSON.parse(run('list').stdout).items[0].scope, 'local');
 });
 
+test('register rejects an explicitly empty scope before creating state', t => {
+  const { dir, run, schema } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+
+  const result = run('register', process.execPath, '--purpose', 'Run scripts', '--schema', schema, '--scope', '');
+
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(result.stdout, '');
+  assert.deepEqual(JSON.parse(result.stderr), { error: { kind: 'invalid_request', message: 'Scope must be local, shared, or global.' } });
+  assert.equal(existsSync(join(dir, '.clip')), false);
+  assert.equal(existsSync(join(dir, 'config')), false);
+});
+
+test('remove rejects an explicitly empty scope without changing any scope', t => {
+  const { dir, run, schema } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+  for (const scope of ['global', 'shared', 'local']) {
+    const registered = run('register', 'node', '--purpose', `Run ${scope} scripts`, '--schema', schema, '--scope', scope);
+    assert.equal(registered.status, 0, registered.stderr);
+  }
+  const files = [join(dir, 'config/tools.json'), join(dir, '.clip/tools.json'), join(dir, '.clip/tools.local.json')];
+  const before = files.map(file => readFileSync(file));
+  const entries = readdirSync(join(dir, '.clip'));
+  const listed = run('list');
+  assert.equal(listed.status, 0, listed.stderr);
+
+  const result = run('remove', 'node', '--scope', '');
+
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(result.stdout, '');
+  assert.deepEqual(JSON.parse(result.stderr), { error: { kind: 'invalid_request', message: 'Scope must be local, shared, or global.' } });
+  assert.deepEqual(files.map(file => readFileSync(file)), before);
+  assert.deepEqual(readdirSync(join(dir, '.clip')), entries);
+  const after = run('list');
+  assert.equal(after.status, 0, after.stderr);
+  assert.equal(after.stdout, listed.stdout);
+});
+
 test('register describes the tool it added in text output', t => {
   const { run } = fixture(t);
 

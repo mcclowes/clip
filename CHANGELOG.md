@@ -8,6 +8,10 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 - Community schemas for Shelf and turnstile.
 
+### Fixed
+
+- Explicitly empty registration scopes fail before creating or changing local, shared, or global state.
+
 ## [0.4.0] - 2026-09-22
 
 ### Added

@@ -38,7 +38,7 @@ function parseCli() {
     output: { type: 'string', short: 'o', default: 'auto' }, help: { type: 'boolean', short: 'h' },
   } });
   if (!outputFormats.includes(options.output as Format)) throw new Error('Output must be auto, json, or text.');
-  if (options.scope && !scopes.includes(options.scope as Scope)) throw new Error('Scope must be local, shared, or global.');
+  if (options.scope !== undefined && !scopes.includes(options.scope as Scope)) throw new Error('Scope must be local, shared, or global.');
   const limit = Number(options.limit);
   if (!Number.isInteger(limit) || limit < 1 || limit > maxLimit) throw new Error(`--limit must be an integer from 1 to ${maxLimit}.`);
   return { positionals, options, format: options.output as Format, scope: (options.scope as Scope | undefined) ?? defaultScope(), limit };
