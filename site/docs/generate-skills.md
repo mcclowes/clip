@@ -56,7 +56,7 @@ clip sync --target agents-md        # pointers only; tools without a CLIP skill 
 clip sync --target skills           # skills only
 ```
 
-CLIP appends the block when the file has none and edits only between its markers, leaving the rest of the file alone. It removes the block when no tools are registered. A missing, duplicated, or out-of-order marker, or a symlinked file, stops sync before it writes anything; restore the markers or delete both.
+CLIP appends the block when the file has none and edits only between its markers, leaving the rest of the file alone. Updates and block removal preserve existing read, write, and execute permissions, even under a stricter process umask. New files use normal creation permissions. It removes the block when no tools are registered. A missing, duplicated, or out-of-order marker, or a symlinked file, stops sync before it writes anything; restore the markers or delete both.
 
 ## Ownership
 

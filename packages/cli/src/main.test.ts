@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync, existsSync, readdirSync, unlinkSync, symlinkSync, realpathSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync, existsSync, readdirSync, unlinkSync, symlinkSync, realpathSync, chmodSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -385,6 +385,78 @@ test('sync maintains an AGENTS.md pointer block beside skills, and leaves the re
   assert.equal(run('remove', 'node').status, 0);
   assert.equal(run('sync').status, 0);
   assert.equal(readFileSync(agents, 'utf8'), '# Project\n\nUse pnpm.\n\nMore user notes.\n');
+});
+
+for (const [name, mode] of [['AGENTS.md', 0o600], ['CLAUDE.md', 0o640], ['EXECUTABLE.md', 0o750]] as const) {
+  test(`sync preserves ${name} permissions through updates and block removal`, t => {
+    const { dir, run, schema } = fixture(t);
+    mkdirSync(join(dir, '.git'));
+    const agents = join(dir, name);
+    writeFileSync(agents, '# Project\n\nUser notes.\n');
+    chmodSync(agents, mode);
+    const options = name === 'AGENTS.md' ? [] : ['--agents-file', name];
+    const sync = () => {
+      const result = run('sync', '--target', 'agents-md', ...options);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(statSync(agents).mode & 0o777, mode);
+      return JSON.parse(result.stdout).agents_md;
+    };
+    assert.equal(run('register', process.execPath, '--purpose', 'Run scripts', '--schema', schema).status, 0);
+    assert.equal(sync().changed, true);
+    const text = readFileSync(agents, 'utf8');
+    assert.match(blockOf(text), /Run scripts\./);
+    assert.equal(sync().changed, false);
+    assert.equal(readFileSync(agents, 'utf8'), text);
+
+    writeFileSync(agents, `${text}\nLater notes.\n`);
+    assert.equal(run('register', process.execPath, '--purpose', 'Run updated scripts', '--schema', schema).status, 0);
+    assert.equal(sync().changed, true);
+    const updated = readFileSync(agents, 'utf8');
+    assert.match(blockOf(updated), /Run updated scripts\./);
+    assert.doesNotMatch(updated, /Run scripts\./);
+    assert.match(updated, /^# Project\n\nUser notes\.\n/);
+    assert.match(updated, /\nLater notes\.\n$/);
+
+    assert.equal(run('remove', 'node').status, 0);
+    assert.equal(sync().changed, true);
+    assert.equal(readFileSync(agents, 'utf8'), '# Project\n\nUser notes.\n\nLater notes.\n');
+  });
+}
+
+test('sync preserves existing permissions under a restrictive child umask and keeps creation defaults', t => {
+  const { dir, run, schema } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+  const parentUmask = process.umask();
+  const runner = join(dir, 'restricted.mjs');
+  writeFileSync(runner, `process.umask(0o077); await import(${JSON.stringify(main.href)});`);
+  const restricted = (...args: string[]) => spawnSync(process.execPath, [runner, ...args], {
+    cwd: dir, encoding: 'utf8', env: { ...process.env, CLIP_HOME: join(dir, 'config') },
+  });
+  const agents = join(dir, 'AGENTS.md');
+  const registration = join(dir, '.clip/tools.local.json');
+  const sync = () => {
+    const result = restricted('sync', '--target', 'agents-md');
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(statSync(registration).mode & 0o777, 0o600);
+    assert.equal(process.umask(), parentUmask);
+  };
+  assert.equal(run('register', process.execPath, '--purpose', 'Run scripts', '--schema', schema).status, 0);
+  assert.equal(run('sync', '--target', 'agents-md').status, 0);
+  assert.equal(statSync(agents).mode & 0o777, 0o666 & ~parentUmask);
+  unlinkSync(agents);
+  sync();
+  assert.equal(statSync(agents).mode & 0o777, 0o600);
+
+  writeFileSync(agents, `# User notes\n\n${readFileSync(agents, 'utf8')}`);
+  chmodSync(agents, 0o640);
+  assert.equal(run('register', process.execPath, '--purpose', 'Run updated scripts', '--schema', schema).status, 0);
+  sync();
+  assert.equal(statSync(agents).mode & 0o777, 0o640);
+  assert.match(blockOf(readFileSync(agents, 'utf8')), /Run updated scripts\./);
+  assert.equal(run('remove', 'node').status, 0);
+  sync();
+  assert.equal(statSync(agents).mode & 0o777, 0o640);
+  assert.equal(readFileSync(agents, 'utf8'), '# User notes\n');
 });
 
 test('the agents-md target alone points at --help until a skill exists', t => {

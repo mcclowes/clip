@@ -5,7 +5,7 @@
  *   - ./skills.ts - The skill each pointer names when one exists.
  * ---
  */
-import { existsSync, lstatSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, lstatSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { Registration } from './store.ts';
 import { agentTags, isShellCommand, type CommandEntry } from './commands-md.ts';
@@ -116,9 +116,11 @@ function isSymlink(path: string): boolean {
 }
 
 function replaceFile(file: string, content: string): void {
+  const mode = existsSync(file) ? lstatSync(file).mode & 0o777 : undefined;
   const temp = join(dirname(file), `.${process.pid}.clip.tmp`);
   try {
-    writeFileSync(temp, content);
+    writeFileSync(temp, content, { mode });
+    if (mode !== undefined) chmodSync(temp, mode);
     renameSync(temp, file);
   } finally {
     if (existsSync(temp)) unlinkSync(temp);

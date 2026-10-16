@@ -11,6 +11,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 ### Fixed
 
 - Explicitly empty registration scopes fail before creating or changing local, shared, or global state.
+- Sync preserves existing agents-document permissions, including under a stricter process umask.
 
 ## [0.4.0] - 2026-09-22
 
