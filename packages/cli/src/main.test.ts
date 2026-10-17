@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync, existsSync, readdirSync, unlinkSync, symlinkSync, realpathSync, chmodSync, statSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, mkdirSync, existsSync, readdirSync, unlinkSync, symlinkSync, realpathSync, chmodSync, statSync, lstatSync, readlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -479,6 +479,71 @@ test('the agents-md target alone points at --help until a skill exists', t => {
 
   assert.match(JSON.parse(run('sync', '--target', 'mcp').stderr).error.message, /all, skills, or agents-md/);
 });
+
+for (const kind of ['symlink', 'directory', 'dangling', 'missing'] as const) {
+  test(`documentation-only sync replaces a stale ${kind} skill pointer with help`, t => {
+    const { dir, run, schema } = fixture(t);
+    mkdirSync(join(dir, '.git'));
+    const agents = join(dir, 'AGENTS.md');
+    writeFileSync(agents, '# User notes\n');
+    chmodSync(agents, 0o640);
+    assert.equal(run('register', process.execPath, '--purpose', 'Run scripts', '--schema', schema).status, 0);
+    assert.equal(run('sync').status, 0);
+    assert.match(readFileSync(agents, 'utf8'), /Usage: `\.agents\/skills\/clip-node\/SKILL\.md`/);
+    writeFileSync(agents, `${readFileSync(agents, 'utf8')}\nMore user notes.\n`);
+
+    const skillDir = join(dir, '.agents/skills/clip-node');
+    const skill = join(skillDir, 'SKILL.md');
+    const marker = join(skillDir, '.clip-owned');
+    const markerBefore = readFileSync(marker);
+    const markerMode = statSync(marker).mode;
+    const registration = join(dir, '.clip/tools.local.json');
+    const registrationBefore = readFileSync(registration);
+    const registrationMode = statSync(registration).mode;
+    const target = join(dir, 'manual.md');
+    writeFileSync(target, 'Manual guidance.\n');
+    chmodSync(target, 0o600);
+    unlinkSync(skill);
+    const missingTarget = join(dir, 'missing.md');
+    if (kind === 'directory') {
+      mkdirSync(skill);
+      writeFileSync(join(skill, 'sentinel.txt'), 'Keep this directory.\n');
+    } else if (kind !== 'missing') {
+      symlinkSync(kind === 'dangling' ? missingTarget : target, skill);
+    }
+    const entryBefore = kind === 'missing' ? undefined : lstatSync(skill);
+
+    const result = run('sync', '--target', 'agents-md');
+
+    assert.equal(result.status, 0, result.stderr);
+    const text = readFileSync(agents, 'utf8');
+    assert.match(text, /Usage: `node --help`/);
+    assert.doesNotMatch(text, /Usage: `\.agents\/skills\/clip-node\/SKILL\.md`/);
+    assert.equal(JSON.parse(result.stdout).agents_md.changed, true);
+    assert.match(text, /^# User notes\n/);
+    assert.match(text, /\nMore user notes\.\n$/);
+    assert.equal(statSync(agents).mode & 0o777, 0o640);
+    assert.deepEqual(readFileSync(marker), markerBefore);
+    assert.equal(statSync(marker).mode, markerMode);
+    assert.deepEqual(readFileSync(registration), registrationBefore);
+    assert.equal(statSync(registration).mode, registrationMode);
+    if (entryBefore) {
+      assert.equal(lstatSync(skill).ino, entryBefore.ino);
+      assert.equal(lstatSync(skill).mode, entryBefore.mode);
+    }
+    if (kind === 'directory') {
+      assert.deepEqual(readdirSync(skill), ['sentinel.txt']);
+      assert.equal(readFileSync(join(skill, 'sentinel.txt'), 'utf8'), 'Keep this directory.\n');
+    } else if (kind !== 'missing') {
+      assert.equal(readlinkSync(skill), kind === 'dangling' ? missingTarget : target);
+    } else {
+      assert.throws(() => lstatSync(skill), { code: 'ENOENT' });
+    }
+    assert.equal(existsSync(missingTarget), false);
+    assert.equal(readFileSync(target, 'utf8'), 'Manual guidance.\n');
+    assert.equal(statSync(target).mode & 0o777, 0o600);
+  });
+}
 
 test('sync keeps global registrations and absolute executable paths out of AGENTS.md', t => {
   const { dir, run } = fixture(t);
