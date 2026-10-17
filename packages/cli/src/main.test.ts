@@ -20,6 +20,132 @@ function fixture(t: TestContext) {
   return { dir, run, schema };
 }
 
+function fixtureSnapshot(directory: string): Record<string, { mode: number; content: string }> {
+  const entries: Record<string, { mode: number; content: string }> = {};
+  const visit = (parent: string, prefix: string) => {
+    for (const name of readdirSync(parent).sort()) {
+      const path = join(parent, name);
+      const relative = prefix ? `${prefix}/${name}` : name;
+      const info = lstatSync(path);
+      const content = info.isSymbolicLink() ? readlinkSync(path) : info.isFile() ? readFileSync(path).toString('base64') : '';
+      entries[relative] = { mode: info.mode, content };
+      if (info.isDirectory()) visit(path, relative);
+    }
+  };
+  visit(directory, '');
+  return entries;
+}
+
+test('commands init rejects another command\'s flag before creating files', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+  const before = readdirSync(dir);
+
+  const result = run('commands', 'init', '--strict');
+
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(result.stdout, '');
+  assert.deepEqual(JSON.parse(result.stderr), {
+    error: { kind: 'invalid_request', message: 'commands init does not support --strict.' },
+  });
+  assert.deepEqual(readdirSync(dir), before);
+  assert.equal(existsSync(join(dir, '.clip')), false);
+  assert.equal(existsSync(join(dir, 'config')), false);
+});
+
+test('command-specific flags fail before reading saved state or changing fixture files', t => {
+  const cases = [
+    { command: 'list', args: ['list', '--purpose', ''], flag: 'purpose' },
+    { command: 'remove', args: ['remove', 'node', '--schema', 'node.json'], flag: 'schema' },
+    { command: 'register', args: ['register', process.execPath, '--purpose', 'Run scripts', '--strict'], flag: 'strict' },
+    { command: 'sync', args: ['sync', '--strict'], flag: 'strict' },
+    { command: 'refresh', args: ['refresh', '--write'], flag: 'write' },
+    { command: 'permissions', args: ['permissions', '--all'], flag: 'all' },
+    { command: 'schema', args: ['schema', '--file', 'unexpected.json'], flag: 'file' },
+    { command: 'schema init', args: ['schema', 'init', 'fixture', '--purpose', 'Example', '--file', 'unexpected.json', '--write'], flag: 'write' },
+    { command: 'registry search', args: ['registry', 'search', '--accept-all'], flag: 'accept-all' },
+    { command: 'registry add', args: ['registry', 'add', 'node', '--schema', 'node.json'], flag: 'schema' },
+    { command: 'commands', args: ['commands', '--target', 'agents-md'], flag: 'target' },
+    { command: 'commands init', args: ['--write', 'commands', 'init'], flag: 'write' },
+    { command: 'commands check', args: ['commands', 'check', '--write'], flag: 'write' },
+    { command: 'discover', args: ['discover', '--file', 'unexpected.json'], flag: 'file' },
+    { command: 'ui', args: ['ui', '--skills-dir', 'unexpected'], flag: 'skills-dir' },
+  ];
+  for (const { command, args, flag } of cases) {
+    const { dir, run } = fixture(t);
+    mkdirSync(join(dir, '.git'));
+    for (const name of ['config/tools.json', '.clip/tools.json', '.clip/tools.local.json']) {
+      const path = join(dir, name);
+      mkdirSync(join(path, '..'), { recursive: true });
+      writeFileSync(path, 'invalid saved JSON\n', { mode: 0o600 });
+    }
+    writeFileSync(join(dir, 'AGENTS.md'), 'Manual instructions stay intact.\n', { mode: 0o640 });
+    const before = fixtureSnapshot(dir);
+
+    const result = run(...args);
+
+    assert.equal(result.status, 1, `${command}: ${result.stderr}`);
+    assert.equal(result.stdout, '', command);
+    assert.deepEqual(JSON.parse(result.stderr), {
+      error: { kind: 'invalid_request', message: `${command} does not support --${flag}.` },
+    });
+    assert.deepEqual(fixtureSnapshot(dir), before, command);
+  }
+});
+
+test('advertised command flags and global options retain their behavior', t => {
+  const { dir, run } = fixture(t);
+  const file = join(dir, 'custom commands.md');
+  writeFileSync(file, '- Check: `node --version` #safe\n');
+  const before = fixtureSnapshot(dir);
+
+  const checked = run('commands', 'check', '--file', file, '--strict', '--scope', 'local', '--limit', '1', '-o', 'json');
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.equal(JSON.parse(checked.stdout).healthy, true);
+  assert.deepEqual(fixtureSnapshot(dir), before);
+
+  const schema = run('schema', '--scope', 'shared', '--limit', '1', '--output', 'json');
+  assert.equal(schema.status, 0, schema.stderr);
+  assert.equal(JSON.parse(schema.stdout).name, 'clip');
+  assert.deepEqual(fixtureSnapshot(dir), before);
+
+  const generated = join(dir, 'generated commands.md');
+  const initialized = run('commands', 'init', '--file', generated);
+  assert.equal(initialized.status, 0, initialized.stderr);
+  assert.equal(JSON.parse(initialized.stdout).file, generated);
+  assert.equal(existsSync(generated), true);
+  assert.equal(existsSync(join(dir, '.clip')), false);
+
+  const draft = join(dir, 'draft.json');
+  const drafted = run('schema', 'init', 'fixture', '--purpose=--strict', '--file', draft);
+  assert.equal(drafted.status, 0, drafted.stderr);
+  assert.equal(JSON.parse(readFileSync(draft, 'utf8')).description, '--strict');
+  assert.equal(existsSync(join(dir, 'config')), false);
+});
+
+test('help and version bypass command-specific flag validation without reading state', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, 'config'));
+  writeFileSync(join(dir, 'config/tools.json'), 'invalid saved JSON\n');
+  const before = fixtureSnapshot(dir);
+  const cases = [
+    ['commands', 'init', '--strict', '--help'], ['--write', '--help'],
+    ['help', '--write'], ['--strict'], ['unknown', '--write', '--help'],
+    ['commands', 'init', '--strict', '--version'], ['unknown', '--write', '--version'],
+    ['--help', '--version'], ['commands', 'init', '--strict', '-h'],
+  ];
+  for (const args of cases) {
+    const result = run(...args);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, '');
+    const value = JSON.parse(result.stdout);
+    assert.equal(value.name, 'clip');
+    if (args.includes('--version')) assert.deepEqual(Object.keys(value), ['name', 'version']);
+    else assert.equal(Array.isArray(value.commands), true);
+    assert.deepEqual(fixtureSnapshot(dir), before);
+  }
+});
+
 test('register a tool, update its purpose, and generate a portable skill', t => {
   const { dir, run, schema } = fixture(t);
   const registered = run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema);

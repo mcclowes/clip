@@ -10,6 +10,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 ### Fixed
 
+- Command-specific flags are checked against the selected command before its handler can read or write state.
 - Explicitly empty registration scopes fail before creating or changing local, shared, or global state.
 - Sync preserves existing agents-document permissions, including under a stricter process umask.
 - Releases stop before publication when the changelog section has no notes.

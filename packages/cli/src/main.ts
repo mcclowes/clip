@@ -20,7 +20,8 @@ try {
   const { positionals, options, format, scope, limit } = parseCli();
   if (options.version) print({ name: 'clip', version: contract.version }, format, renderVersion);
   else {
-    const { command, args } = resolveCommand(options.help ? ['help'] : positionals);
+    const { name, command, args } = resolveCommand(options.help ? ['help'] : positionals);
+    if (name !== 'help') validateCommandFlags(name, Object.keys(options));
     const result = await command.run({ args, options: options as Options, scope, limit });
     if (!command.interactive) print(result, format);
   }
@@ -42,6 +43,15 @@ function parseCli() {
   const limit = Number(options.limit);
   if (!Number.isInteger(limit) || limit < 1 || limit > maxLimit) throw new Error(`--limit must be an integer from 1 to ${maxLimit}.`);
   return { positionals, options, format: options.output as Format, scope: (options.scope as Scope | undefined) ?? defaultScope(), limit };
+}
+
+function validateCommandFlags(name: string, flags: string[]): void {
+  const commandArgs = contract.commands.find(command => command.name === name)?.args ?? [];
+  const allowed = new Set([...contract.global_args, ...commandArgs]
+    .filter(argument => argument.name.startsWith('--'))
+    .map(argument => argument.name.slice(2)));
+  const unsupported = flags.find(flag => !allowed.has(flag));
+  if (unsupported) throw new Error(`${name} does not support --${unsupported}.`);
 }
 
 /** Piped output defaults to JSON so agents parse it; a terminal gets text. */

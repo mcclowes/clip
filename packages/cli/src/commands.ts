@@ -116,14 +116,14 @@ const commands: Record<string, Command> = {
 };
 
 /** Two-word commands such as `schema show` take precedence over their one-word parent. */
-export function resolveCommand(positionals: string[]): { command: Command; args: string[] } {
+export function resolveCommand(positionals: string[]): { name: string; command: Command; args: string[] } {
   const [first = 'help', second] = positionals;
   const nested = second === undefined ? undefined : commands[`${first} ${second}`];
   const command = nested ?? commands[first];
   if (!command) throw new Error(`Unknown command: ${first}`);
   const args = positionals.slice(nested ? 2 : 1);
   if (args.length > command.positionals) throw new Error('Unexpected positional arguments. Run clip --help.');
-  return { command, args };
+  return { name: nested ? `${first} ${second}` : first, command, args };
 }
 
 function register({ args: [name], options, scope }: Invocation): Registration {
