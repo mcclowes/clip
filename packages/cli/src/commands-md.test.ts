@@ -1,6 +1,62 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkCommands, commandsTemplate, parseCommands } from './commands-md.ts';
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { checkCommands, commandsTemplate, findCommandsFile, parseCommands } from './commands-md.ts';
+
+for (const kind of ['directory', 'directory-link', 'dangling'] as const) {
+  test(`command-file discovery skips a modern ${kind} and preserves the default when neither file is usable`, t => {
+    const root = mkdtempSync(join(tmpdir(), 'clip-command-path-'));
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const modern = join(root, '.clip/commands.md');
+    const legacy = join(root, '.saggar/commands.md');
+    mkdirSync(join(root, '.clip'));
+    mkdirSync(join(root, '.saggar'));
+    if (kind === 'directory') mkdirSync(modern);
+    else {
+      const target = join(root, 'target');
+      if (kind === 'directory-link') mkdirSync(target);
+      symlinkSync(target, modern);
+    }
+    writeFileSync(legacy, '- Legacy: `node --version` #safe\n');
+    assert.deepEqual(findCommandsFile(root), { path: legacy, exists: true, legacy: true });
+    unlinkSync(legacy);
+    assert.deepEqual(findCommandsFile(root), { path: modern, exists: false, legacy: false });
+    mkdirSync(legacy);
+    assert.deepEqual(findCommandsFile(root), { path: modern, exists: false, legacy: false });
+  });
+}
+
+test('regular modern files and file links retain precedence over legacy files', t => {
+  const root = mkdtempSync(join(tmpdir(), 'clip-command-path-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const modern = join(root, '.clip/commands.md');
+  mkdirSync(join(root, '.clip'));
+  mkdirSync(join(root, '.saggar'));
+  writeFileSync(join(root, '.saggar/commands.md'), 'Legacy\n');
+  const target = join(root, 'target.md');
+  writeFileSync(target, 'Modern\n');
+  symlinkSync(target, modern);
+  assert.deepEqual(findCommandsFile(root), { path: modern, exists: true, legacy: false });
+  unlinkSync(modern);
+  writeFileSync(modern, 'Modern\n');
+  assert.deepEqual(findCommandsFile(root), { path: modern, exists: true, legacy: false });
+});
+
+test('cyclic command-file links retain fallback and missing-file behavior', t => {
+  const root = mkdtempSync(join(tmpdir(), 'clip-command-path-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const modern = join(root, '.clip/commands.md');
+  const legacy = join(root, '.saggar/commands.md');
+  mkdirSync(join(root, '.clip'));
+  mkdirSync(join(root, '.saggar'));
+  symlinkSync(modern, modern);
+  writeFileSync(legacy, 'Legacy\n');
+  assert.deepEqual(findCommandsFile(root), { path: legacy, exists: true, legacy: true });
+  unlinkSync(legacy);
+  assert.deepEqual(findCommandsFile(root), { path: modern, exists: false, legacy: false });
+});
 
 test('a bullet with a code span is a command: name before, command inside, note after', () => {
   const [entry] = parseCommands('# Commands\n\n- **Dev server**: `npm run dev` — the one you leave running\n');

@@ -6,7 +6,7 @@
  *   - ./agents-md.ts - Lists the parsed commands in the AGENTS.md block.
  * ---
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const commandsPath = '.clip/commands.md';
@@ -56,7 +56,7 @@ const layoutHeadings = ['layout', 'startup'];
 export function findCommandsFile(root: string): { path: string; exists: boolean; legacy: boolean } {
   for (const [relative, legacy] of [[commandsPath, false], [legacyCommandsPath, true]] as const) {
     const path = join(root, relative);
-    if (existsSync(path)) return { path, exists: true, legacy };
+    if (existsSync(path) && statSync(path).isFile()) return { path, exists: true, legacy };
   }
   return { path: join(root, commandsPath), exists: false, legacy: false };
 }

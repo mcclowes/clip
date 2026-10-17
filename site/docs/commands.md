@@ -66,7 +66,9 @@ The legend only explains tags the file uses.
 
 The file lives at `.clip/commands.md` in the project root, which is the nearest directory with `.git`. Commit it.
 
-Readers also accept `.saggar/commands.md`, Saggar's original location, when `.clip/commands.md` doesn't exist. Writers create `.clip/commands.md`. To move an existing file, run `git mv .saggar/commands.md .clip/commands.md`.
+Automatic discovery selects the first regular file at `.clip/commands.md`, then `.saggar/commands.md`, Saggar's original location. Links to regular files count; directories, links to directories, and dangling links are skipped.
+
+An explicit `--file` selects that exact path and reports read failures. `clip commands init` creates `.clip/commands.md` and refuses existing paths, including dangling links. To move an existing file, run `git mv .saggar/commands.md .clip/commands.md`.
 
 ## Grammar
 

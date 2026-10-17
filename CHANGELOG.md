@@ -14,6 +14,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 - Sync preserves existing agents-document permissions, including under a stricter process umask.
 - Releases stop before publication when the changelog section has no notes.
 - Command drift diagnostics no longer name the default file when checking a legacy or custom commands file.
+- Command-file discovery skips directories and dangling links while retaining modern precedence and links to regular files.
 
 ## [0.4.0] - 2026-09-22
 

@@ -823,6 +823,61 @@ test("commands reads Saggar's file until the project moves it, and init won't st
   assert.match(JSON.parse(run('commands', 'init').stderr).error.message, /\.saggar\/commands\.md/);
 });
 
+for (const kind of ['directory', 'directory-link', 'dangling', 'file-link'] as const) {
+  test(`commands discovery handles a modern ${kind} consistently for listing, checking, and sync`, t => {
+    const { dir, run } = fixture(t);
+    mkdirSync(join(dir, '.clip'));
+    mkdirSync(join(dir, '.saggar'));
+    const modern = join(dir, '.clip/commands.md');
+    const legacy = join(dir, '.saggar/commands.md');
+    const content = '- Legacy: `node --version` #safe\n';
+    writeFileSync(legacy, content);
+    const target = join(dir, 'target');
+    if (kind === 'directory') mkdirSync(modern);
+    else {
+      if (kind === 'directory-link') mkdirSync(target);
+      if (kind === 'file-link') writeFileSync(target, '- Modern: `node --version` #safe\n');
+      symlinkSync(target, modern);
+    }
+    if (kind === 'directory' || kind === 'directory-link') writeFileSync(join(modern, 'sentinel'), 'Keep.\n');
+    const original = lstatSync(modern);
+    const selectsModern = kind === 'file-link';
+    const relative = selectsModern ? '.clip/commands.md' : '.saggar/commands.md';
+    const name = selectsModern ? 'Modern' : 'Legacy';
+
+    const listed = run('commands');
+
+    assert.equal(listed.status, 0, listed.stderr);
+    assert.equal(JSON.parse(listed.stdout).file, join(realpathSync(dir), relative));
+    assert.deepEqual(JSON.parse(listed.stdout).items.map((item: any) => item.name), [name]);
+    const checked = run('commands', 'check', '--strict');
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.equal(JSON.parse(checked.stdout).file, JSON.parse(listed.stdout).file);
+    assert.equal(JSON.parse(checked.stdout).healthy, true);
+    const synced = run('sync', '--target', 'agents-md');
+    assert.equal(synced.status, 0, synced.stderr);
+    const text = readFileSync(join(dir, 'AGENTS.md'), 'utf8');
+    assert.ok(text.includes(`Project commands from \`${relative}\``));
+    assert.ok(text.includes(`${name}: \`node --version\``));
+    assert.equal(run('commands', 'init').status, 1);
+    assert.equal(run('commands', '--file', '.clip/commands.md').status, selectsModern ? 0 : 1);
+    assert.equal(lstatSync(modern).ino, original.ino);
+    assert.equal(lstatSync(modern).mode, original.mode);
+    if (kind !== 'directory') assert.equal(readlinkSync(modern), target);
+    if (kind === 'directory' || kind === 'directory-link') assert.equal(readFileSync(join(modern, 'sentinel'), 'utf8'), 'Keep.\n');
+    if (kind === 'file-link') assert.equal(readFileSync(target, 'utf8'), '- Modern: `node --version` #safe\n');
+    if (kind === 'dangling') assert.equal(existsSync(target), false);
+    assert.equal(readFileSync(legacy, 'utf8'), content);
+    unlinkSync(legacy);
+    assert.equal(run('commands', 'init').status, 1);
+    assert.equal(lstatSync(modern).ino, original.ino);
+    if (kind !== 'directory') assert.equal(readlinkSync(modern), target);
+    if (kind === 'dangling') assert.equal(existsSync(target), false);
+    if (kind === 'file-link') assert.equal(readFileSync(target, 'utf8'), '- Modern: `node --version` #safe\n');
+    if (kind === 'directory' || kind === 'directory-link') assert.equal(readFileSync(join(modern, 'sentinel'), 'utf8'), 'Keep.\n');
+  });
+}
+
 test('sync lists project commands in the AGENTS.md block, even with no tools registered', t => {
   const { dir, run } = fixture(t);
   mkdirSync(join(dir, '.clip'));
