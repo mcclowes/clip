@@ -30,7 +30,7 @@ When one of the supported manifests exists, `clip commands check` compares its d
 
 Use `--strict` in CI. It turns manifest drift into errors and requires every shell command to declare one effect: `#safe`, `#writes`, or `#destructive`. Launcher shorthand such as `@claude review this` doesn't need an effect.
 
-To intentionally keep a manifest task out of agent guidance, add its exact runner invocation in an HTML comment. The comment is ignored by the commands parser and never reaches the generated `AGENTS.md` block.
+To intentionally keep a manifest task out of agent guidance, add its exact runner invocation in an HTML comment. The comment is ignored by the commands parser and never reaches the generated `AGENTS.md` block. Multiline comments work too. Exclusions shown inside fenced examples do not affect manifest drift.
 
 ```markdown
 <!-- clip:ignore npm run private-release -->
@@ -74,7 +74,8 @@ An explicit `--file` selects that exact path and reports read failures. `clip co
 
 The file is Markdown. Readers find commands in it and treat everything else as prose.
 
-- **Lines.** CRLF and CR endings read as LF. Lines inside fenced blocks (```` ``` ```` or `~~~`) are skipped.
+- **Lines.** CRLF and CR endings read as LF. Lines inside fenced examples are skipped.
+- **Fences.** At least three consecutive backticks or tildes open a block. A closing fence uses the same character, is at least as long as the opener, and has no trailing text beyond whitespace. A backtick fence's info string cannot contain backticks. An unclosed fence hides the rest of the file. Fences and command bullets may be indented.
 - **Commands.** A command is a list item (`-`, `*`, or `+`, at any indent) containing a code span. The first code span is the command. The text before it is the name, and the text after it is the note.
 - **Not commands.** A list item with no code span is prose. A list item with an unclosed or empty code span is not a command, and `clip commands check` warns about it.
 - **Names.** Trailing `:`, `-`, `–`, and `—` are removed, as is surrounding `*` or `_` emphasis. With no name, the command is its own name. Names are case-insensitive keys within a section. A layout can repeat a name from outside it.

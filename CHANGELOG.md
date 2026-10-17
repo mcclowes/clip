@@ -15,6 +15,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 - Releases stop before publication when the changelog section has no notes.
 - Command drift diagnostics no longer name the default file when checking a legacy or custom commands file.
 - Command-file discovery skips directories and dangling links while retaining modern precedence and links to regular files.
+- Command parsing respects fence characters and lengths, and fenced exclusion examples no longer suppress manifest drift.
 
 ## [0.4.0] - 2026-09-22
 

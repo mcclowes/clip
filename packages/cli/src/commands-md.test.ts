@@ -81,6 +81,54 @@ test('prose, fenced blocks, unclosed spans, and empty spans are not commands', (
   ]);
 });
 
+test('long fences keep shorter example fences out of commands and validation', () => {
+  const markdown = [
+    '````markdown', '```shell', '- Example: `echo example` #safe #destructive',
+    '```', '````', '- Real: `node --version` #safe',
+  ].join('\n');
+  assert.deepEqual(parseCommands(markdown).map(entry => [entry.line, entry.name]), [[6, 'Real']]);
+  assert.deepEqual(checkCommands(markdown, { strict: true }), []);
+});
+
+for (const [name, opening, inner, closing] of [
+  ['different characters', '```', '~~~', '```'],
+  ['shorter delimiters and a longer closer', '~~~~', '~~~', '~~~~~'],
+  ['a closing-looking line with text', '```', '```` trailing text', '```'],
+] as const) {
+  test(`fences ignore ${name} without changing the surrounding layout`, () => {
+    const markdown = [opening, inner, '## Layout', '- Example: `bad` #safe #destructive', closing, '- Real: `ok` #safe'].join('\n');
+    assert.deepEqual(parseCommands(markdown).map(entry => [entry.line, entry.name, entry.layout]), [[6, 'Real', false]]);
+    assert.deepEqual(checkCommands(markdown, { strict: true }), []);
+  });
+}
+
+test('backticks invalidate backtick info strings but are allowed after tilde fences', () => {
+  assert.deepEqual(parseCommands('```invalid`info\n- Real: `ok` #safe\n').map(entry => [entry.line, entry.name]), [[2, 'Real']]);
+  const markdown = '~~~valid`info\n- Example: `bad` #safe #destructive\n~~~\n- Real: `ok` #safe\n';
+  assert.deepEqual(parseCommands(markdown).map(entry => [entry.line, entry.name]), [[4, 'Real']]);
+  assert.deepEqual(checkCommands(markdown, { strict: true }), []);
+});
+
+test('an unclosed fence hides all remaining commands and validation warnings', () => {
+  for (const [opening, other] of [['```', '~~~'], ['~~~', '```']]) {
+    const markdown = [opening, other, '## Layout', '- Example: `bad` #safe #destructive', '- Unclosed: `bad'].join('\n');
+    assert.deepEqual(parseCommands(markdown), []);
+    assert.deepEqual(checkCommands(markdown, { strict: true }), []);
+  }
+});
+
+for (const [name, newline] of [['LF', '\n'], ['CRLF', '\r\n'], ['CR', '\r']] as const) {
+  test(`fences retain ${name} line numbers, indentation, layout, and decorators`, () => {
+    const markdown = [
+      '    ````markdown', '\t```', '- Example: `bad` #safe #destructive', '\t```', '  `````\t ',
+      '## Layout #auto', '   - Real: `ok` #safe #monitor #ci',
+    ].join(newline);
+    assert.deepEqual(parseCommands(markdown).map(entry => [entry.line, entry.name, entry.layout, entry.effect, entry.role, entry.ci]),
+      [[7, 'Real', true, 'safe', 'monitor', true]]);
+    assert.deepEqual(checkCommands(markdown, { strict: true }), []);
+  });
+}
+
 test('note introducers are shed, but a note opening on a path keeps its slash', () => {
   const notes = parseCommands('- A: `a` // doubled slash\n- B: `b` : colon\n- C: `c` /tmp/out is written\n').map(entry => entry.note);
   assert.deepEqual(notes, ['doubled slash', 'colon', '/tmp/out is written']);

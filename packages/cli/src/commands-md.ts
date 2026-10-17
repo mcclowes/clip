@@ -116,7 +116,11 @@ const describesManifestCommand = (entry: string, declared: string) => entry === 
 
 /** A comment keeps an intentional exclusion out of both Markdown readers and generated agent guidance. */
 function ignoredCommands(markdown: string): Set<string> {
-  return new Set([...markdown.matchAll(/<!--\s*clip:ignore\s+(.+?)\s*-->/g)].map(match => match[1]!.trim()));
+  const normalized = markdown.replace(/\r\n?/g, '\n');
+  const visible = new Set(openLines(normalized).map(({ line }) => line));
+  return new Set([...normalized.matchAll(/<!--\s*clip:ignore\s+(.+?)\s*-->/g)]
+    .filter(match => visible.has(normalized.slice(0, match.index).split('\n').length))
+    .map(match => match[1]!.trim()));
 }
 
 /** The decorators an agent acts on, in a fixed order: effect, lifetime, then flags. */
@@ -225,11 +229,16 @@ function normalizeDecorator(token: string): string {
 
 function openLines(markdown: string): { line: number; text: string }[] {
   const lines: { line: number; text: string }[] = [];
-  let inFence = false;
+  let fence: string | undefined;
   markdown.replace(/\r\n?/g, '\n').split('\n').forEach((raw, index) => {
     const text = raw.trim();
-    if (text.startsWith('```') || text.startsWith('~~~')) inFence = !inFence;
-    else if (!inFence) lines.push({ line: index + 1, text });
+    const match = text.match(/^(`{3,}|~{3,})(.*)$/);
+    const run = match?.[1];
+    const tail = match?.[2] ?? '';
+    if (fence) {
+      if (run && run[0] === fence[0] && run.length >= fence.length && tail === '') fence = undefined;
+    } else if (run && (run[0] === '~' || !tail.includes('`'))) fence = run;
+    else lines.push({ line: index + 1, text });
   });
   return lines;
 }

@@ -754,6 +754,65 @@ for (const location of ['legacy', 'custom'] as const) {
   }
 }
 
+test('fenced exclusions cannot hide manifest drift while real multiline exclusions still work', t => {
+  const { dir, run } = fixture(t);
+  const manifest = join(dir, 'package.json');
+  writeFileSync(manifest, JSON.stringify({ scripts: { hidden: 'node should-not-run.mjs' } }));
+  const executable = join(dir, 'should-not-run.mjs');
+  writeFileSync(executable, "import { writeFileSync } from 'node:fs'; writeFileSync('executed', 'yes');\n");
+  const manifestBefore = readFileSync(manifest);
+  mkdirSync(join(dir, '.clip'));
+  const file = join(dir, '.clip/commands.md');
+  for (const newline of ['\n', '\r\n', '\r']) {
+    for (const lines of [
+      ['```markdown', '<!-- clip:ignore npm run hidden -->', '```', ''],
+      ['```markdown', '<!-- clip:ignore npm run hidden -->', ''],
+      ['<!-- clip:ignore', '```markdown', 'An example separates these fragments.', '```', 'npm run hidden -->', ''],
+    ]) {
+      const fenced = lines.join(newline);
+      writeFileSync(file, fenced);
+      const rejected = run('commands', 'check', '--strict');
+      assert.equal(rejected.status, 1, rejected.stdout);
+      assert.match(JSON.parse(rejected.stdout).items[0].message, /npm run hidden/);
+      assert.equal(readFileSync(file, 'utf8'), fenced);
+    }
+    const visible = ['<!--', 'clip:ignore npm run hidden', '-->', ''].join(newline);
+    writeFileSync(file, visible);
+    const accepted = run('commands', 'check', '--strict');
+    assert.equal(accepted.status, 0, accepted.stderr);
+    assert.deepEqual(JSON.parse(accepted.stdout).items, []);
+    assert.equal(readFileSync(file, 'utf8'), visible);
+  }
+  assert.deepEqual(readFileSync(manifest), manifestBefore);
+  assert.equal(existsSync(join(dir, 'executed')), false);
+});
+
+test('listing, strict checking, and agent sync agree on nested fenced examples', t => {
+  const { dir, run } = fixture(t);
+  const manifest = join(dir, 'package.json');
+  const executable = join(dir, 'should-not-run.mjs');
+  writeFileSync(manifest, JSON.stringify({ scripts: { real: 'node should-not-run.mjs' } }));
+  writeFileSync(executable, "import { writeFileSync } from 'node:fs'; writeFileSync('executed', 'yes');\n");
+  mkdirSync(join(dir, '.clip'));
+  const file = join(dir, '.clip/commands.md');
+  writeFileSync(file, ['````markdown', '```shell', '- Example: `npm run example` #safe #destructive', '```', '````', '- Real: `npm run real` #safe'].join('\n'));
+  const before = [file, manifest, executable].map(path => readFileSync(path));
+  const listed = run('commands');
+  assert.equal(listed.status, 0, listed.stderr);
+  assert.deepEqual(JSON.parse(listed.stdout).items.map((item: any) => [item.line, item.name]), [[6, 'Real']]);
+  const checked = run('commands', 'check', '--strict');
+  assert.equal(checked.status, 0, checked.stderr);
+  assert.deepEqual(JSON.parse(checked.stdout).items, []);
+  const synced = run('sync', '--target', 'agents-md');
+  assert.equal(synced.status, 0, synced.stderr);
+  assert.deepEqual(JSON.parse(synced.stdout).agents_md.commands, ['Real']);
+  const text = readFileSync(join(dir, 'AGENTS.md'), 'utf8');
+  assert.match(text, /Real: `npm run real`/);
+  assert.doesNotMatch(text, /Example|npm run example/);
+  assert.deepEqual([file, manifest, executable].map(path => readFileSync(path)), before);
+  assert.equal(existsSync(join(dir, 'executed')), false);
+});
+
 test('commands check recognizes a documented manifest command with arguments', t => {
   const { dir, run } = fixture(t);
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ scripts: { validate: 'node validate.js' } }));
