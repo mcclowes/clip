@@ -146,6 +146,133 @@ test('help and version bypass command-specific flag validation without reading s
   }
 });
 
+test('an empty explicit file never selects a default commands file', t => {
+  for (const directory of ['.clip', '.saggar']) {
+    for (const args of [['commands'], ['commands', 'check', '--strict']]) {
+      const { dir, run } = fixture(t);
+      mkdirSync(join(dir, '.git'));
+      mkdirSync(join(dir, directory));
+      writeFileSync(join(dir, directory, 'commands.md'), '- Default: `node --version` #safe\n');
+      const before = fixtureSnapshot(dir);
+
+      const result = run(...args, '--file', '');
+
+      assert.equal(result.status, 1, `${directory}: ${result.stdout}`);
+      assert.equal(result.stdout, '');
+      assert.deepEqual(JSON.parse(result.stderr), {
+        error: { kind: 'invalid_request', message: '--file must not be empty.' },
+      });
+      assert.deepEqual(fixtureSnapshot(dir), before);
+    }
+  }
+});
+
+test('every advertised file target rejects empty values before reading saved state', t => {
+  const cases = [
+    ['commands'], ['commands', 'check', '--strict'], ['commands', 'init'],
+    ['schema', 'init', 'fixture', '--purpose', 'Example'], ['permissions', '--write'],
+  ];
+  for (const args of cases) {
+    const { dir, run } = fixture(t);
+    mkdirSync(join(dir, '.git'));
+    for (const name of ['config/tools.json', '.clip/tools.json', '.clip/tools.local.json']) {
+      const path = join(dir, name);
+      mkdirSync(join(path, '..'), { recursive: true });
+      writeFileSync(path, 'invalid saved JSON\n', { mode: 0o600 });
+    }
+    const before = fixtureSnapshot(dir);
+
+    const result = run(...args, '--file', '');
+
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.stdout, '');
+    assert.deepEqual(JSON.parse(result.stderr), {
+      error: { kind: 'invalid_request', message: '--file must not be empty.' },
+    });
+    assert.deepEqual(fixtureSnapshot(dir), before);
+  }
+});
+
+test('omitted and non-empty literal file targets retain exact selection', t => {
+  for (const directory of ['.clip', '.saggar']) {
+    const { dir, run } = fixture(t);
+    mkdirSync(join(dir, '.git'));
+    mkdirSync(join(dir, directory));
+    const file = join(dir, directory, 'commands.md');
+    writeFileSync(file, '- Default: `node --version` #safe\n');
+    writeFileSync(join(dir, '   '), '- Spaces: `node --version` #safe\n');
+    writeFileSync(join(dir, '--strict'), '- Flag: `node --version` #safe\n');
+    const before = fixtureSnapshot(dir);
+
+    const listed = run('commands');
+    assert.equal(listed.status, 0, listed.stderr);
+    assert.equal(JSON.parse(listed.stdout).file, realpathSync(file));
+    const checked = run('commands', 'check', '--strict');
+    assert.equal(checked.status, 0, checked.stderr);
+    assert.equal(JSON.parse(checked.stdout).file, realpathSync(file));
+    assert.equal(JSON.parse(checked.stdout).healthy, true);
+
+    const spaces = run('commands', 'check', '--strict', '--file', '   ');
+    assert.equal(spaces.status, 0, spaces.stderr);
+    assert.equal(JSON.parse(spaces.stdout).file, join(realpathSync(dir), '   '));
+    assert.equal(JSON.parse(spaces.stdout).healthy, true);
+    const flag = run('commands', '--file=--strict');
+    assert.equal(flag.status, 0, flag.stderr);
+    assert.equal(JSON.parse(flag.stdout).file, join(realpathSync(dir), '--strict'));
+    assert.equal(JSON.parse(flag.stdout).items[0].name, 'Flag');
+    assert.deepEqual(fixtureSnapshot(dir), before);
+  }
+});
+
+test('non-empty whitespace file targets can still be created literally', t => {
+  for (const args of [['commands', 'init'], ['schema', 'init', 'fixture', '--purpose', 'Example']]) {
+    const { dir, run } = fixture(t);
+    mkdirSync(join(dir, '.git'));
+    mkdirSync(join(dir, '.clip'));
+    writeFileSync(join(dir, '.clip/commands.md'), '- Preserve: `node --version` #safe\n', { mode: 0o640 });
+    const before = fixtureSnapshot(dir);
+
+    const result = run(...args, '--file', '   ');
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).file, join(realpathSync(dir), '   '));
+    assert.equal(existsSync(join(dir, '   ')), true);
+    const { '   ': generated, ...after } = fixtureSnapshot(dir);
+    assert.ok(generated);
+    assert.deepEqual(after, before);
+  }
+});
+
+test('empty file targets preserve unsupported-flag precedence and help shortcuts', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, 'config'));
+  writeFileSync(join(dir, 'config/tools.json'), 'invalid saved JSON\n');
+  const before = fixtureSnapshot(dir);
+  for (const name of ['list', 'schema']) {
+    const result = run(name, '--file', '');
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.stdout, '');
+    assert.deepEqual(JSON.parse(result.stderr), {
+      error: { kind: 'invalid_request', message: `${name} does not support --file.` },
+    });
+  }
+  const cases = [
+    ['commands', 'check', '--file', '', '--help'], ['commands', 'init', '--file', '', '--version'],
+    ['schema', 'init', 'fixture', '--file', '', '-h'], ['permissions', '--file', '', '--write', '--help'],
+    ['--file', '', '--version'], ['--file', ''],
+  ];
+  for (const args of cases) {
+    const result = run(...args);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, '');
+    const value = JSON.parse(result.stdout);
+    assert.equal(value.name, 'clip');
+    if (args.includes('--version')) assert.deepEqual(Object.keys(value), ['name', 'version']);
+    else assert.equal(Array.isArray(value.commands), true);
+  }
+  assert.deepEqual(fixtureSnapshot(dir), before);
+});
+
 test('register a tool, update its purpose, and generate a portable skill', t => {
   const { dir, run, schema } = fixture(t);
   const registered = run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema);

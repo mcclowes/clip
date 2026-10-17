@@ -21,7 +21,10 @@ try {
   if (options.version) print({ name: 'clip', version: contract.version }, format, renderVersion);
   else {
     const { name, command, args } = resolveCommand(options.help ? ['help'] : positionals);
-    if (name !== 'help') validateCommandFlags(name, Object.keys(options));
+    if (name !== 'help') {
+      validateCommandFlags(name, Object.keys(options));
+      if (options.file === '') throw new Error('--file must not be empty.');
+    }
     const result = await command.run({ args, options: options as Options, scope, limit });
     if (!command.interactive) print(result, format);
   }
