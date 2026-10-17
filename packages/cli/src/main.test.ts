@@ -36,6 +36,18 @@ function fixtureSnapshot(directory: string): Record<string, { mode: number; cont
   return entries;
 }
 
+function registrationFixture(t: TestContext) {
+  const context = fixture(t);
+  const executable = join(context.dir, 'fixture-probe.cjs');
+  const marker = join(context.dir, 'probe.log');
+  mkdirSync(join(context.dir, '.git'));
+  writeFileSync(executable, `#!${process.execPath}\nconst fs = require('node:fs');
+fs.appendFileSync(${JSON.stringify(marker)}, process.argv[2] + '\\n');
+process.stdout.write(fs.readFileSync(${JSON.stringify(context.schema)}, 'utf8'));
+`, { mode: 0o700 });
+  return { ...context, executable, marker };
+}
+
 test('commands init rejects another command\'s flag before creating files', t => {
   const { dir, run } = fixture(t);
   mkdirSync(join(dir, '.git'));
@@ -144,6 +156,117 @@ test('help and version bypass command-specific flag validation without reading s
     else assert.equal(Array.isArray(value.commands), true);
     assert.deepEqual(fixtureSnapshot(dir), before);
   }
+});
+
+test('empty schema registration fails before creating saved state', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+  const before = fixtureSnapshot(dir);
+
+  const result = run('register', process.execPath, '--purpose', 'Run scripts', '--schema', '');
+
+  assert.equal(result.status, 1, result.stdout);
+  assert.equal(result.stdout, '');
+  assert.deepEqual(JSON.parse(result.stderr), {
+    error: { kind: 'invalid_request', message: '--schema must not be empty.' },
+  });
+  assert.deepEqual(fixtureSnapshot(dir), before);
+});
+
+test('empty registration inputs preserve existing state without probing', t => {
+  for (const [flag, other] of [['schema', undefined], ['probe', undefined], ['schema', 'probe'], ['probe', 'schema']] as const) {
+    const { dir, run, schema, executable, marker } = registrationFixture(t);
+    const registered = run('register', executable, '--purpose', 'Original purpose', '--schema', schema);
+    assert.equal(registered.status, 0, registered.stderr);
+    chmodSync(join(dir, '.clip/tools.local.json'), 0o600);
+    const before = fixtureSnapshot(dir);
+    const args = ['register', executable, '--purpose', 'Changed purpose', `--${flag}`, ''];
+    if (other) args.push(`--${other}`, other === 'probe' ? 'schema' : schema);
+
+    const result = run(...args);
+
+    assert.equal(result.status, 1, result.stdout);
+    assert.equal(result.stdout, '');
+    assert.deepEqual(JSON.parse(result.stderr), {
+      error: { kind: 'invalid_request', message: `--${flag} must not be empty.` },
+    });
+    assert.equal(existsSync(marker), false);
+    assert.deepEqual(fixtureSnapshot(dir), before);
+  }
+});
+
+test('empty schema and probe inputs fail before executable or state lookup', t => {
+  for (const flag of ['schema', 'probe']) {
+    const { dir, run } = fixture(t);
+    mkdirSync(join(dir, '.git'));
+    for (const file of ['config/tools.json', '.clip/tools.json', '.clip/tools.local.json']) {
+      mkdirSync(join(dir, file, '..'), { recursive: true });
+      writeFileSync(join(dir, file), 'invalid saved JSON\n', { mode: 0o640 });
+    }
+    const before = fixtureSnapshot(dir);
+
+    const result = run('register', join(dir, 'missing-executable'), '--purpose', 'Example', `--${flag}=`);
+
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.stdout, '');
+    assert.deepEqual(JSON.parse(result.stderr), {
+      error: { kind: 'invalid_request', message: `--${flag} must not be empty.` },
+    });
+    assert.deepEqual(fixtureSnapshot(dir), before);
+  }
+});
+
+test('omitted registration inputs, literal schema paths, and valid probes retain behavior', t => {
+  for (const kind of ['manual', 'schema', 'space-path', 'schema-probe', 'capabilities-probe']) {
+    const { dir, run, schema, executable, marker } = registrationFixture(t);
+    const args = ['register', executable, '--purpose', 'Run scripts'];
+    if (kind === 'schema') args.push('--schema', schema);
+    if (kind === 'space-path') {
+      const path = join(dir, '   ');
+      writeFileSync(path, readFileSync(schema));
+      args.push('--schema', '   ');
+    }
+    const probe = kind.endsWith('-probe') ? kind.slice(0, -6) : undefined;
+    if (probe) args.push('--probe', probe);
+
+    const result = run(...args);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, '');
+    const registration = JSON.parse(result.stdout) as Registration;
+    assert.equal(registration.purpose, 'Run scripts');
+    assert.equal(registration.source.kind, kind === 'manual' ? 'manual' : probe ? 'native' : 'file');
+    if (kind !== 'manual') assert.deepEqual(registration.schema, JSON.parse(readFileSync(schema, 'utf8')));
+    if (probe) assert.equal(readFileSync(marker, 'utf8'), `${probe}\n`);
+    else assert.equal(existsSync(marker), false);
+  }
+});
+
+test('registration input validation preserves flag precedence, mutual exclusion, and shortcuts', t => {
+  const { dir, run, schema, executable, marker } = registrationFixture(t);
+  const before = fixtureSnapshot(dir);
+  for (const flag of ['schema', 'probe']) {
+    const unsupported = run('list', `--${flag}`, '');
+    assert.equal(unsupported.status, 1, unsupported.stderr);
+    assert.equal(unsupported.stdout, '');
+    assert.deepEqual(JSON.parse(unsupported.stderr), {
+      error: { kind: 'invalid_request', message: `list does not support --${flag}.` },
+    });
+    for (const shortcut of ['--help', '--version']) {
+      const result = run('register', executable, `--${flag}`, '', shortcut);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stderr, '');
+      assert.equal(JSON.parse(result.stdout).name, 'clip');
+    }
+  }
+  const conflict = run('register', executable, '--purpose', 'Example', '--schema', schema, '--probe', 'schema');
+  assert.equal(conflict.status, 1, conflict.stderr);
+  assert.equal(conflict.stdout, '');
+  assert.deepEqual(JSON.parse(conflict.stderr), {
+    error: { kind: 'invalid_request', message: 'Choose --schema or --probe.' },
+  });
+  assert.equal(existsSync(marker), false);
+  assert.deepEqual(fixtureSnapshot(dir), before);
 });
 
 test('an empty explicit file never selects a default commands file', t => {

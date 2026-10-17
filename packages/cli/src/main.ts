@@ -23,7 +23,9 @@ try {
     const { name, command, args } = resolveCommand(options.help ? ['help'] : positionals);
     if (name !== 'help') {
       validateCommandFlags(name, Object.keys(options));
-      if (options.file === '') throw new Error('--file must not be empty.');
+      for (const flag of ['file', 'schema', 'probe'] as const) {
+        if (options[flag] === '') throw new Error(`--${flag} must not be empty.`);
+      }
     }
     const result = await command.run({ args, options: options as Options, scope, limit });
     if (!command.interactive) print(result, format);
