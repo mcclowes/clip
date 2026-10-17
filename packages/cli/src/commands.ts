@@ -174,6 +174,7 @@ function refresh({ options }: Invocation) {
   const accepted: string[] = [];
   const pending: NonNullable<ReturnType<typeof reviewRegistryUpdate>['review']>[] = [];
   const refreshed = readTools().map(tool => {
+    if (!refreshable(tool)) return tool;
     if (tool.source.kind !== 'registry') return refreshRegistration(tool);
     const result = reviewRegistryUpdate(tool);
     if (!result.review) return result.replacement;

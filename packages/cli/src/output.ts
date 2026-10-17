@@ -4,19 +4,25 @@
  * ---
  */
 import { contract } from './contract.ts';
-import { agentTags } from './commands-md.ts';
+import { agentTags, type CommandEntry } from './commands-md.ts';
 import type { MutationMarker, RegistryReview } from './refresh.ts';
 export function page<T>(items: T[], limit: number) {
   return { items: items.slice(0, limit), total: items.length, truncated: items.length > limit };
 }
 export const renderVersion = () => `clip ${contract.version}`;
-export function renderText(result: any): string {
+export function renderText(result: unknown): string {
   if (result === contract) return renderHelp();
   if (isRefreshResult(result) && (result.pending.length || result.accepted?.length)) return renderRefresh(result);
-  if (result.items || result.agents_md) return renderItems(result);
-  const single = renderSingle(result);
-  if (single) return single;
+  if (isRecord(result)) {
+    if (result.items || result.agents_md) return renderItems(result);
+    const single = renderSingle(result);
+    if (single) return single;
+  }
   return JSON.stringify(result, null, 2);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object';
 }
 
 type RefreshResult = { accepted?: string[]; pending: RegistryReview[] };
@@ -58,17 +64,18 @@ function usage(arg: { name: string; required: boolean }): string {
   return arg.name.startsWith('--') ? `${arg.name} ${value}` : value;
 }
 
-function renderItems(result: any): string {
-  const lines = (result.items ?? []).map(itemLine);
+function renderItems(result: Record<string, unknown>): string {
+  const items: unknown[] = Array.isArray(result.items) ? result.items : [];
+  const lines = items.map(itemLine);
   if (result.items && !lines.length) lines.push('No results.');
-  if (result.truncated) lines.push(`Showing ${result.items.length} of ${result.total}; increase --limit for more.`);
+  if (result.truncated) lines.push(`Showing ${items.length} of ${result.total}; increase --limit for more.`);
   if (result.unlisted) lines.push(`${result.unlisted} other executables on PATH have no registry schema; search them with clip discover <query>, or list them with --all.`);
   if (result.directory) lines.push(`Skills: ${result.directory}`);
-  if (result.agents_md) lines.push(`Agents file: ${result.agents_md.file} (${result.agents_md.changed ? 'updated' : 'unchanged'})`);
+  if (isRecord(result.agents_md)) lines.push(`Agents file: ${result.agents_md.file} (${result.agents_md.changed ? 'updated' : 'unchanged'})`);
   return lines.join('\n');
 }
 
-function renderSingle(result: any): string | undefined {
+function renderSingle(result: Record<string, unknown>): string | undefined {
   if (typeof result.file === 'string' && typeof result.next === 'string') return `Wrote ${result.file}\n${result.next}`;
   if (typeof result.removed === 'string') return `Removed ${result.removed}`;
   if (typeof result.name === 'string' && typeof result.executable === 'string' && typeof result.purpose === 'string' && result.source) return `Registered ${result.name}`;
@@ -77,17 +84,25 @@ function renderSingle(result: any): string | undefined {
 
 const validationTags: Record<string, string> = { validated: 'agent-validated', failed: 'agent validation failed', stale: 'agent validation stale' };
 
-const discoverTag = (item: any) => item.registered ? 'registered' : item.registry ? `registry: ${item.registry}` : undefined;
+const discoverTag = (item: Record<string, unknown>) => item.registered ? 'registered' : item.registry ? `registry: ${item.registry}` : undefined;
 
-function itemLine(item: any): string {
+function itemLine(item: unknown): string {
   if (typeof item === 'string') return item;
+  if (!isRecord(item)) return JSON.stringify(item);
   if (item.severity) return `${item.line ?? item.at}: ${item.severity}: ${item.message}`;
-  if (item.command !== undefined) {
+  if (isCommandItem(item)) {
     const tags = agentTags(item);
     return `${item.name}\t${item.command}${tags.length ? ` [${tags.join(', ')}]` : ''}`;
   }
-  const tag = item.scope ?? validationTags[item.agent_validation] ?? discoverTag(item);
+  const tag = item.scope ?? (typeof item.agent_validation === 'string' ? validationTags[item.agent_validation] : undefined) ?? discoverTag(item);
   const label = `${item.id ?? item.name}${tag ? ` [${tag}]` : ''}`;
   const summary = item.purpose ?? item.executable ?? item.status ?? '';
   return `${label}\t${summary}${item.message ? `: ${item.message}` : ''}`;
+}
+
+function isCommandItem(item: Record<string, unknown>): item is Record<string, unknown> & Pick<CommandEntry, 'name' | 'command' | 'effect' | 'lifetime' | 'interactive' | 'ci'> {
+  return typeof item.name === 'string' && typeof item.command === 'string'
+    && (item.effect === undefined || item.effect === 'safe' || item.effect === 'writes' || item.effect === 'destructive')
+    && (item.lifetime === undefined || item.lifetime === 'slow' || item.lifetime === 'long-running')
+    && typeof item.interactive === 'boolean' && typeof item.ci === 'boolean';
 }

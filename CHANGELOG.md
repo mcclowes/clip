@@ -16,6 +16,10 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 - Command drift diagnostics no longer name the default file when checking a legacy or custom commands file.
 - Command-file discovery skips directories and dangling links while retaining modern precedence and links to regular files.
 - Command parsing respects fence characters and lengths, and fenced exclusion examples no longer suppress manifest drift.
+- CI and releases reject a CLI contract version that differs from the package manifest.
+- Local release packaging preserves previous archives and checksums when archive or checksum creation fails.
+- Local release packaging restores the prior archive if checksum promotion fails and retains recovery files if restoration also fails.
+- `clip commands check` accepts explicitly listed Make targets without `##` notes while still reporting removed targets. Make command seeding remains limited to documented tasks.
 
 ## [0.4.0] - 2026-09-22
 
