@@ -10,6 +10,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 ### Fixed
 
+- Explicitly empty `--skills-dir` values fail before sync or refresh can write or prune generated skills in the project root.
 - Release-note extraction preserves fenced examples and ignores release headings inside fenced preambles.
 - Explicitly empty `--schema` and `--probe` registration inputs fail before probing tools or changing saved state.
 - Explicitly empty `--file` targets fail before reading state or silently selecting a default commands file.

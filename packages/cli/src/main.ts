@@ -23,7 +23,7 @@ try {
     const { name, command, args } = resolveCommand(options.help ? ['help'] : positionals);
     if (name !== 'help') {
       validateCommandFlags(name, Object.keys(options));
-      for (const flag of ['file', 'schema', 'probe'] as const) {
+      for (const flag of ['file', 'schema', 'probe', 'skills-dir'] as const) {
         if (options[flag] === '') throw new Error(`--${flag} must not be empty.`);
       }
     }

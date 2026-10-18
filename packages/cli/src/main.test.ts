@@ -269,6 +269,118 @@ test('registration input validation preserves flag precedence, mutual exclusion,
   assert.deepEqual(fixtureSnapshot(dir), before);
 });
 
+test('empty skills directories never write or prune the project root', t => {
+  for (const command of ['sync', 'refresh']) {
+    for (const existing of [false, true]) {
+      const { dir, run } = fixture(t);
+      mkdirSync(join(dir, '.git'));
+      writeFileSync(join(dir, 'AGENTS.md'), 'Manual instructions stay intact.\n', { mode: 0o640 });
+      if (existing) {
+        for (const name of ['config/tools.json', '.clip/tools.json', '.clip/tools.local.json']) {
+          const path = join(dir, name);
+          mkdirSync(join(path, '..'), { recursive: true });
+          writeFileSync(path, JSON.stringify({ version: 1, tools: [] }), { mode: 0o600 });
+        }
+        const stale = join(dir, 'clip-old');
+        mkdirSync(stale);
+        writeFileSync(join(stale, '.clip-owned'), 'clip-skill-v1\n');
+        writeFileSync(join(stale, 'SKILL.md'), 'Old generated skill.\n', { mode: 0o640 });
+        writeFileSync(join(stale, 'schema.json'), '{}\n', { mode: 0o600 });
+      }
+      const before = fixtureSnapshot(dir);
+
+      const result = run(command, '--skills-dir', '', '--target', 'skills');
+
+      assert.equal(result.status, 1, `${command}, existing=${existing}: ${result.stdout}`);
+      assert.equal(result.stdout, '');
+      assert.deepEqual(JSON.parse(result.stderr), {
+        error: { kind: 'invalid_request', message: '--skills-dir must not be empty.' },
+      });
+      assert.deepEqual(fixtureSnapshot(dir), before);
+    }
+  }
+});
+
+test('empty skills directories reject every sync target before reading saved state', t => {
+  for (const command of ['sync', 'refresh']) {
+    for (const target of ['all', 'skills', 'agents-md']) {
+      const { dir, run } = fixture(t);
+      mkdirSync(join(dir, '.git'));
+      for (const name of ['config/tools.json', '.clip/tools.json', '.clip/tools.local.json']) {
+        const path = join(dir, name);
+        mkdirSync(join(path, '..'), { recursive: true });
+        writeFileSync(path, 'invalid saved JSON\n', { mode: 0o600 });
+      }
+      const before = fixtureSnapshot(dir);
+
+      const result = run(command, '--skills-dir', '', '--target', target);
+
+      assert.equal(result.status, 1, result.stderr);
+      assert.equal(result.stdout, '');
+      assert.deepEqual(JSON.parse(result.stderr), {
+        error: { kind: 'invalid_request', message: '--skills-dir must not be empty.' },
+      });
+      assert.deepEqual(fixtureSnapshot(dir), before);
+    }
+  }
+});
+
+test('omitted and non-empty literal skills directories retain their destinations', t => {
+  for (const command of ['sync', 'refresh']) {
+    for (const directory of [undefined, 'custom skills', '   ', '.']) {
+      const { dir, run } = fixture(t);
+      mkdirSync(join(dir, '.git'));
+      writeFileSync(join(dir, 'AGENTS.md'), 'Keep these instructions.\n', { mode: 0o640 });
+      const agents = fixtureSnapshot(dir)['AGENTS.md'];
+      const options = directory === undefined ? [] : ['--skills-dir', directory];
+
+      const result = run(command, '--target', 'skills', ...options);
+
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stderr, '');
+      const destination = join(realpathSync(dir), directory ?? '.agents/skills');
+      assert.equal(JSON.parse(result.stdout).directory, destination);
+      assert.equal(existsSync(join(destination, 'clip-schema-authoring/SKILL.md')), true);
+      assert.deepEqual(fixtureSnapshot(dir)['AGENTS.md'], agents);
+      if (directory !== undefined) assert.equal(existsSync(join(dir, '.agents')), false);
+    }
+  }
+});
+
+test('empty skills directories preserve unsupported-flag precedence and shortcuts', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+  mkdirSync(join(dir, 'config'));
+  writeFileSync(join(dir, 'config/tools.json'), 'invalid saved JSON\n', { mode: 0o600 });
+  const before = fixtureSnapshot(dir);
+  for (const command of ['sync', 'refresh']) {
+    const unsupported = run(command, '--skills-dir', '', '--file', '');
+    assert.equal(unsupported.status, 1, unsupported.stderr);
+    assert.equal(unsupported.stdout, '');
+    assert.deepEqual(JSON.parse(unsupported.stderr), {
+      error: { kind: 'invalid_request', message: `${command} does not support --file.` },
+    });
+    for (const shortcut of ['--help', '--version']) {
+      const result = run(command, '--skills-dir', '', shortcut);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stderr, '');
+      assert.equal(JSON.parse(result.stdout).name, 'clip');
+    }
+  }
+  const unsupported = run('list', '--skills-dir', '');
+  assert.equal(unsupported.status, 1, unsupported.stderr);
+  assert.equal(unsupported.stdout, '');
+  assert.deepEqual(JSON.parse(unsupported.stderr), {
+    error: { kind: 'invalid_request', message: 'list does not support --skills-dir.' },
+  });
+  for (const options of [[], ['--help'], ['--version']]) {
+    const result = run('--skills-dir', '', ...options);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).name, 'clip');
+  }
+  assert.deepEqual(fixtureSnapshot(dir), before);
+});
+
 test('an empty explicit file never selects a default commands file', t => {
   for (const directory of ['.clip', '.saggar']) {
     for (const args of [['commands'], ['commands', 'check', '--strict']]) {
