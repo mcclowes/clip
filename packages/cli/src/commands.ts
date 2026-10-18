@@ -29,6 +29,11 @@ type Command = { positionals: number; interactive?: true; run: (invocation: Invo
 const skillsDir = (options: Options) => options['skills-dir'] ?? defaultSkillsDir;
 const syncTargets = ['all', 'skills', 'agents-md'] as const;
 const names = (tools: Registration[]) => tools.map(tool => tool.name);
+function syncTarget(options: Options) {
+  const target = syncTargets.find(target => target === (options.target ?? 'all'));
+  if (!target) throw new Error('--target must be all, skills, or agents-md.');
+  return target;
+}
 function requirePurpose(options: Options, message: string): string {
   if (!options.purpose?.trim()) throw new Error(message);
   return options.purpose;
@@ -86,7 +91,10 @@ const commands: Record<string, Command> = {
     const purpose = requirePurpose(options, 'registry add requires --purpose.');
     return upsertTool(withProfile(registryRegistration(entry, purpose, scope), options.profile), scope);
   } },
-  sync: { positionals: 0, run: ({ options }) => sync(readTools(), options) },
+  sync: { positionals: 0, run: ({ options }) => {
+    const target = syncTarget(options);
+    return sync(readTools(), options, target);
+  } },
   refresh: { positionals: 0, run: refresh },
   doctor: { positionals: 0, run: () => {
     const items = readTools().map(diagnoseRegistration);
@@ -170,6 +178,7 @@ function lintTarget(target: string): { source: 'file' | 'registered' | 'registry
 }
 
 function refresh({ options }: Invocation) {
+  const target = syncTarget(options);
   const requested = new Set(options.accept ?? []);
   const accepted: string[] = [];
   const pending: NonNullable<ReturnType<typeof reviewRegistryUpdate>['review']>[] = [];
@@ -191,15 +200,13 @@ function refresh({ options }: Invocation) {
     const replacements = refreshed.filter(tool => tool.scope === scope);
     if (replacements.length) updateTools(tools => tools.map(tool => replacements.find(item => item.name === tool.name) ?? tool), scope);
   }
-  const synced = sync(readTools(), options);
+  const synced = sync(readTools(), options, target);
   const pendingNames = new Set(pending.map(review => review.name));
   return { refreshed: names(refreshed.filter(tool => refreshable(tool) && !pendingNames.has(tool.name))), accepted, pending, skipped: names(refreshed.filter(tool => !refreshable(tool))), ...synced };
 }
 
 /** The agents file is checked before skills are written, so a damaged block leaves every target untouched. */
-function sync(tools: Registration[], options: Options) {
-  const target = options.target ?? 'all';
-  if (!syncTargets.includes(target as (typeof syncTargets)[number])) throw new Error('--target must be all, skills, or agents-md.');
+function sync(tools: Registration[], options: Options, target: (typeof syncTargets)[number]) {
   const directory = skillsDir(options);
   const withSkills = target !== 'agents-md';
   const usage = (tool: Registration) => (withSkills ? skillFile(tool, directory) : existingSkillFile(tool, directory));

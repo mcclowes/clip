@@ -522,6 +522,135 @@ test('register a tool, update its purpose, and generate a portable skill', t => 
   assert.equal(run('register', process.execPath, '--purpose', 'Run tests').status, 0);
 });
 
+test('invalid sync targets leave refreshed registrations and generated files unchanged', t => {
+  for (const target of ['', 'invalid', 'Skills']) {
+    const { dir, run } = fixture(t);
+    mkdirSync(join(dir, '.git'));
+    const schemas = ['global', 'shared', 'local'].map(scope => {
+      const path = join(dir, `${scope}.json`);
+      const schema = { name: `${scope}-node`, commands: [{ name: '--version', description: 'Show runtime version', mutating: false }] };
+      writeFileSync(path, JSON.stringify(schema));
+      const registered = run('register', 'node', '--purpose', 'Fixture runtime', '--schema', path, '--scope', scope);
+      assert.equal(registered.status, 0, registered.stderr);
+      return { path, schema };
+    });
+    const synced = run('sync');
+    assert.equal(synced.status, 0, synced.stderr);
+    for (const { path, schema } of schemas) {
+      writeFileSync(path, JSON.stringify({ ...schema, commands: [{ name: '--help', description: 'Show runtime help', mutating: false }] }));
+    }
+    const before = fixtureSnapshot(dir);
+
+    const result = run('refresh', '--target', target);
+
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.stdout, '');
+    assert.deepEqual(JSON.parse(result.stderr), {
+      error: { kind: 'invalid_request', message: '--target must be all, skills, or agents-md.' },
+    });
+    assert.deepEqual(fixtureSnapshot(dir), before);
+  }
+});
+
+test('invalid sync targets never run an existing native refresh probe', t => {
+  const { dir, run, executable, marker } = registrationFixture(t);
+  const registered = run('register', executable, '--purpose', 'Fixture probe', '--probe', 'schema');
+  assert.equal(registered.status, 0, registered.stderr);
+  unlinkSync(marker);
+  const before = fixtureSnapshot(dir);
+  for (const target of ['', 'invalid']) {
+    const result = run('refresh', '--target', target);
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.stdout, '');
+    assert.deepEqual(JSON.parse(result.stderr), {
+      error: { kind: 'invalid_request', message: '--target must be all, skills, or agents-md.' },
+    });
+    assert.equal(existsSync(marker), false);
+    assert.deepEqual(fixtureSnapshot(dir), before);
+  }
+});
+
+test('invalid sync targets reject before reading saved state or source schemas', t => {
+  for (const command of ['sync', 'refresh']) {
+    const { dir, run } = fixture(t);
+    mkdirSync(join(dir, '.git'));
+    for (const name of ['config/tools.json', '.clip/tools.json', '.clip/tools.local.json']) {
+      const path = join(dir, name);
+      mkdirSync(join(path, '..'), { recursive: true });
+      writeFileSync(path, 'invalid saved JSON\n', { mode: 0o600 });
+    }
+    const before = fixtureSnapshot(dir);
+    for (const target of ['', 'invalid']) {
+      const result = run(command, '--target', target);
+      assert.equal(result.status, 1, result.stderr);
+      assert.equal(result.stdout, '');
+      assert.deepEqual(JSON.parse(result.stderr), {
+        error: { kind: 'invalid_request', message: '--target must be all, skills, or agents-md.' },
+      });
+      assert.deepEqual(fixtureSnapshot(dir), before);
+    }
+  }
+  const { dir, run, schema } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+  assert.equal(run('register', process.execPath, '--purpose', 'Fixture runtime', '--schema', schema).status, 0);
+  writeFileSync(schema, 'invalid source JSON\n');
+  const before = fixtureSnapshot(dir);
+  const result = run('refresh', '--target', 'invalid');
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(result.stdout, '');
+  assert.deepEqual(JSON.parse(result.stderr), {
+    error: { kind: 'invalid_request', message: '--target must be all, skills, or agents-md.' },
+  });
+  assert.deepEqual(fixtureSnapshot(dir), before);
+});
+
+test('valid sync targets refresh registrations and update only selected guidance', t => {
+  for (const target of [undefined, 'all', 'skills', 'agents-md']) {
+    const { dir, run, schema } = fixture(t);
+    mkdirSync(join(dir, '.git'));
+    assert.equal(run('register', process.execPath, '--purpose', 'Fixture runtime', '--schema', schema).status, 0);
+    assert.equal(run('sync', '--target', 'skills').status, 0);
+    const skill = join(dir, '.agents/skills/clip-node/SKILL.md');
+    const oldSkill = readFileSync(skill, 'utf8');
+    writeFileSync(schema, JSON.stringify({ name: 'node', commands: [{ name: '--help', description: 'Show runtime help', mutating: false }] }));
+    const options = target === undefined ? [] : ['--target', target];
+
+    const result = run('refresh', ...options);
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, '');
+    assert.deepEqual(JSON.parse(result.stdout).refreshed, ['node']);
+    assert.equal(JSON.parse(run('list').stdout).items[0].schema.commands[0].name, '--help');
+    if (target === 'agents-md') assert.equal(readFileSync(skill, 'utf8'), oldSkill);
+    else assert.match(readFileSync(skill, 'utf8'), /--help/);
+    const agents = join(dir, 'AGENTS.md');
+    if (target === 'skills') assert.equal(existsSync(agents), false);
+    else assert.match(readFileSync(agents, 'utf8'), /Fixture runtime/);
+  }
+});
+
+test('invalid sync targets preserve unsupported-flag precedence and shortcuts', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+  mkdirSync(join(dir, 'config'));
+  writeFileSync(join(dir, 'config/tools.json'), 'invalid saved JSON\n', { mode: 0o600 });
+  const before = fixtureSnapshot(dir);
+  for (const command of ['sync', 'refresh']) {
+    const unsupported = run(command, '--target', 'invalid', '--file', '');
+    assert.equal(unsupported.status, 1, unsupported.stderr);
+    assert.equal(unsupported.stdout, '');
+    assert.deepEqual(JSON.parse(unsupported.stderr), {
+      error: { kind: 'invalid_request', message: `${command} does not support --file.` },
+    });
+    for (const shortcut of ['--help', '--version']) {
+      const result = run(command, '--target', 'invalid', shortcut);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(JSON.parse(result.stdout).name, 'clip');
+    }
+  }
+  assert.deepEqual(fixtureSnapshot(dir), before);
+});
+
 test('refresh reloads a local schema and synchronizes its skill', t => {
   const { dir, run, schema } = fixture(t);
   assert.equal(run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema).status, 0);
