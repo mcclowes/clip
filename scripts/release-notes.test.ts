@@ -92,3 +92,77 @@ test('the actual publication step stops before gh on invalid notes and passes va
     }
   }
 });
+
+const fencedBodies = [
+  ['backticks', '- Example:\n\n```markdown\n## [9.9.9]\n- Example content.\n```\n\n### Details\n\n- Still this release.'],
+  ['tildes and CRLF', '- Example:\r\n\r\n~~~markdown\r\n## [9.9.9]\r\n- Example content.\r\n~~~\r\n\r\n- Still this release.'],
+  ['shorter embedded fences', '- Example:\n\n````markdown\n```\n## [9.9.9]\n- Example content.\n`````\n\n- Still this release.'],
+  ['mismatched embedded fences', '- Example:\n\n```markdown\n~~~\n## [9.9.9]\n- Example content.\n```\n\n- Still this release.'],
+  ['embedded fence runs with trailing text', '- Example:\n\n```markdown\n```not-a-close\n## [9.9.9]\n- Example content.\n```\n\n- Still this release.'],
+  ['over-indented embedded fences', '- Example:\n\n```markdown\n    ```\n## [9.9.9]\n- Example content.\n```\n\n- Still this release.'],
+  ['indented fences and closing whitespace', '- Example:\n\n   ~~~~markdown\n## [9.9.9]\n- Example content.\n ~~~~~ \t\n\n- Still this release.'],
+  ['an unclosed fence', '- Example:\n\n```markdown\n## [9.9.9]\n- This is still code at the end of the document.'],
+] as const;
+
+for (const [name, body] of fencedBodies) {
+  test(`release notes preserve ${name} without treating code headings as sections`, t => {
+    const newline = name === 'tildes and CRLF' ? '\r\n' : '\n';
+    const nextRelease = name === 'an unclosed fence' ? '' : `${newline}${newline}## [0.3.0]${newline}- Older release.${newline}`;
+    const result = fixture(t, `# Changelog${newline}${newline}## [${version}]${newline}${newline}${body}${nextRelease}`).run();
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, `${body}\n`);
+    assert.equal(result.stderr, '');
+  });
+}
+
+for (const fence of ['```', '~~~']) {
+  test(`release selection ignores a matching heading inside a ${fence} preamble`, t => {
+    const result = fixture(t, `# Changelog\n\n${fence}markdown\n## [${version}]\n- Example only.\n${fence}\n\n## [${version}]\n\n- Actual release.\n\n## [0.3.0]\n- Older release.\n`).run();
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, '- Actual release.\n');
+  });
+}
+
+test('a matching heading only inside a fence retains the missing-section failure', t => {
+  const result = fixture(t, `~~~markdown\n## [${version}]\n- Example only.\n~~~\n`).run();
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, '');
+  assert.equal(result.stderr, `CHANGELOG.md has no section for ${version}\n`);
+});
+
+for (const opener of ['```invalid`info', '    ```']) {
+  test(`a non-fence opening (${JSON.stringify(opener)}) does not hide the release heading`, t => {
+    const result = fixture(t, `${opener}\n\n## [${version}]\n- Actual release.\n\n## [0.3.0]\n- Older release.\n`).run();
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, '- Actual release.\n');
+  });
+}
+
+test('the actual publication step passes complete fenced notes to gh', t => {
+  const workflow = readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8');
+  const step = workflow.split('      - name: Publish GitHub release\n')[1];
+  const block = step?.match(/        run: \|\n((?:          [^\n]*\n)+)/)?.[1];
+  assert.ok(block, 'Expected the GitHub release publication shell step');
+  const body = fencedBodies[0][1];
+  const { dir } = fixture(t, `## [${version}]\n\n${body}\n\n## [0.3.0]\n- Older release.\n`);
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  mkdirSync(join(dir, 'dist'));
+  writeFileSync(join(dir, 'dist/clip-0.4.0.tar.gz'), 'fixture archive');
+  writeFileSync(join(dir, 'dist/clip-0.4.0.sha256'), 'fixture checksum');
+  const called = join(dir, 'publisher.json');
+  writeFileSync(join(bin, 'gh'), `#!${process.execPath}\nconst fs = require('node:fs'); const args = process.argv.slice(2); fs.writeFileSync(${JSON.stringify(called)}, JSON.stringify({ args, notes: fs.readFileSync(args[args.indexOf('--notes-file') + 1], 'utf8') }));\n`, { mode: 0o755 });
+  const stepFile = join(dir, 'publish.sh');
+  writeFileSync(stepFile, block.replace(/^ {10}/gm, ''));
+  const result = spawnSync('bash', ['--noprofile', '--norc', '-e', '-o', 'pipefail', stepFile], {
+    cwd: dir, encoding: 'utf8',
+    env: { ...process.env, PATH: `${bin}:${dirname(process.execPath)}:${process.env.PATH}`, GITHUB_REF_NAME: `v${version}`, GH_TOKEN: 'fixture-only' },
+  });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(readFileSync(called, 'utf8')), {
+    args: ['release', 'create', `v${version}`, 'dist/clip-0.4.0.tar.gz', 'dist/clip-0.4.0.sha256', '--verify-tag', '--notes-file', 'release-notes.md'],
+    notes: `${body}\n`,
+  });
+});

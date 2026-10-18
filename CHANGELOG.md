@@ -10,6 +10,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 ### Fixed
 
+- Release-note extraction preserves fenced examples and ignores release headings inside fenced preambles.
 - Explicitly empty `--schema` and `--probe` registration inputs fail before probing tools or changing saved state.
 - Explicitly empty `--file` targets fail before reading state or silently selecting a default commands file.
 - Command-specific flags are checked against the selected command before its handler can read or write state.
