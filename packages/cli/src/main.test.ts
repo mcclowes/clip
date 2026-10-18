@@ -651,6 +651,186 @@ test('invalid sync targets preserve unsupported-flag precedence and shortcuts', 
   assert.deepEqual(fixtureSnapshot(dir), before);
 });
 
+function refreshPreflightFixture(t: TestContext) {
+  const context = fixture(t);
+  mkdirSync(join(context.dir, '.git'));
+  for (const scope of ['global', 'shared', 'local']) {
+    const file = join(context.dir, `${scope}.json`);
+    writeFileSync(file, JSON.stringify({ name: `${scope}-node`, commands: [{ name: '--version', description: 'Show version' }] }));
+    const registered = context.run('register', 'node', '--purpose', 'Fixture runtime', '--schema', file, '--scope', scope);
+    assert.equal(registered.status, 0, registered.stderr);
+  }
+  assert.equal(context.run('sync').status, 0);
+  for (const scope of ['global', 'shared', 'local']) {
+    writeFileSync(join(context.dir, `${scope}.json`), JSON.stringify({ name: `${scope}-node`, commands: [{ name: '--help', description: 'Show help' }] }));
+  }
+  return context;
+}
+
+test('refresh preflight preserves every scope when selected agents outputs refuse', t => {
+  for (const target of ['all', 'agents-md']) {
+    for (const fault of ['damaged', 'symlink', 'dangling']) {
+      const { dir, run } = refreshPreflightFixture(t);
+      const agents = join(dir, 'AGENTS.md');
+      if (fault === 'damaged') writeFileSync(agents, 'Private instructions\n<!-- clip:begin -->\n', { mode: 0o640 });
+      else {
+        unlinkSync(agents);
+        const outside = join(dir, 'outside.md');
+        if (fault === 'symlink') writeFileSync(outside, 'Private instructions\n', { mode: 0o600 });
+        symlinkSync(outside, agents);
+      }
+      const before = fixtureSnapshot(dir);
+
+      const result = run('refresh', '--target', target);
+
+      assert.equal(result.status, 1, result.stderr);
+      assert.equal(result.stdout, '');
+      assert.match(JSON.parse(result.stderr).error.message, fault === 'damaged' ? /damaged CLIP block/ : /symlinked agents file/);
+      assert.deepEqual(fixtureSnapshot(dir), before);
+    }
+  }
+});
+
+test('refresh preflight preserves every scope when selected skills refuse', t => {
+  for (const target of ['all', 'skills']) {
+    for (const fault of ['user-file', 'manifest', 'file-link', 'directory-link', 'dangling', 'stale-user-file', 'stale-link']) {
+      const { dir, run } = refreshPreflightFixture(t);
+      const skills = join(dir, '.agents/skills');
+      const skill = join(skills, 'clip-local-node');
+      const outside = join(dir, 'outside');
+      if (fault === 'user-file') writeFileSync(join(skill, 'notes.md'), 'Keep fixture notes.\n', { mode: 0o600 });
+      else if (fault === 'manifest') writeFileSync(join(skill, '.clip-owned'), 'not an ownership manifest\n');
+      else if (fault === 'file-link') {
+        writeFileSync(outside, 'Keep outside fixture content.\n', { mode: 0o600 });
+        unlinkSync(join(skill, 'SKILL.md'));
+        symlinkSync(outside, join(skill, 'SKILL.md'));
+      } else if (fault === 'stale-user-file') {
+        const stale = join(skills, 'clip-old');
+        mkdirSync(stale);
+        writeFileSync(join(stale, '.clip-owned'), 'clip-skill-v1\n');
+        writeFileSync(join(stale, 'SKILL.md'), 'Old skill\n');
+        writeFileSync(join(stale, 'schema.json'), '{}\n');
+        writeFileSync(join(stale, 'notes.md'), 'Keep fixture notes.\n');
+      } else {
+        if (fault !== 'dangling') mkdirSync(outside);
+        const link = fault === 'stale-link' ? join(skills, 'clip-old') : skill;
+        if (link === skill) rmSync(skill, { recursive: true });
+        symlinkSync(outside, link);
+      }
+      const before = fixtureSnapshot(dir);
+
+      const result = run('refresh', '--target', target);
+
+      assert.equal(result.status, 1, result.stderr);
+      assert.equal(result.stdout, '');
+      assert.match(JSON.parse(result.stderr).error.message, /Refusing|Skill contains user files/);
+      assert.deepEqual(fixtureSnapshot(dir), before);
+    }
+  }
+});
+
+test('refresh preflight leaves missing output roots absent on name collisions', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+  for (const [index, name] of ['Tool', 'tool'].entries()) {
+    const file = join(dir, `schema-${index}.json`);
+    writeFileSync(file, JSON.stringify({ name, commands: [{ name: 'old', description: 'Old command' }] }));
+    assert.equal(run('register', process.execPath, '--purpose', 'Fixture tool', '--schema', file).status, 0);
+    writeFileSync(file, JSON.stringify({ name, commands: [{ name: 'new', description: 'New command' }] }));
+  }
+  const before = fixtureSnapshot(dir);
+  const result = run('refresh');
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(result.stdout, '');
+  assert.match(JSON.parse(result.stderr).error.message, /collide/);
+  assert.deepEqual(fixtureSnapshot(dir), before);
+});
+
+test('refresh preflight renders every skill before saving or writing any output', t => {
+  const { dir, run } = refreshPreflightFixture(t);
+  writeFileSync(join(dir, 'local.json'), JSON.stringify({ name: 'local-node', commands: [{ name: 'broken', description: 'Invalid argument fixture', args: [null] }] }));
+  const before = fixtureSnapshot(dir);
+  const result = run('refresh');
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(result.stdout, '');
+  assert.equal(JSON.parse(result.stderr).error.kind, 'invalid_request');
+  assert.deepEqual(fixtureSnapshot(dir), before);
+});
+
+test('refresh preflight preserves pending registry review through output refusals', t => {
+  for (const options of [[], ['--accept', 'git'], ['--accept-all']]) {
+    const { dir, run } = refreshPreflightFixture(t);
+    assert.equal(run('registry', 'add', 'git', '--purpose', 'Review fixture changes').status, 0);
+    const file = join(dir, '.clip/tools.local.json');
+    const document = JSON.parse(readFileSync(file, 'utf8'));
+    const git = document.tools.find((tool: Registration) => tool.name === 'git');
+    git.schema.commands[0].description = 'Pending fixture review';
+    git.schema.commands[0].mutating = true;
+    writeFileSync(file, JSON.stringify(document));
+    writeFileSync(join(dir, 'AGENTS.md'), 'Private instructions\n<!-- clip:begin -->\n');
+    const before = fixtureSnapshot(dir);
+    const refused = run('refresh', ...options);
+    assert.equal(refused.status, 1, refused.stderr);
+    assert.equal(refused.stdout, '');
+    assert.match(JSON.parse(refused.stderr).error.message, /damaged CLIP block/);
+    assert.deepEqual(fixtureSnapshot(dir), before);
+
+    writeFileSync(join(dir, 'AGENTS.md'), 'Private instructions\n');
+    const result = run('refresh', ...options);
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.deepEqual(output.accepted, options.length ? ['git'] : []);
+    assert.deepEqual(output.pending.map((review: { name: string }) => review.name), options.length ? [] : ['git']);
+    const current = JSON.parse(run('list').stdout).items.find((tool: Registration) => tool.name === 'git');
+    assert.equal(current.schema.commands[0].description === 'Pending fixture review', !options.length);
+  }
+});
+
+test('refresh preflight validates only selected outputs', t => {
+  for (const target of ['skills', 'agents-md']) {
+    const { dir, run } = refreshPreflightFixture(t);
+    const agents = join(dir, 'AGENTS.md');
+    const skill = join(dir, '.agents/skills/clip-local-node');
+    if (target === 'skills') writeFileSync(agents, 'Private instructions\n<!-- clip:begin -->\n');
+    else writeFileSync(join(skill, 'notes.md'), 'Keep fixture notes.\n');
+    const beforeAgents = readFileSync(agents, 'utf8');
+    const beforeSkill = readFileSync(join(skill, 'SKILL.md'), 'utf8');
+    const result = run('refresh', '--target', target);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(run('list').stdout).items.every((tool: Registration) => tool.schema?.commands?.[0]?.name === '--help'), true);
+    if (target === 'skills') {
+      assert.equal(readFileSync(agents, 'utf8'), beforeAgents);
+      assert.match(readFileSync(join(skill, 'SKILL.md'), 'utf8'), /--help/);
+    } else {
+      assert.equal(readFileSync(join(skill, 'SKILL.md'), 'utf8'), beforeSkill);
+      assert.equal(readFileSync(join(skill, 'notes.md'), 'utf8'), 'Keep fixture notes.\n');
+      assert.doesNotMatch(readFileSync(agents, 'utf8'), /global-node/);
+    }
+  }
+});
+
+test('refresh preflight respects hidden scopes and cleans only stale owned skills', t => {
+  const { dir, run } = refreshPreflightFixture(t);
+  const local = join(dir, '.clip/tools.local.json');
+  const document = JSON.parse(readFileSync(local, 'utf8'));
+  document.disabled = ['shared-node'];
+  writeFileSync(local, JSON.stringify(document));
+  writeFileSync(join(dir, 'shared.json'), 'Invalid hidden source\n');
+  const shared = readFileSync(join(dir, '.clip/tools.json'), 'utf8');
+  const unowned = join(dir, '.agents/skills/clip-private');
+  mkdirSync(unowned);
+  writeFileSync(join(unowned, 'notes.md'), 'Keep fixture notes.\n');
+  const result = run('refresh');
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.deepEqual(output.refreshed, ['global-node', 'local-node']);
+  assert.deepEqual(output.removed, ['clip-shared-node']);
+  assert.equal(readFileSync(join(dir, '.clip/tools.json'), 'utf8'), shared);
+  assert.deepEqual(JSON.parse(readFileSync(local, 'utf8')).disabled, ['shared-node']);
+  assert.equal(readFileSync(join(unowned, 'notes.md'), 'utf8'), 'Keep fixture notes.\n');
+  assert.doesNotMatch(readFileSync(join(dir, 'AGENTS.md'), 'utf8'), /global-node|shared-node/);
+});
+
 test('refresh reloads a local schema and synchronizes its skill', t => {
   const { dir, run, schema } = fixture(t);
   assert.equal(run('register', process.execPath, '--purpose', 'Run JavaScript', '--schema', schema).status, 0);

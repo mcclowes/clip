@@ -10,6 +10,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 ### Fixed
 
+- Refresh checks selected output ownership and renders skills before saving registrations, so refused guidance leaves saved schemas unchanged.
 - Invalid sync targets fail before sync or refresh reads registrations, probes schemas, or saves refreshed state.
 - Explicitly empty `--skills-dir` values fail before sync or refresh can write or prune generated skills in the project root.
 - Release-note extraction preserves fenced examples and ignores release headings inside fenced preambles.

@@ -54,21 +54,36 @@ export function existingSkillFile(tool: Registration, directory: string): string
 
 /** Tool skills plus the bundled authoring skill, which is written even when nothing is registered. */
 export function syncSkills(tools: Registration[], directory: string) {
+  return planSkills(tools, directory)();
+}
+
+/** Check ownership and render everything without creating or changing files. */
+export function planSkills(tools: Registration[], directory: string) {
   const root = resolve(directory);
-  mkdirSync(root, { recursive: true });
   const active = new Set([...tools.map(skillName), authoringSkillName]);
   if (active.size !== tools.length + 1) throw new Error(`Tool names collide when normalized to skill names, or with ${authoringSkillName}.`);
-  for (const name of new Set([...active, ...clipDirs(root)])) assertSafeToReplace(join(root, name), active.has(name));
-  for (const tool of tools) writeSkill(join(root, skillName(tool)), renderedSkillFiles(tool));
-  writeSkill(join(root, authoringSkillName), authoringSkill());
-  const removed = clipDirs(root).filter(name => !active.has(name) && removeOwnedSkill(join(root, name)));
-  return { directory: root, items: [...active], removed };
+  const checkOwnership = () => {
+    const existing = existsSync(root) ? clipDirs(root) : [];
+    for (const name of new Set([...active, ...existing])) assertSafeToReplace(join(root, name), active.has(name));
+  };
+  checkOwnership();
+  const rendered = tools.map(tool => ({ directory: join(root, skillName(tool)), files: renderedSkillFiles(tool) }));
+  const authoring = authoringSkill();
+  return () => {
+    // A caller may hold the plan while files change.
+    checkOwnership();
+    mkdirSync(root, { recursive: true });
+    for (const skill of rendered) writeSkill(skill.directory, skill.files);
+    writeSkill(join(root, authoringSkillName), authoring);
+    const removed = clipDirs(root).filter(name => !active.has(name) && removeOwnedSkill(join(root, name)));
+    return { directory: root, items: [...active], removed };
+  };
 }
 
 /** Refuses to touch anything CLIP did not write itself, unless it is an unowned stale directory we will simply leave alone. */
 function assertSafeToReplace(dir: string, active: boolean): void {
+  if (isSymlink(dir)) throw new Error(`Refusing skill symlink: ${dir}`);
   if (!existsSync(dir)) return;
-  if (lstatSync(dir).isSymbolicLink()) throw new Error(`Refusing skill symlink: ${dir}`);
   const owned = ownedPaths(dir);
   if (!owned) {
     if (active) throw new Error(`Refusing to overwrite an unowned skill: ${dir}`);

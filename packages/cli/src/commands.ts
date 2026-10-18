@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { validateSchema, toolName, type Schema } from './schema.ts';
 import { activeSchema, projectRoot, readTools, removeTool, scopes, storedExecutable, updateTools, upsertTool, type Registration, type Scope } from './store.ts';
-import { defaultSkillsDir, existingSkillFile, skillFile, syncSkills } from './skills.ts';
+import { defaultSkillsDir, existingSkillFile, skillFile, planSkills } from './skills.ts';
 import { defaultAgentsFile, planAgentsMd, type ProjectCommands } from './agents-md.ts';
 import { checkCommands, commandsPath, findCommandsFile, parseCommands, seededCommandsTemplate } from './commands-md.ts';
 import { discover, executablePath, probeSchema } from './discovery.ts';
@@ -93,7 +93,7 @@ const commands: Record<string, Command> = {
   } },
   sync: { positionals: 0, run: ({ options }) => {
     const target = syncTarget(options);
-    return sync(readTools(), options, target);
+    return planSync(readTools(), options, target)();
   } },
   refresh: { positionals: 0, run: refresh },
   doctor: { positionals: 0, run: () => {
@@ -196,24 +196,25 @@ function refresh({ options }: Invocation) {
   });
   const unknown = [...requested].filter(name => !accepted.includes(name));
   if (unknown.length) throw new Error(`No pending registry update for: ${unknown.join(', ')}.`);
+  const writeSync = planSync(refreshed, options, target);
   for (const scope of scopes) {
     const replacements = refreshed.filter(tool => tool.scope === scope);
     if (replacements.length) updateTools(tools => tools.map(tool => replacements.find(item => item.name === tool.name) ?? tool), scope);
   }
-  const synced = sync(readTools(), options, target);
+  const synced = writeSync();
   const pendingNames = new Set(pending.map(review => review.name));
   return { refreshed: names(refreshed.filter(tool => refreshable(tool) && !pendingNames.has(tool.name))), accepted, pending, skipped: names(refreshed.filter(tool => !refreshable(tool))), ...synced };
 }
 
-/** The agents file is checked before skills are written, so a damaged block leaves every target untouched. */
-function sync(tools: Registration[], options: Options, target: (typeof syncTargets)[number]) {
+/** Validate selected outputs before refresh saves registrations or sync writes guidance. */
+function planSync(tools: Registration[], options: Options, target: (typeof syncTargets)[number]) {
   const directory = skillsDir(options);
   const withSkills = target !== 'agents-md';
   const usage = (tool: Registration) => (withSkills ? skillFile(tool, directory) : existingSkillFile(tool, directory));
   const agents = target === 'skills' ? undefined : planAgentsMd(tools.filter(tool => tool.scope !== 'global'), options['agents-file'] ?? defaultAgentsFile, usage, projectCommands());
-  const skills = withSkills ? syncSkills(tools, directory) : {};
+  const skills = withSkills ? planSkills(tools, directory) : undefined;
   const { write, ...agentsMd } = agents ?? {};
-  return { ...skills, ...(write ? { agents_md: { ...agentsMd, changed: write() } } : {}) };
+  return () => ({ ...(skills?.() ?? {}), ...(write ? { agents_md: { ...agentsMd, changed: write() } } : {}) });
 }
 
 /** Proposes by default so a person sees every rule before it grants anything; schemas alone never authorize. */
