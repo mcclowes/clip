@@ -4,12 +4,17 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-22
+
 ### Added
 
 - Community schemas for Shelf and turnstile.
 
 ### Fixed
 
+- Refresh skips manual tool registrations that have no schema source.
+- Command drift checks recognize npm test aliases and explicit pnpm package script commands.
+- Generated skill pointers skip directories and dangling links.
 - Refresh checks selected output ownership and renders skills before saving registrations, so refused guidance leaves saved schemas unchanged.
 - Invalid sync targets fail before sync or refresh reads registrations, probes schemas, or saves refreshed state.
 - Explicitly empty `--skills-dir` values fail before sync or refresh can write or prune generated skills in the project root.
@@ -96,7 +101,8 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 - Install versioned community capability schemas from the bundled registry.
 - Docs site and searchable tool directory.
 
-[Unreleased]: https://github.com/mcclowes/clip/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/mcclowes/clip/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/mcclowes/clip/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/mcclowes/clip/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/mcclowes/clip/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/mcclowes/clip/compare/v0.1.0...v0.2.0
