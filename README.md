@@ -21,6 +21,12 @@ clip --version
 
 The Homebrew formula installs Node.js 24 or later. No runtime npm dependencies are needed.
 
+Or install with npm (requires Node.js 24 or later):
+
+```sh
+npm install -g @mcclowes/clip
+```
+
 ## Use
 
 ```sh
