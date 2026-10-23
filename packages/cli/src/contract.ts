@@ -23,7 +23,7 @@ export const contract = {
     { name: 'discover', description: 'List installed tools that have a registry schema, without running them. A query or --all searches every executable on PATH.', mutating: false, args: [arg('query', 'Optional name filter across all of PATH.'), { name: '--all', type: 'boolean', description: 'List every executable on PATH.', required: false }] },
     { name: 'register', description: 'Register or update an installed tool. Probes execute only when explicitly requested.', mutating: true, args: [arg('executable', 'Executable name or path.', true), arg('--purpose', 'When agents should use this tool.', true), arg('--schema', 'Local JSON capability file.'), arg('--profile', 'Show agents only this named command subset from the schema.'), { ...arg('--probe', 'Run a native introspection command.'), enum: ['schema', 'capabilities'] }] },
     { name: 'list', description: 'List registered tools.', mutating: false, args: [] },
-    { name: 'ui', description: 'Manage registered tools and browse the registry in an interactive terminal.', mutating: true, args: [] },
+    { name: 'ui', description: 'Manage registered tools and browse the registry in an interactive terminal.', mutating: true, args: [arg('--skills-dir', 'Destination directory; defaults to .agents/skills.')] },
     { name: 'remove', description: 'Remove a registration; run sync to clean generated skills.', mutating: true, args: [arg('name', 'Registered tool name.', true)] },
     { name: 'schema', description: 'Describe CLIP offline.', mutating: false, args: [] },
     { name: 'capabilities', description: 'Alias for CLIP schema introspection.', mutating: false, args: [] },

@@ -81,7 +81,7 @@ test('command-specific flags fail before reading saved state or changing fixture
     { command: 'commands init', args: ['--write', 'commands', 'init'], flag: 'write' },
     { command: 'commands check', args: ['commands', 'check', '--write'], flag: 'write' },
     { command: 'discover', args: ['discover', '--file', 'unexpected.json'], flag: 'file' },
-    { command: 'ui', args: ['ui', '--skills-dir', 'unexpected'], flag: 'skills-dir' },
+    { command: 'ui', args: ['ui', '--file', 'unexpected.json'], flag: 'file' },
   ];
   for (const { command, args, flag } of cases) {
     const { dir, run } = fixture(t);
@@ -103,6 +103,29 @@ test('command-specific flags fail before reading saved state or changing fixture
     });
     assert.deepEqual(fixtureSnapshot(dir), before, command);
   }
+});
+
+test('ui accepts and advertises its skills directory before terminal validation', t => {
+  const { dir, run } = fixture(t);
+  mkdirSync(join(dir, 'config'));
+  writeFileSync(join(dir, 'config/tools.json'), 'invalid saved JSON\n', { mode: 0o600 });
+  const before = fixtureSnapshot(dir);
+
+  for (const args of [[], ['--skills-dir', 'custom skills'], ['--skills-dir', '.']]) {
+    const result = run('ui', ...args);
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(result.stdout, '');
+    assert.deepEqual(JSON.parse(result.stderr), {
+      error: { kind: 'invalid_request', message: 'clip ui requires an interactive terminal.' },
+    });
+    assert.deepEqual(fixtureSnapshot(dir), before);
+  }
+
+  const result = run('schema');
+  assert.equal(result.status, 0, result.stderr);
+  const ui = JSON.parse(result.stdout).commands.find((command: { name: string }) => command.name === 'ui');
+  assert.ok(ui.args.some((argument: { name: string; type: string }) => argument.name === '--skills-dir' && argument.type === 'string'));
+  assert.deepEqual(fixtureSnapshot(dir), before);
 });
 
 test('advertised command flags and global options retain their behavior', t => {

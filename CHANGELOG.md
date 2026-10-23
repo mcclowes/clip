@@ -4,6 +4,10 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- The interactive UI accepts its existing `--skills-dir` option during command-specific flag validation.
+
 ## [0.5.0] - 2026-10-22
 
 ### Added
