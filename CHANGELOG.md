@@ -7,6 +7,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 ### Fixed
 
 - The interactive UI accepts its existing `--skills-dir` option during command-specific flag validation.
+- The bundled Shelf schema matches v0.4.0: lookups declare automatic state maintenance, cached-only reads expose `--no-refresh`, and relation, guidance, and offline introspection commands are documented.
 
 ## [0.5.0] - 2026-10-22
 

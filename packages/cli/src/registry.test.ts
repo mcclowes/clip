@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCatalog, validationStatus, type Entry } from './registry.ts';
+import { findEntry, parseCatalog, registrySchema, registrySource, trustOf, validationStatus, type Entry } from './registry.ts';
+import { proposeRules } from './permissions.ts';
+import { renderSkillFiles } from './skill-render.ts';
 
 const entry: Entry = {
   id: 'git', name: 'Git', executable: 'git', purpose: 'Inspect history', category: 'Development', maintainer: 'mcclowes', version: '1.0.0',
@@ -26,4 +28,30 @@ test('the catalog accepts a well-formed validation record and rejects a malforme
   assert.throws(() => parseCatalog({ version: 1, items: [{ ...entry, validation: { ...validation, passed: '4' } }] }), /validation requires passed/);
   assert.throws(() => parseCatalog({ version: 1, items: [{ ...entry, validation: { ...validation, sha256: 'nope' } }] }), /validation requires sha256/);
   assert.throws(() => parseCatalog({ version: 1, items: [{ ...entry, validation: { ...validation, date: '21/09/2026' } }] }), /validation requires date/);
+});
+
+test('Shelf automatic maintenance never receives a read-only permission prefix', () => {
+  const shelf = findEntry('shelf');
+  const tool = { name: 'shelf', executable: 'shelf', purpose: shelf.purpose, schema: registrySchema(shelf), source: registrySource(shelf) };
+
+  const proposal = proposeRules([tool], registered => trustOf(registered) === 'reviewed');
+
+  assert.deepEqual(proposal.allow, ['Bash(shelf schema:*)', 'Bash(shelf capabilities:*)']);
+  assert.deepEqual(proposal.skipped.map(item => [item.command, item.reason]), [
+    ['scan', 'mutating'], ['list', 'mutating'], ['search', 'mutating'], ['show', 'mutating'],
+    ['describe', 'mutating'], ['related', 'mutating'], ['relate', 'mutating'], ['sync', 'mutating'],
+  ]);
+});
+
+test('Shelf skills expose cached-only reads and mark operational commands as mutating', () => {
+  const shelf = findEntry('shelf');
+  const files = renderSkillFiles({ skillName: 'clip-shelf', name: 'shelf', executable: 'shelf', purpose: shelf.purpose, schema: registrySchema(shelf) });
+  const skill = files.get('SKILL.md');
+  assert.ok(skill);
+  assert.match(skill, /--no-refresh/);
+  for (const command of ['scan', 'list', 'search', 'show', 'describe', 'related', 'relate', 'sync']) {
+    const usage: string | undefined = skill.split('\n').find(candidate => candidate.startsWith(`- \`shelf ${command}`));
+    assert.ok(usage, command);
+    assert.match(usage, /\*\*\[mutating\]\*\*/);
+  }
 });

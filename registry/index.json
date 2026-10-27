@@ -215,12 +215,12 @@
       "purpose": "Find your other repositories and what each one does",
       "category": "Development",
       "maintainer": "mcclowes",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "upstream": "https://github.com/mcclowes/shelf",
       "documentation": "https://github.com/mcclowes/shelf#readme",
       "schema": "schemas/shelf.json",
-      "sha256": "f88aeffe1f23a2720adc7609ffc46462ec33e2f4ecf7cd1a96ea2940f4bc03c7",
-      "coverage": "Repository search, lookup, listing, description overrides, and scanning"
+      "sha256": "e2322bcf76ca870229174967e0a028760c2e748debd91df1b6b6b5d714d0a572",
+      "coverage": "Shelf 0.4.0 repository lookup, relations, scanning, description overrides, agent guidance, and offline introspection"
     },
     {
       "id": "turnstile",
