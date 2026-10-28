@@ -35,19 +35,19 @@ export function nightlyRecipe(source, recipe, artifact) {
   };
   if (recipe.kind === 'cask') {
     replace(/^cask "[^"]+" do/m, `cask "${recipe.nightly}" do`);
-    replace(/^  version .+$/m, `  version "${artifact.version},${artifact.revision}"`);
-    source = source.replace(/^  auto_updates true\n/m, '');
-    source = source.replace(/^(  app .+)$/m, `  conflicts_with cask: "${recipe.stable}"\n\n$1`);
+    replace(/^ {2}version .+$/m, `  version "${artifact.version},${artifact.revision}"`);
+    source = source.replace(/^ {2}auto_updates true\n/m, '');
+    source = source.replace(/^( {2}app .+)$/m, `  conflicts_with cask: "${recipe.stable}"\n\n$1`);
   } else {
     const className = recipe.nightly.split('-').map((part) => part[0].toUpperCase() + part.slice(1)).join('');
     replace(/^class \w+ < Formula/m, `class ${className} < Formula`);
-    source = source.replace(/^  (version|revision) .+\n/gm, '');
-    source = source.replace(/^(  sha256 .+)$/m, `$1\n  version "${artifact.version}"\n  revision ${artifact.revision}\n  conflicts_with "${recipe.stable}"`);
+    source = source.replace(/^ {2}(version|revision) .+\n/gm, '');
+    source = source.replace(/^( {2}sha256 .+)$/m, `$1\n  version "${artifact.version}"\n  revision ${artifact.revision}\n  conflicts_with "${recipe.stable}"`);
   }
-  replace(/^  url .+$/m, `  url "${artifact.url}"`);
-  replace(/^  sha256 .+$/m, `  sha256 "${artifact.sha256}"`);
+  replace(/^ {2}url .+$/m, `  url "${artifact.url}"`);
+  replace(/^ {2}sha256 .+$/m, `  sha256 "${artifact.sha256}"`);
   if (recipe.nightlyDependency) {
-    source = source.replace(/^  depends_on formula: .+$/m, `  depends_on formula: "${recipe.nightlyDependency}"`);
+    source = source.replace(/^ {2}depends_on formula: .+$/m, `  depends_on formula: "${recipe.nightlyDependency}"`);
   }
   return source;
 }
