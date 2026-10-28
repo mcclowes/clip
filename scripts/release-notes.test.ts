@@ -60,7 +60,7 @@ test('release notes reject missing versions rather than selecting a similar one'
 test('the actual publication step stops before gh on invalid notes and passes valid notes unchanged', t => {
   const workflow = readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8');
   const step = workflow.split('      - name: Publish GitHub release\n')[1];
-  const block = step?.match(/        run: \|\n((?:          [^\n]*\n)+)/)?.[1];
+  const block = step?.match(/ {8}run: \|\n((?: {10}[^\n]*\n)+)/)?.[1];
   assert.ok(block, 'Expected the GitHub release publication shell step');
   const script = block.replace(/^ {10}/gm, '');
   const cases = [...emptySections, `## [${version}]`, '## [0.3.0]\nPrevious notes\n', `## [${version}]\n\n${notes}\n`];
@@ -142,7 +142,7 @@ for (const opener of ['```invalid`info', '    ```']) {
 test('the actual publication step passes complete fenced notes to gh', t => {
   const workflow = readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8');
   const step = workflow.split('      - name: Publish GitHub release\n')[1];
-  const block = step?.match(/        run: \|\n((?:          [^\n]*\n)+)/)?.[1];
+  const block = step?.match(/ {8}run: \|\n((?: {10}[^\n]*\n)+)/)?.[1];
   assert.ok(block, 'Expected the GitHub release publication shell step');
   const body = fencedBodies[0][1];
   const { dir } = fixture(t, `## [${version}]\n\n${body}\n\n## [0.3.0]\n- Older release.\n`);
