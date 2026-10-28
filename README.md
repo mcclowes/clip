@@ -108,6 +108,7 @@ After updating registered tools or CLIP's bundled registry, run `clip doctor` to
 - Failures exit 1 and write a structured error to stderr.
 - Discovery scans PATH without executing tools. Native probing is explicit, shell-free, and bounded to five seconds and 1 MiB.
 - Registrations merge from global, shared project, and local project configuration. `CLIP_HOME` changes the global directory.
+- An explicitly empty `CLIP_HOME` is rejected when accessing global registrations. Leave it unset for the default directory, or use `.` to select the working directory explicitly.
 - Each release bundles the community registry. Upgrade CLIP, review the `clip refresh` output, then accept catalog updates explicitly. Local schema files and native probes use the same refresh workflow.
 
 ## Development

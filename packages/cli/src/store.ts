@@ -18,7 +18,11 @@ export function activeSchema(tool: Registration): Schema | undefined {
   return tool.schema && applyProfile(tool.schema, tool.profile);
 }
 type ToolDocument = { version: 1; tools: Registration[]; disabled?: string[] };
-export const configDir = () => process.env.CLIP_HOME ?? join(homedir(), '.config', 'clip');
+export function configDir(): string {
+  const directory = process.env.CLIP_HOME;
+  if (directory === '') throw new Error('CLIP_HOME must not be empty.');
+  return directory ?? join(homedir(), '.config', 'clip');
+}
 export function projectRoot(cwd = process.cwd()): string | undefined {
   let directory = resolve(cwd);
   while (true) {

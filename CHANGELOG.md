@@ -6,6 +6,7 @@ All notable changes to the CLIP CLI and its bundled registry. The format follows
 
 ### Fixed
 
+- An explicitly empty `CLIP_HOME` no longer reads or rewrites an unrelated working-directory `tools.json` as global configuration.
 - The interactive UI accepts its existing `--skills-dir` option during command-specific flag validation.
 - The bundled Shelf schema matches v0.4.0: lookups declare automatic state maintenance, cached-only reads expose `--no-refresh`, and relation, guidance, and offline introspection commands are documented.
 

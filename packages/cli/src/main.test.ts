@@ -48,6 +48,133 @@ process.stdout.write(fs.readFileSync(${JSON.stringify(context.schema)}, 'utf8'))
   return { ...context, executable, marker };
 }
 
+function emptyConfigDirectoryFixture(t: TestContext) {
+  const { dir, schema } = fixture(t);
+  mkdirSync(join(dir, '.git'));
+  mkdirSync(join(dir, '.clip'));
+  mkdirSync(join(dir, 'bin'));
+  const document = (name: string) => JSON.stringify({
+    version: 1, tools: [{ name, executable: '/fixture/never-run', purpose: 'Keep fixture registration', source: { kind: 'manual' } }],
+  });
+  for (const [file, name] of [['tools.json', 'cwd-fixture'], ['.clip/tools.json', 'shared-fixture'], ['.clip/tools.local.json', 'local-fixture']]) {
+    writeFileSync(join(dir, file), document(name), { mode: 0o600 });
+  }
+  writeFileSync(join(dir, 'AGENTS.md'), 'Keep manual guidance.\n', { mode: 0o640 });
+  mkdirSync(join(dir, '.claude'));
+  writeFileSync(join(dir, '.claude/settings.local.json'), JSON.stringify({ permissions: { allow: ['Keep fixture permission'] } }), { mode: 0o600 });
+  const commands = join(dir, 'commands.md');
+  writeFileSync(commands, '- Check: `node --version` #safe\n');
+  const snapshot = () => {
+    const files = fixtureSnapshot(dir);
+    return { files, metadata: ['', ...Object.keys(files)].map(name => {
+      const { ino, mtimeMs } = lstatSync(join(dir, name));
+      return { name, ino, mtimeMs };
+    }) };
+  };
+  const run = (args: string[], overrides: NodeJS.ProcessEnv = { CLIP_HOME: '' }) => {
+    const env: NodeJS.ProcessEnv = { ...process.env, HOME: dir, CFFIXED_USER_HOME: dir, PATH: join(dir, 'bin') };
+    delete env.CLIP_HOME;
+    return spawnSync(process.execPath, [main.pathname, ...args], {
+      cwd: dir, encoding: 'utf8', timeout: 10000, env: { ...env, ...overrides },
+    });
+  };
+  return { dir, schema, commands, run, snapshot };
+}
+
+test('an empty CLIP_HOME cannot remove global registrations from the working directory', t => {
+  const { run, snapshot } = emptyConfigDirectoryFixture(t);
+  const before = snapshot();
+  const result = run(['remove', 'cwd-fixture', '--scope', 'global']);
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, '');
+  assert.deepEqual(JSON.parse(result.stderr), { error: { kind: 'invalid_request', message: 'CLIP_HOME must not be empty.' } });
+  assert.deepEqual(snapshot(), before);
+});
+
+for (const args of [
+  ['list'],
+  ['register', process.execPath, '--purpose', 'Fixture scripts', '--scope', 'global'],
+  ['permissions', '--write'],
+  ['sync', '--target', 'agents-md'],
+  ['refresh'],
+  ['doctor'],
+]) {
+  test(`an empty CLIP_HOME rejects ${args.join(' ')} before global configuration access`, t => {
+    const { run, snapshot } = emptyConfigDirectoryFixture(t);
+    const before = snapshot();
+    const result = run(args);
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, '');
+    assert.deepEqual(JSON.parse(result.stderr), { error: { kind: 'invalid_request', message: 'CLIP_HOME must not be empty.' } });
+    assert.deepEqual(snapshot(), before);
+  });
+}
+
+for (const args of [
+  [], ['--help'], ['schema'], ['capabilities'], ['--version'],
+  ['commands', '--file', 'commands.md'],
+  ['commands', 'check', '--file', 'commands.md', '--strict'],
+]) {
+  test(`an empty CLIP_HOME preserves configuration-independent ${args.join(' ') || 'default help'}`, t => {
+    const { run, snapshot } = emptyConfigDirectoryFixture(t);
+    const before = snapshot();
+    const result = run(args);
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, '');
+    assert.ok(JSON.parse(result.stdout));
+    assert.deepEqual(snapshot(), before);
+  });
+}
+
+for (const scope of ['shared', 'local', 'default']) {
+  test(`an empty CLIP_HOME preserves ${scope} project-only removal`, t => {
+    const { dir, run, snapshot } = emptyConfigDirectoryFixture(t);
+    const selected = scope === 'shared' ? 'shared-fixture' : 'local-fixture';
+    const file = scope === 'shared' ? '.clip/tools.json' : '.clip/tools.local.json';
+    const before = snapshot();
+    const result = run(['remove', selected, ...(scope === 'default' ? [] : ['--scope', scope])]);
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).scope, scope === 'default' ? 'local' : scope);
+    const listed = run(['list'], { CLIP_HOME: join(dir, 'unused global directory') });
+    assert.equal(listed.status, 0, listed.stderr);
+    assert.ok(!JSON.parse(listed.stdout).items.some((tool: Registration) => tool.name === selected));
+    const after = snapshot();
+    assert.deepEqual(Object.keys(after.files), Object.keys(before.files));
+    for (const name of Object.keys(before.files).filter(name => name !== file && lstatSync(join(dir, name)).isFile())) {
+      assert.deepEqual(after.files[name], before.files[name]);
+      assert.deepEqual(after.metadata.find(item => item.name === name), before.metadata.find(item => item.name === name));
+    }
+  });
+}
+
+for (const location of ['unset', 'absolute', 'relative', 'space', 'dot']) {
+  test(`CLIP_HOME ${location} preserves the selected global directory`, t => {
+    const { dir, schema, run, snapshot } = emptyConfigDirectoryFixture(t);
+    const value = location === 'absolute' ? join(dir, 'global with spaces')
+      : location === 'relative' ? 'relative global' : location === 'space' ? ' ' : '.';
+    const environment = location === 'unset' ? {} : { CLIP_HOME: value };
+    const state = location === 'unset' ? join(dir, '.config/clip') : location === 'absolute' ? value : join(dir, value);
+    const before = snapshot();
+    const result = run(['register', process.execPath, '--purpose', 'Fixture scripts', '--schema', schema, '--scope', 'global'], environment);
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(existsSync(join(state, 'tools.json')));
+    const listed = run(['list'], environment);
+    assert.equal(listed.status, 0, listed.stderr);
+    const items = JSON.parse(listed.stdout).items as Registration[];
+    assert.equal(items.find(tool => tool.name === 'node')?.scope, 'global');
+    assert.equal(items.some(tool => tool.name === 'cwd-fixture'), location === 'dot');
+    const after = snapshot();
+    for (const name of Object.keys(before.files).filter(name => !(location === 'dot' && name === 'tools.json') && lstatSync(join(dir, name)).isFile())) {
+      assert.deepEqual(after.files[name], before.files[name]);
+      assert.deepEqual(after.metadata.find(item => item.name === name), before.metadata.find(item => item.name === name));
+    }
+  });
+}
+
 test('commands init rejects another command\'s flag before creating files', t => {
   const { dir, run } = fixture(t);
   mkdirSync(join(dir, '.git'));
