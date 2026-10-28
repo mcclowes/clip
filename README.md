@@ -12,6 +12,18 @@ CLIP keeps execution on the command line. It doesn't proxy commands or manage cr
 
 [Documentation and tool directory](https://clip.marginalutility.dev) · [CLI Spec v0.2](https://clispec.dev/spec/v0.2/)
 
+## Related repos and prerequisites
+
+**This repo:** CLI capability registry, protocol tooling, and agent skill generation.
+
+**Account prerequisite:** No Marginal Utility account is required for local use.
+
+| Related repository | Relationship |
+| --- | --- |
+| [homebrew-clip](https://github.com/mcclowes/homebrew-clip) | Homebrew distribution; app/CLI source lives here. |
+
+See the [project reference](https://github.com/mcclowes/marginal-utility/blob/main/ECOSYSTEM.md) for the full repository map. Some source repositories require access; public product homes and Homebrew taps remain the entry points for downloads and support.
+
 ## Install
 
 ```sh
